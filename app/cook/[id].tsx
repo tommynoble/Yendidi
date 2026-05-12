@@ -1,0 +1,229 @@
+import React, { useState } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ArrowLeft, MoreHorizontal, BadgeCheck, MapPin, Star, Plus } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
+
+
+export default function CookProfileScreen() {
+    const { id } = useLocalSearchParams();
+    const router = useRouter();
+    const [activeTab, setActiveTab] = useState('Menu');
+
+    const { data: cook, isLoading: isCookLoading } = useQuery({
+        queryKey: ['cook', id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', id)
+                .single();
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!id,
+    });
+
+    const { data: meals, isLoading: isMealsLoading } = useQuery({
+        queryKey: ['cook-meals', id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('listings')
+                .select('*, profiles(full_name, avatar_url)') // Select all listing fields and join with profiles for cook info
+                .eq('cook_id', id); // Fetch all meals, not just available ones, so we can show "Cooking" state
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!id,
+    });
+
+    const isLoading = isCookLoading || isMealsLoading;
+
+    if (isLoading) {
+        return (
+            <View className="flex-1 items-center justify-center bg-warm-cream">
+                <ActivityIndicator size="large" color="#D65A31" />
+            </View>
+        );
+    }
+
+    if (!cook) {
+        return (
+            <View className="flex-1 items-center justify-center bg-warm-cream px-6">
+                <Text className="text-lg text-text-sub font-sans text-center">Cook not found.</Text>
+                <TouchableOpacity onPress={() => router.back()} className="mt-4">
+                    <Text className="text-clay-primary font-bold font-sans-bold">Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    return (
+        <View className="flex-1 bg-warm-cream">
+            {/* Header Nav (Absolute) */}
+            <View className="absolute top-0 left-0 right-0 z-20 flex-row justify-between items-center p-6 pt-12">
+                <TouchableOpacity
+                    className="w-10 h-10 bg-black/20 backdrop-blur-md rounded-full items-center justify-center active:bg-black/40"
+                    onPress={() => router.back()}
+                >
+                    <ArrowLeft size={20} color="white" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                    className="w-10 h-10 bg-black/20 backdrop-blur-md rounded-full items-center justify-center active:bg-black/40"
+                >
+                    <MoreHorizontal size={20} color="white" />
+                </TouchableOpacity>
+            </View>
+
+            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                {/* Cover Photo */}
+                <View className="h-[240px] w-full relative">
+                    <Image
+                        source={{ uri: 'https://media.screensdesign.com/gasset/175f3a6c-2804-4b82-9c4b-fd2a6a232277.png' }} // Placeholder cover for now, schema doesn't have it yet? Or usage maybe custom.
+                        className="w-full h-full object-cover"
+                    />
+                    <View className="absolute inset-0 bg-black/20" />
+                </View>
+
+                {/* Profile Info Container */}
+                <View className="bg-warm-cream -mt-6 rounded-t-[32px] relative z-10 px-6 pt-16 pb-6">
+                    {/* Avatar Overlap */}
+                    <View className="absolute -top-12 left-6 p-1 bg-warm-cream rounded-full">
+                        <Image
+                            source={{ uri: cook.avatar_url || 'https://media.screensdesign.com/gasset/7b8349e8-337a-47c1-9718-f6066ab6fd1f.png' }}
+                            className="w-24 h-24 rounded-full border-4 border-white shadow-md bg-gray-100"
+                        />
+                    </View>
+
+                    {/* Verified Badge */}
+                    <View className="absolute top-4 right-6 items-end">
+                        {cook.verified && (
+                            <View className="flex-row items-center gap-1.5 px-3 py-1.5 bg-green-100 rounded-full border border-green-200 mb-1">
+                                <BadgeCheck size={12} color="#007A33" />
+                                <Text className="text-xs font-bold text-kente-green font-sans-bold">Verified Cook</Text>
+                            </View>
+                        )}
+                        <Text className="text-xs text-text-sub font-sans">Joined {new Date(cook.updated_at).toLocaleDateString()}</Text>
+                    </View>
+
+                    {/* Name Block */}
+                    <View className="mb-6">
+                        <Text className="text-2xl font-bold text-text-main mb-1 font-sans-bold">{cook.full_name || 'Cook'}</Text>
+                        <View className="flex-row items-center gap-1">
+                            <MapPin size={12} color="#6D6D6D" />
+                            <Text className="text-text-sub text-sm font-sans">Accra, GH</Text>
+                        </View>
+                    </View>
+
+                    {/* Stats Row */}
+                    <View className="flex-row justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
+                        <View className="flex-1 items-center border-r border-gray-100">
+                            <Text className="text-lg font-bold text-text-main font-sans-bold">{cook.rating || 'New'}</Text>
+                            <Text className="text-[10px] text-text-sub uppercase tracking-wide font-sans">Rating</Text>
+                        </View>
+                        <View className="flex-1 items-center border-r border-gray-100">
+                            <Text className="text-lg font-bold text-text-main font-sans-bold">{cook.served_count}+</Text>
+                            <Text className="text-[10px] text-text-sub uppercase tracking-wide font-sans">Served</Text>
+                        </View>
+                        <View className="flex-1 items-center">
+                            <Text className="text-lg font-bold text-text-main font-sans-bold">98%</Text>
+                            <Text className="text-[10px] text-text-sub uppercase tracking-wide font-sans">Reliable</Text>
+                        </View>
+                    </View>
+
+                    {/* Bio */}
+                    <View className="mb-8">
+                        <Text className="text-sm font-bold text-text-main mb-2 font-sans-bold">About Me</Text>
+                        <Text className="text-sm text-text-sub leading-relaxed font-sans">
+                            {cook.bio || "No bio available."}
+                        </Text>
+                    </View>
+
+                    {/* Tabs */}
+                    <View className="flex-row border-b border-gray-200 mb-6 mt-4">
+                        {['Menu', 'Reviews', 'Photos'].map(tab => (
+                            <TouchableOpacity
+                                key={tab}
+                                className={`flex-1 pb-3 ${activeTab === tab ? 'border-b-2 border-clay-primary' : ''}`}
+                                onPress={() => setActiveTab(tab)}
+                            >
+                                <Text className={`text-center text-sm ${activeTab === tab ? 'font-bold text-clay-primary' : 'font-medium text-text-sub'} font-sans`}>
+                                    {tab}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {/* Explore Menu Header */}
+                    <Text className="text-2xl font-bold font-sans-bold text-text-main mb-4">Explore Menu</Text>
+
+                    {/* Content Area Based on Active Tab */}
+                    {activeTab === 'Menu' && (
+                        <View className="flex-row flex-wrap justify-between">
+                            {meals && meals.length > 0 ? (
+                                meals.map((meal: any) => {
+                                    const isReady = meal.status === 'available';
+                                    const readyTime = meal.prep_time_minutes ? `${meal.prep_time_minutes}m` : 'Later';
+
+                                    return (
+                                        <View key={meal.id} className="w-[48%] mb-6">
+                                            <TouchableOpacity
+                                                activeOpacity={0.9}
+                                                onPress={() => router.push(`/meal/${meal.id}`)}
+                                                className={`rounded-2xl overflow-hidden mb-2 relative aspect-[4/3] bg-gray-100 shadow-sm ${!isReady ? 'opacity-80' : ''}`}
+                                            >
+                                                <Image
+                                                    source={{ uri: meal.image || 'https://via.placeholder.com/300' }}
+                                                    className="w-full h-full object-cover"
+                                                />
+
+                                                {!isReady && (
+                                                    <View className="absolute inset-0 bg-black/40 items-center justify-center shadow-sm">
+                                                        <Text className="text-white text-sm font-bold font-sans-bold px-2 text-center drop-shadow-md">Cooking</Text>
+                                                    </View>
+                                                )}
+                                            </TouchableOpacity>
+
+                                            <View className="px-1 mt-1">
+                                                <Text className="font-bold text-text-main font-sans-bold text-base leading-tight mb-1" numberOfLines={2}>{meal.title}</Text>
+                                                <Text className="text-base font-medium text-text-sub font-sans">₵{meal.price}</Text>
+
+                                                {!isReady && (
+                                                    <Text className="text-clay-primary text-[11px] font-bold font-sans-bold mt-1">
+                                                        🕒 Ready {readyTime}
+                                                    </Text>
+                                                )}
+                                            </View>
+                                        </View>
+                                    );
+                                })
+                            ) : (
+                                <View className="w-full items-center justify-center py-10 mt-4 bg-gray-50 rounded-3xl border border-gray-100">
+                                    <Text className="text-text-main font-bold mb-2 font-sans-bold text-lg">No meals available</Text>
+                                    <Text className="text-text-sub text-base font-sans text-center px-6">
+                                        This cook hasn't added any meals to their menu yet.
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
+                    {activeTab === 'Reviews' && (
+                        <View className="py-6 items-center justify-center bg-gray-50 rounded-3xl border border-gray-100">
+                            <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">Reviews</Text>
+                            <Text className="text-text-sub text-center font-sans">User reviews will appear here.</Text>
+                        </View>
+                    )}
+
+                    {activeTab === 'Photos' && (
+                        <View className="py-6 items-center justify-center bg-gray-50 rounded-3xl border border-gray-100">
+                            <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">Photos</Text>
+                            <Text className="text-text-sub text-center font-sans">Gallery coming soon.</Text>
+                        </View>
+                    )}
+                </View>
+            </ScrollView>
+        </View>
+    );
+}
