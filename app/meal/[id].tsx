@@ -68,19 +68,17 @@ export default function MealDetailScreen() {
                 .select(`
                     *,
                     profiles:cook_id (full_name, avatar_url, rating),
-                    listings:listing_id (title, price, image),
-                    main_dishes:main_dish_id (name)
+                    listings:listing_id (title, price, image)
                 `)
-                .eq('main_dish_id', id)
                 .eq('status', 'open')
                 .gte('session_date', new Date().toISOString().split('T')[0])
                 .order('session_date', { ascending: true });
 
             if (error) {
-                console.error('Error fetching sessions for dish:', error);
+                console.error('Error fetching sessions:', error);
                 return [];
             }
-            return data;
+            return data || [];
         },
         enabled: !!id
     });
