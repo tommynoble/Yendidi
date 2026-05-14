@@ -69,7 +69,11 @@ export default function HomeScreen() {
   const [dismissedOrderId, setDismissedOrderId] = useState<string | null>(null);
 
   // -- Data Fetching --
-  const { data: userData, refetch: refetchUser } = useQuery({ queryKey: ['user'], queryFn: () => supabase.auth.getUser().then(r => r.data) });
+  const { data: userData, refetch: refetchUser } = useQuery({
+    queryKey: ['user'],
+    queryFn: () => supabase.auth.getUser().then(r => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
   const user = userData?.user;
 
 
@@ -86,6 +90,8 @@ export default function HomeScreen() {
       return data;
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const displayName = profileData?.full_name?.split(' ')[0] || storeName?.split(' ')[0] || 'Foodie';
@@ -133,7 +139,9 @@ export default function HomeScreen() {
         return [];
       }
       return data;
-    }
+    },
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const { data: cookSessions, isLoading: isLoadingCookSessions, refetch: refetchCookSessions } = useQuery({
@@ -177,10 +185,11 @@ export default function HomeScreen() {
         console.error('Featured meals query error:', error);
         throw error;
       }
-      console.log('Featured meals fetched:', data?.length);
       return data;
     },
-    enabled: !isCookMode
+    enabled: !isCookMode,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   // Fetch all available listings with cook profiles for thumbnails
@@ -193,7 +202,9 @@ export default function HomeScreen() {
         .eq('available', true);
       return data || [];
     },
-    enabled: !isCookMode
+    enabled: !isCookMode,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   // Helper to get cook avatars for a given main dish name
