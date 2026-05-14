@@ -73,6 +73,30 @@ export default function CookScreen() {
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationFetching, setLocationFetching] = useState(false);
 
+  // -- EATER SAVED/FAVORITES STATE (must be here — Rules of Hooks) --
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedListings, setSavedListings] = useState<any[]>([]);
+  const [savedLoading, setSavedLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      setSavedLoading(true);
+      try {
+        const raw = await AsyncStorage.getItem('yendidii_favorites');
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        setSavedIds(ids);
+        if (ids.length === 0) { setSavedListings([]); setSavedLoading(false); return; }
+        const { data } = await supabase
+          .from('listings')
+          .select('id, title, price, image, profiles(full_name)')
+          .in('id', ids);
+        setSavedListings(data || []);
+      } catch (_) {}
+      setSavedLoading(false);
+    };
+    loadFavorites();
+  }, []);
+
   const useCurrentLocation = async () => {
     setLocationFetching(true);
     try {
@@ -574,28 +598,6 @@ export default function CookScreen() {
   // ----------------------
   // RENDER: EATER MODE (Saved & Favorites)
   // ----------------------
-  const [savedIds, setSavedIds] = useState<string[]>([]);
-  const [savedListings, setSavedListings] = useState<any[]>([]);
-  const [savedLoading, setSavedLoading] = useState(true);
-
-  useEffect(() => {
-    const loadFavorites = async () => {
-      setSavedLoading(true);
-      try {
-        const raw = await AsyncStorage.getItem('yendidii_favorites');
-        const ids: string[] = raw ? JSON.parse(raw) : [];
-        setSavedIds(ids);
-        if (ids.length === 0) { setSavedListings([]); setSavedLoading(false); return; }
-        const { data } = await supabase
-          .from('listings')
-          .select('id, title, price, image, profiles(full_name)')
-          .in('id', ids);
-        setSavedListings(data || []);
-      } catch (_) {}
-      setSavedLoading(false);
-    };
-    loadFavorites();
-  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
