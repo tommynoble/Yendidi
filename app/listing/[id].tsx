@@ -178,14 +178,14 @@ export default function ListingDetailScreen() {
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-                {/* Hero Image */}
-                <View style={{ height: 360, marginTop: insets.top, overflow: 'hidden' }}>
+                {/* Hero Image — starts below status bar, rounded top corners */}
+                <View style={{ height: 360, marginTop: insets.top, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
                     <Image source={dishImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.65)']}
                         style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 180 }}
                     />
-                    <View className="absolute bottom-5 left-6 right-6">
+                    <View className="absolute bottom-8 left-6 right-6">
                         <Text className="text-white text-2xl font-bold font-sans-bold mb-2" numberOfLines={2}>
                             {listing.title}
                         </Text>
@@ -216,7 +216,7 @@ export default function ListingDetailScreen() {
                 </View>
 
                 {/* Price Card */}
-                <View className="px-6 -mt-6 relative z-10">
+                <View className="px-6 -mt-10 relative z-10">
                     <View
                         className="bg-white rounded-3xl p-6 overflow-hidden mb-4"
                         style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 8 }}
