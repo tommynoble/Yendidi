@@ -5,6 +5,7 @@ import { Phone, ArrowRight, ChevronLeft, Shield, Users, MapPin, Search, X, Utens
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const COUNTRIES = [
     { code: '+233', flag: '🇬🇭', name: 'Ghana' },
@@ -56,6 +57,13 @@ export default function AuthScreen() {
     const [userName, setUserName] = useState('');
     const splashOpacity = useRef(new Animated.Value(0)).current;
     const splashScale = useRef(new Animated.Value(0.8)).current;
+
+    // Restore last used phone number on mount
+    useEffect(() => {
+        AsyncStorage.getItem('lastPhoneNumber').then(saved => {
+            if (saved) setPhoneNumber(saved);
+        });
+    }, []);
 
     const filteredCountries = COUNTRIES.filter(c =>
         c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
@@ -146,6 +154,8 @@ export default function AuthScreen() {
 
             console.log('OTP Response:', { error });
             if (error) throw error;
+            // Persist phone number for next time
+            AsyncStorage.setItem('lastPhoneNumber', phoneNumber);
             setLastSentPhone(fullPhone);
             setMode('otp');
             startCooldown();
@@ -210,7 +220,10 @@ export default function AuthScreen() {
             }
         } catch (error: any) {
             console.error('Verify Exception:', error);
-            Alert.alert('Error', error.message || 'Invalid code');
+            // Clear OTP so user can retype cleanly
+            setOtp(['', '', '', '', '', '']);
+            setTimeout(() => otpRefs.current[0]?.focus(), 100);
+            Alert.alert('Incorrect Code', 'That code didn\'t work. Please try again or tap Resend.');
         } finally {
             setLoading(false);
         }

@@ -97,25 +97,50 @@ export default function ExploreListScreen() {
 
 
     const toggleProductAvailability = async (id: string, currentStatus: boolean) => {
+        // Optimistic UI update — patch cache directly to avoid image flicker
+        queryClient.setQueryData(['my-menu', userSession?.id], (old: any[]) =>
+            (old || []).map(item => item.id === id ? { ...item, available: !currentStatus } : item)
+        );
         try {
             const { error } = await supabase.from('listings').update({ available: !currentStatus }).eq('id', id);
-            if (error) throw error;
-            queryClient.invalidateQueries({ queryKey: ['my-menu', userSession?.id] });
+            if (error) {
+                // Roll back on failure
+                queryClient.setQueryData(['my-menu', userSession?.id], (old: any[]) =>
+                    (old || []).map(item => item.id === id ? { ...item, available: currentStatus } : item)
+                );
+                Alert.alert('Error', error.message);
+            }
         } catch (err: any) {
+            queryClient.setQueryData(['my-menu', userSession?.id], (old: any[]) =>
+                (old || []).map(item => item.id === id ? { ...item, available: currentStatus } : item)
+            );
             Alert.alert('Error', err.message);
         }
     };
 
     const deleteProduct = async (id: string) => {
-        Alert.alert('Delete Dish', 'Are you sure you want to remove this dish?', [
+        Alert.alert('Remove Dish', 'This will hide the dish from your menu. It won't affect any existing orders.', [
             { text: 'Cancel', style: 'cancel' },
             {
-                text: 'Delete', style: 'destructive', onPress: async () => {
+                text: 'Remove', style: 'destructive', onPress: async () => {
+                    // Optimistic remove from list immediately
+                    queryClient.setQueryData(['my-menu', userSession?.id], (old: any[]) =>
+                        (old || []).filter(item => item.id !== id)
+                    );
                     try {
-                        const { error } = await supabase.from('listings').delete().eq('id', id);
-                        if (error) throw error;
-                        queryClient.invalidateQueries({ queryKey: ['my-menu', userSession?.id] });
+                        // Soft delete — mark as unavailable and archived rather than hard delete
+                        // This prevents FK constraint errors if the item is linked to orders
+                        const { error } = await supabase
+                            .from('listings')
+                            .update({ available: false, archived: true })
+                            .eq('id', id);
+                        if (error) {
+                            // If archived column doesn't exist, fall back to just setting unavailable
+                            await supabase.from('listings').update({ available: false }).eq('id', id);
+                        }
                     } catch (err: any) {
+                        // Restore on failure
+                        queryClient.invalidateQueries({ queryKey: ['my-menu', userSession?.id] });
                         Alert.alert('Error', err.message);
                     }
                 }
