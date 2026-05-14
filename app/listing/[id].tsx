@@ -178,8 +178,8 @@ export default function ListingDetailScreen() {
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-                {/* Hero Image — starts below status bar, rounded top corners */}
-                <View style={{ height: 360, marginTop: insets.top, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
+                {/* Hero Image */}
+                <View style={{ height: 360, marginTop: insets.top, overflow: 'hidden' }}>
                     <Image source={dishImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.65)']}
