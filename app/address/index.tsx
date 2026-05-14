@@ -55,10 +55,11 @@ export default function AddressScreen() {
     return (
         <SafeAreaView className="flex-1 bg-warm-cream" edges={['top']}>
             {/* Header */}
-            <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100 flex-row items-center gap-3">
+            <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100 flex-row items-center gap-3" style={{ zIndex: 100 }}>
                 <TouchableOpacity
                     onPress={() => router.back()}
                     className="w-10 h-10 bg-gray-50 rounded-full items-center justify-center"
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                 >
                     <ChevronLeft size={24} color="#2D241E" />
                 </TouchableOpacity>

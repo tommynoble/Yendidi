@@ -431,8 +431,29 @@ export default function ExploreMapScreen() {
                     </View>
                 </View>
             ) : !isLoading ? (
-                /* Small Global Count Pill */
-                <View
+                /* Tappable Cook Count Pill — tapping flies to nearest cook */
+                <TouchableOpacity
+                    onPress={() => {
+                        if (filteredCooks.length === 0) return;
+                        // Find the nearest cook to user, or just use first
+                        let target = filteredCooks[0];
+                        if (userLocation) {
+                            let minDist = Infinity;
+                            filteredCooks.forEach(cook => {
+                                const dLat = cook.latitude - userLocation.latitude;
+                                const dLon = cook.longitude - userLocation.longitude;
+                                const d = Math.sqrt(dLat * dLat + dLon * dLon);
+                                if (d < minDist) { minDist = d; target = cook; }
+                            });
+                        }
+                        setSelectedCook(target);
+                        mapRef.current?.animateToRegion({
+                            latitude: target.latitude,
+                            longitude: target.longitude,
+                            latitudeDelta: 0.02,
+                            longitudeDelta: 0.02,
+                        }, 600);
+                    }}
                     style={{
                         position: 'absolute', bottom: 110, alignSelf: 'center',
                         backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
@@ -441,6 +462,7 @@ export default function ExploreMapScreen() {
                         shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
                         zIndex: 60,
                     }}
+                    activeOpacity={0.8}
                 >
                     {filteredCooks.length > 0 ? (
                         <>
@@ -448,6 +470,7 @@ export default function ExploreMapScreen() {
                             <Text className="font-bold text-base text-text-main font-sans-bold">
                                 {filteredCooks.length} Cook{filteredCooks.length !== 1 ? 's' : ''} Near You
                             </Text>
+                            <ChevronRight size={16} color="#D65A31" />
                         </>
                     ) : (
                         <>
@@ -457,7 +480,7 @@ export default function ExploreMapScreen() {
                             </Text>
                         </>
                     )}
-                </View>
+                </TouchableOpacity>
             ) : null}
 
             {/* Recenter Button */}

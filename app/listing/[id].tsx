@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Haversine formula → distance in km
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -30,6 +31,30 @@ export default function ListingDetailScreen() {
     const [quantity, setQuantity] = useState(1);
     const [saved, setSaved] = useState(false);
     const [eaterLocation, setEaterLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const FAVORITES_KEY = 'yendidii_favorites';
+
+    // Load saved state from AsyncStorage
+    useEffect(() => {
+        AsyncStorage.getItem(FAVORITES_KEY).then(raw => {
+            if (raw) {
+                const ids: string[] = JSON.parse(raw);
+                setSaved(ids.includes(id as string));
+            }
+        });
+    }, [id]);
+
+    const toggleSaved = async () => {
+        try {
+            const raw = await AsyncStorage.getItem(FAVORITES_KEY);
+            const ids: string[] = raw ? JSON.parse(raw) : [];
+            const isCurrentlySaved = ids.includes(id as string);
+            const updated = isCurrentlySaved
+                ? ids.filter(i => i !== id)
+                : [...ids, id as string];
+            await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+            setSaved(!isCurrentlySaved);
+        } catch (_) {}
+    };
 
     // Silently try to get eater's location for distance display
     useEffect(() => {
@@ -145,7 +170,8 @@ export default function ListingDetailScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                     className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm"
-                    onPress={() => setSaved(!saved)}
+                    onPress={toggleSaved}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <Heart size={20} color={saved ? '#EF4444' : '#2D241E'} fill={saved ? '#EF4444' : 'none'} />
                 </TouchableOpacity>

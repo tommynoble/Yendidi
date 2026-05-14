@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Store, Truck, Calendar, Info, Star, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation } from 'lucide-react-native';
@@ -9,12 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { decode } from 'base64-arraybuffer';
-
-// -- MOCK DATA FOR EATER MODE --
-const SAVED_MEALS = [
-  { id: '1', name: 'Jollof Rice with Chicken', chef: 'Aunty Ama', price: 45, image: 'https://media.screensdesign.com/gasset/7b8349e8-337a-47c1-9718-f6066ab6fd1f.png' },
-  { id: '2', name: 'Goat Light Soup', chef: 'Chef Kofi', price: 60, image: 'https://media.screensdesign.com/gasset/f2fd2703-bd51-4ab9-a34f-b3cc423935a7.png' },
-];
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PAST_ORDERS = [
   { id: '101', name: 'Waakye with Wele', date: 'Yesterday', price: 35 },
@@ -579,6 +574,29 @@ export default function CookScreen() {
   // ----------------------
   // RENDER: EATER MODE (Saved & Favorites)
   // ----------------------
+  const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [savedListings, setSavedListings] = useState<any[]>([]);
+  const [savedLoading, setSavedLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFavorites = async () => {
+      setSavedLoading(true);
+      try {
+        const raw = await AsyncStorage.getItem('yendidii_favorites');
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        setSavedIds(ids);
+        if (ids.length === 0) { setSavedListings([]); setSavedLoading(false); return; }
+        const { data } = await supabase
+          .from('listings')
+          .select('id, title, price, image, profiles(full_name)')
+          .in('id', ids);
+        setSavedListings(data || []);
+      } catch (_) {}
+      setSavedLoading(false);
+    };
+    loadFavorites();
+  }, []);
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <View className="flex-1 bg-warm-cream">
@@ -591,48 +609,42 @@ export default function CookScreen() {
 
         {/* Section 1: Favorites */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-lg font-bold text-text-main font-sans-bold">Favorite Meals</Text>
+          <Text className="text-lg font-bold text-text-main font-sans-bold">Liked Meals</Text>
+          <Text className="text-sm text-text-sub font-sans">{savedIds.length} saved</Text>
         </View>
 
-        {SAVED_MEALS.map((meal) => (
-          <TouchableOpacity
-            key={meal.id}
-            className="bg-white p-3 rounded-2xl mb-4 flex-row gap-4 shadow-sm"
-            onPress={() => router.push('/(tabs)')}
-          >
-            <Image source={{ uri: meal.image }} className="w-20 h-20 rounded-xl bg-gray-200" />
-            <View className="flex-1 justify-center">
-              <Text className="font-bold text-text-main text-lg mb-0.5">{meal.name}</Text>
-              <Text className="text-text-sub text-xs mb-2">by {meal.chef}</Text>
-              <Text className="text-clay-primary font-bold">₵{meal.price}</Text>
-            </View>
-            <View className="justify-center pr-2">
-              <Heart size={24} color="#D65A31" fill="#D65A31" />
-            </View>
-          </TouchableOpacity>
-        ))}
-
-        {/* Section 2: Buy it again */}
-        <View className="mt-4">
-          <Text className="text-lg font-bold text-text-main mb-4 font-sans-bold">Buy it again</Text>
-          {PAST_ORDERS.map((order) => (
+        {savedLoading ? (
+          <ActivityIndicator size="small" color="#D65A31" style={{ marginVertical: 20 }} />
+        ) : savedListings.length === 0 ? (
+          <View className="bg-white rounded-2xl p-8 items-center mb-6 shadow-sm">
+            <Heart size={40} color="#E5E7EB" />
+            <Text className="text-text-sub font-sans text-center mt-3">No saved meals yet{'\n'}Tap ♥ on any dish to save it here</Text>
+          </View>
+        ) : (
+          savedListings.map((meal: any) => (
             <TouchableOpacity
-              key={order.id}
-              className="bg-white px-4 py-4 rounded-2xl mb-3 flex-row items-center justify-between border border-gray-100"
+              key={meal.id}
+              className="bg-white p-3 rounded-2xl mb-4 flex-row gap-4 shadow-sm"
+              onPress={() => router.push(`/listing/${meal.id}`)}
             >
-              <View className="flex-row items-center gap-4">
-                <View className="w-10 h-10 bg-orange-50 rounded-full items-center justify-center">
-                  <ShoppingBag size={18} color="#D65A31" />
+              {meal.image ? (
+                <Image source={{ uri: meal.image }} className="w-20 h-20 rounded-xl bg-gray-200" />
+              ) : (
+                <View className="w-20 h-20 rounded-xl bg-orange-50 items-center justify-center">
+                  <UtensilsCrossed size={28} color="#D65A31" />
                 </View>
-                <View>
-                  <Text className="font-semibold text-text-main">{order.name}</Text>
-                  <Text className="text-xs text-text-sub">{order.date} • ₵{order.price}</Text>
-                </View>
+              )}
+              <View className="flex-1 justify-center">
+                <Text className="font-bold text-text-main text-lg mb-0.5" numberOfLines={1}>{meal.title}</Text>
+                <Text className="text-text-sub text-xs mb-2">by {meal.profiles?.full_name || 'Chef'}</Text>
+                <Text className="text-clay-primary font-bold">₵{meal.price}</Text>
               </View>
-              <ArrowRight size={18} color="#9CA3AF" />
+              <View className="justify-center pr-2">
+                <Heart size={24} color="#D65A31" fill="#D65A31" />
+              </View>
             </TouchableOpacity>
-          ))}
-        </View>
+          ))
+        )}
 
         {/* No more Saved Tip */}
         <View className="mt-8 mb-20 items-center">
@@ -644,3 +656,4 @@ export default function CookScreen() {
     </SafeAreaView>
   );
 }
+
