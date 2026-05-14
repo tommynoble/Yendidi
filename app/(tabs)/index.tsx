@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, MapPin, Clock, Star, Sparkles, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, ShoppingCart, Loader2, Plus, Flame, ChefHat } from 'lucide-react-native';
+import { Search, MapPin, Clock, Star, Sparkles, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, ShoppingCart, Loader2, Plus, Flame, ChefHat, Heart } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -712,28 +712,62 @@ export default function HomeScreen() {
             <View className="flex-row items-center gap-3">
               {/* Cart Icon */}
               <TouchableOpacity onPress={() => router.push('/cart')} className="relative">
-                <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
-                  <ShoppingCart size={20} color="#6D6D6D" />
+                <View className="w-9 h-9 bg-[#FFF9F5] border border-[#FFEDD5] shadow-sm rounded-full items-center justify-center" style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
+                  <ShoppingCart size={18} color="#D65A31" />
                 </View>
                 {cartCount > 0 && (
-                  <View className="absolute -top-1 -right-1 w-5 h-5 bg-clay-primary rounded-full border-2 border-white items-center justify-center">
-                    <Text className="text-[10px] text-white font-bold">{cartCount}</Text>
+                  <View className="absolute -top-1 -right-1 w-4 h-4 bg-clay-primary rounded-full border-2 border-white items-center justify-center">
+                    <Text className="text-[9px] text-white font-bold">{cartCount}</Text>
                   </View>
                 )}
               </TouchableOpacity>
               {/* Notification Bell */}
               <TouchableOpacity onPress={() => router.push('/notifications')} className="relative">
-                <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center">
-                  <Bell size={20} color="#6D6D6D" />
+                <View className="w-9 h-9 bg-[#FFF9F5] border border-[#FFEDD5] shadow-sm rounded-full items-center justify-center" style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
+                  <Bell size={18} color="#D65A31" />
                 </View>
                 {/* Badge only shown if there are accepted/cooking/ready orders */}
                 {activeOrder && activeOrder.status !== 'New' && (
-                  <View className="absolute -top-1 -right-1 w-5 h-5 bg-kente-red rounded-full border-2 border-white items-center justify-center">
-                    <Text className="text-[10px] text-white font-bold">1</Text>
+                  <View className="absolute -top-1 -right-1 w-4 h-4 bg-kente-red rounded-full border-2 border-white items-center justify-center">
+                    <Text className="text-[9px] text-white font-bold">1</Text>
                   </View>
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+
+          {/* Minimal Search & Location Row */}
+          <View className="flex-row items-center gap-3 mt-1 pb-1">
+            {/* Search Box */}
+            <View className="flex-1 bg-white rounded-full px-5 py-3.5 flex-row items-center gap-3 border border-gray-100 shadow-sm" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+              <Search size={20} color="#9CA3AF" />
+              <TextInput
+                placeholder="Craving Jollof, Waakye..."
+                placeholderTextColor="#9CA3AF"
+                value={searchQuery}
+                onChangeText={(t) => {
+                  setSearchQuery(t);
+                  if (t.length > 2) handleSearch();
+                  if (t.length === 0) clearSearch();
+                }}
+                onSubmitEditing={handleSearch}
+                className="flex-1 text-text-main font-sans text-base h-6"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={clearSearch} className="bg-gray-100 rounded-full p-1">
+                  <X size={14} color="#6B7280" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Location Button */}
+            <TouchableOpacity
+              className="bg-white rounded-full w-12 h-12 border border-gray-100 items-center justify-center shadow-sm"
+              style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+              onPress={() => router.push('/address')}
+            >
+              <MapPin size={22} color="#D65A31" />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -802,39 +836,6 @@ export default function HomeScreen() {
               })}
             </ScrollView>
 
-            {/* Minimal Search & Location Row */}
-            <View className="flex-row items-center gap-3 mb-8">
-              {/* Search Box */}
-              <View className="flex-1 bg-white rounded-full px-5 py-3.5 flex-row items-center gap-3 shadow-sm border border-gray-100">
-                <Search size={20} color="#9CA3AF" />
-                <TextInput
-                  placeholder="Craving Jollof, Waakye..."
-                  placeholderTextColor="#9CA3AF"
-                  value={searchQuery}
-                  onChangeText={(t) => {
-                    setSearchQuery(t);
-                    if (t.length > 2) handleSearch();
-                    if (t.length === 0) clearSearch();
-                  }}
-                  onSubmitEditing={handleSearch}
-                  className="flex-1 text-text-main font-sans text-base h-6"
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={clearSearch} className="bg-gray-100 rounded-full p-1">
-                    <X size={14} color="#6B7280" />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Location Button */}
-              <TouchableOpacity
-                className="bg-white rounded-full w-12 h-12 shadow-sm border border-gray-100 items-center justify-center"
-                onPress={() => router.push('/address')}
-              >
-                <MapPin size={22} color="#D65A31" />
-              </TouchableOpacity>
-            </View>
-
             {/* DYNAMIC CONTENT AREA */}
             {isSearching && searchQuery ? (
               /* Search Results View */
@@ -894,142 +895,237 @@ export default function HomeScreen() {
               <View>
 
 
-                <View className="flex-row items-center gap-2 mb-4">
-                  <Sparkles size={18} color="#FFCD00" />
-                  <Text className="text-lg font-bold text-text-main font-sans-bold">Cooking Now</Text>
+                <View className="flex-row items-center gap-2.5 mb-5 mt-2">
+                  <Flame size={22} color="#D65A31" fill="#D65A31" />
+                  <Text className="text-xl font-bold text-text-main font-sans-bold tracking-tight">Cooking Now</Text>
                 </View>
 
                 {isLoadingMeals ? (
                   <ActivityIndicator color="#D65A31" className="mt-8" />
                 ) : (
                   <View>
-                    {(featuredMeals || []).map((item: any) => (
+                    {(featuredMeals || []).slice(0, 3).map((item: any) => (
                       <TouchableOpacity
                         key={item.id}
-                        className="bg-white rounded-3xl mb-5 overflow-hidden border border-gray-100/30"
+                        className="mb-8"
                         activeOpacity={0.9}
-                        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 6 }}
                         onPress={() => router.push(`/listing/${item.id}`)}
                       >
-                        {/* Thumbnail */}
-                        <View className="w-full relative bg-gray-100" style={{ height: 180 }}>
-                          <Image
-                            source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' }}
-                            style={{ width: '100%', height: '100%' }}
-                            resizeMode="cover"
-                          />
-                          <LinearGradient
-                            colors={['transparent', 'rgba(0,0,0,0.5)']}
-                            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80 }}
-                          />
-                          {/* Price badge */}
-                          <View className="absolute bottom-3 left-4 bg-clay-primary px-3 py-1 rounded-full">
-                            <Text className="text-white font-bold text-sm font-sans-bold">₵{item.price}</Text>
-                          </View>
-                          {/* Portions badge */}
-                          {item.portions_available > 0 ? (
-                            <View className="absolute top-3 right-3 bg-orange-500/90 px-2 py-0.5 rounded-full flex-row items-center gap-1">
-                              <Flame size={10} color="white" fill="white" />
-                              <Text className="text-white text-[10px] font-bold">{item.portions_available} left</Text>
+                        {/* Thumbnail Wrapper with Shadow */}
+                        <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 6 }}>
+                          {/* Inner Clipped Image Container */}
+                          <View 
+                            className="w-full relative bg-gray-100 rounded-[40px] overflow-hidden border border-gray-200/50" 
+                            style={{ height: 220 }}
+                          >
+                            <Image
+                              source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' }}
+                              style={{ width: '100%', height: '100%' }}
+                              resizeMode="cover"
+                            />
+                            <LinearGradient
+                              colors={['transparent', 'rgba(0,0,0,0.6)']}
+                              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }}
+                            />
+                            {/* Price badge */}
+                            <View 
+                              className="absolute bottom-4 left-5 bg-clay-primary px-4 py-1.5 rounded-full"
+                              style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 }}
+                            >
+                              <Text className="text-white font-bold text-lg font-sans-bold tracking-tight">₵{item.price}</Text>
                             </View>
-                          ) : null}
+                            {/* Portions badge */}
+                            {item.portions_available > 0 ? (
+                              <View className="absolute top-4 right-4 bg-[#FF4500]/90 px-2.5 py-1 rounded-full flex-row items-center gap-1.5 shadow-sm">
+                                <Flame size={12} color="white" fill="white" />
+                                <Text className="text-white text-[11px] font-bold tracking-wide">{item.portions_available} left</Text>
+                              </View>
+                            ) : null}
+                          </View>
                         </View>
 
                         {/* Card Content */}
-                        <View className="p-4">
-                          <Text className="font-bold text-text-main text-base font-sans-bold mb-1" numberOfLines={1}>
+                        <View className="px-2 pt-4 pb-2">
+                          <Text className="font-bold text-text-main text-lg font-sans-bold mb-2 leading-tight" numberOfLines={1}>
                             {item.title || item.name}
                           </Text>
 
-                          <View className="flex-row items-center justify-between">
+                          <View className="flex-row items-center justify-between mt-1">
                             {/* Cook Name */}
-                            {item.profiles?.full_name ? (
-                              <Text className="text-xs text-text-sub font-sans" numberOfLines={1}>
-                                👨‍🍳 {item.profiles.full_name}
-                              </Text>
-                            ) : null}
-
-                            {/* Ready In */}
-                            <View className="flex-row items-center gap-1">
-                              <ClockIcon size={11} color="#6D6D6D" />
-                              <Text className="text-xs text-text-sub font-sans">
-                                Ready in {item.prep_time_minutes || 30} min
+                            <View className="flex-row items-center gap-2">
+                              <View className="w-6 h-6 bg-orange-50 rounded-full items-center justify-center border border-orange-100">
+                                <Text className="text-[10px]">👨‍🍳</Text>
+                              </View>
+                              <Text className="text-[13px] text-text-sub font-sans font-medium" numberOfLines={1}>
+                                {item.profiles?.full_name || 'Chef'}
                               </Text>
                             </View>
 
-                            <View className="flex-row items-center gap-0.5">
-                              <Text className="text-xs font-bold text-clay-primary font-sans">Order</Text>
-                              <ChevronRight size={12} color="#D65A31" />
+                            <View className="flex-row items-center gap-3">
+                              {/* Ready In */}
+                              <View className="flex-row items-center gap-1.5">
+                                <ClockIcon size={13} color="#9CA3AF" />
+                                <Text className="text-[13px] text-text-sub font-sans">
+                                  {item.prep_time_minutes || 30} min
+                                </Text>
+                              </View>
+
+                              {/* Order Button Arrow */}
+                              <View className="flex-row items-center ml-1">
+                                <Text className="text-[13px] font-bold text-clay-primary font-sans-bold mr-0.5">Order</Text>
+                                <ChevronRight size={14} color="#D65A31" />
+                              </View>
                             </View>
                           </View>
                         </View>
                       </TouchableOpacity>
                     ))}
-                  </View>
-                )}
 
-                {/* Popular Near You */}
-                <View className="mt-8">
-                  <View className="flex-row items-center justify-between mb-4">
-                    <View className="flex-row items-center gap-2">
-                      <Flame size={18} color="#D65A31" fill="#D65A31" />
-                      <Text className="text-lg font-bold text-text-main font-sans-bold">Popular Near You</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => router.push('/(tabs)/explore/list')}>
-                      <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
-                    </TouchableOpacity>
-                  </View>
+                    {/* Horizontal Inject After 3rd Item */}
+                    {(featuredMeals || []).length > 3 && (
+                      <View className="mt-4 mb-8">
+                        <View className="flex-row items-center justify-between mb-4">
+                          <View className="flex-row items-center gap-2">
+                            <Flame size={18} color="#D65A31" fill="#D65A31" />
+                            <Text className="text-lg font-bold text-text-main font-sans-bold">Popular Near You</Text>
+                          </View>
+                          <TouchableOpacity onPress={() => router.push('/explore')}>
+                            <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6 pb-2" decelerationRate="fast">
+                          {(featuredMeals || []).slice().reverse().map((hItem: any) => (
+                            <TouchableOpacity
+                              key={`popular-${hItem.id}`}
+                              className="w-[220px] mr-5 mb-4 mt-1"
+                              activeOpacity={0.9}
+                              onPress={() => router.push(`/listing/${hItem.id}`)}
+                            >
+                              <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 }}>
+                                <View className="w-full h-36 relative bg-gray-100 rounded-[32px] overflow-hidden border border-gray-200/50">
+                                  <Image source={{ uri: hItem.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} className="w-full h-full object-cover" resizeMode="cover" />
+                                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 }} />
+                                  <View className="absolute bottom-2 left-3 bg-clay-primary px-2.5 py-1 rounded-full">
+                                    <Text className="text-white font-bold text-xs font-sans-bold">₵{hItem.price}</Text>
+                                  </View>
+                                </View>
+                              </View>
+                              <View className="px-1 pt-3">
+                                <Text className="font-bold text-text-main text-base font-sans-bold mb-0.5" numberOfLines={1}>{hItem.title || hItem.name}</Text>
+                                <View className="flex-row justify-between items-center">
+                                  <Text className="text-[11px] font-bold text-clay-primary font-sans-bold">₵{hItem.price}</Text>
+                                  <View className="flex-row items-center gap-0.5">
+                                    <Star size={10} color="#D97706" fill="#D97706" />
+                                    <Text className="text-[10px] font-bold text-amber-700 font-sans-bold">{hItem.profiles?.rating || 'New'}</Text>
+                                  </View>
+                                </View>
+                                {hItem.profiles?.full_name && (
+                                  <Text className="text-[10px] text-text-sub font-sans mt-1" numberOfLines={1}>by {hItem.profiles.full_name}</Text>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
 
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    className="-mx-6 px-6 pb-2"
-                    decelerationRate="fast"
-                  >
-                    {(featuredMeals || []).slice().reverse().map((item: any) => (
+                    {/* Remaining Vertical Cards */}
+                    {(featuredMeals || []).slice(3).map((item: any) => (
                       <TouchableOpacity
-                        key={`popular-${item.id}`}
-                        className="w-[220px] bg-white rounded-[28px] mr-5 overflow-hidden border border-gray-100/30 mb-2 mt-1"
+                        key={item.id}
+                        className="mb-8"
                         activeOpacity={0.9}
-                        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 }}
                         onPress={() => router.push(`/listing/${item.id}`)}
                       >
-                        <View className="w-full h-32 relative bg-gray-100">
-                          <Image
-                            source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }}
-                            className="w-full h-full object-cover"
-                          />
-                        </View>
-                        <View className="p-3">
-                          <Text className="font-bold text-text-main text-sm font-sans-bold leading-tight mb-1" numberOfLines={1}>
-                            {item.title || item.name}
-                          </Text>
-                          <View className="flex-row justify-between items-center">
-                            <Text className="text-[11px] font-bold text-clay-primary font-sans-bold">
-                              ₵{item.price}
-                            </Text>
-                            {item.profiles?.rating ? (
-                              <View className="flex-row items-center gap-0.5">
-                                <Star size={10} color="#D97706" fill="#D97706" />
-                                <Text className="text-[10px] font-bold text-amber-700 font-sans-bold">{item.profiles.rating}</Text>
-                              </View>
-                            ) : (
-                              <View className="flex-row items-center gap-0.5">
-                                <Star size={10} color="#D97706" fill="#D97706" />
-                                <Text className="text-[10px] font-bold text-amber-700 font-sans-bold">New</Text>
+                        {/* Thumbnail Wrapper with Shadow */}
+                        <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 6 }}>
+                          <View className="w-full relative bg-gray-100 rounded-[40px] overflow-hidden border border-gray-200/50" style={{ height: 220 }}>
+                            <Image source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }} />
+                            <View className="absolute bottom-4 left-5 bg-clay-primary px-4 py-1.5 rounded-full" style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 }}>
+                              <Text className="text-white font-bold text-lg font-sans-bold tracking-tight">₵{item.price}</Text>
+                            </View>
+                            {item.portions_available > 0 && (
+                              <View className="absolute top-4 right-4 bg-[#FF4500]/90 px-2.5 py-1 rounded-full flex-row items-center gap-1.5 shadow-sm">
+                                <Flame size={12} color="white" fill="white" />
+                                <Text className="text-white text-[11px] font-bold tracking-wide">{item.portions_available} left</Text>
                               </View>
                             )}
                           </View>
-                          {item.profiles?.full_name && (
-                            <Text className="text-[10px] text-text-sub font-sans mt-1" numberOfLines={1}>
-                              by {item.profiles.full_name}
-                            </Text>
-                          )}
+                        </View>
+                        <View className="px-2 pt-4 pb-2">
+                          <Text className="font-bold text-text-main text-lg font-sans-bold mb-2 leading-tight" numberOfLines={1}>{item.title || item.name}</Text>
+                          <View className="flex-row items-center justify-between mt-1">
+                            <View className="flex-row items-center gap-2">
+                              <View className="w-6 h-6 bg-orange-50 rounded-full items-center justify-center border border-orange-100">
+                                <Text className="text-[10px]">👨‍🍳</Text>
+                              </View>
+                              <Text className="text-[13px] text-text-sub font-sans font-medium" numberOfLines={1}>{item.profiles?.full_name || 'Chef'}</Text>
+                            </View>
+                            <View className="flex-row items-center gap-3">
+                              <View className="flex-row items-center gap-1.5">
+                                <ClockIcon size={13} color="#9CA3AF" />
+                                <Text className="text-[13px] text-text-sub font-sans">{item.prep_time_minutes || 30} min</Text>
+                              </View>
+                              <View className="flex-row items-center ml-1">
+                                <Text className="text-[13px] font-bold text-clay-primary font-sans-bold mr-0.5">Order</Text>
+                                <ChevronRight size={14} color="#D65A31" />
+                              </View>
+                            </View>
+                          </View>
                         </View>
                       </TouchableOpacity>
                     ))}
-                  </ScrollView>
-                </View>
+
+                    {/* Loved Foods (Horizontal Scroll at bottom) */}
+                    {(featuredMeals || []).length > 0 && (
+                      <View className="mb-10 mt-6">
+                        <View className="flex-row items-center justify-between mb-4">
+                          <View className="flex-row items-center gap-2">
+                            <Heart size={18} color="#D65A31" fill="#D65A31" />
+                            <Text className="text-lg font-bold text-text-main font-sans-bold">Loved Foods</Text>
+                          </View>
+                          <TouchableOpacity onPress={() => router.push('/explore')}>
+                            <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6 pb-2" decelerationRate="fast">
+                          {(featuredMeals || []).slice(0, 3).map((hItem: any) => (
+                            <TouchableOpacity
+                              key={`loved-food-${hItem.id}`}
+                              className="w-[220px] mr-5 mb-4 mt-1"
+                              activeOpacity={0.9}
+                              onPress={() => router.push(`/listing/${hItem.id}`)}
+                            >
+                              <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 }}>
+                                <View className="w-full h-36 relative bg-gray-100 rounded-[32px] overflow-hidden border border-gray-200/50">
+                                  <Image source={{ uri: hItem.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} className="w-full h-full object-cover" resizeMode="cover" />
+                                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 }} />
+                                  <View className="absolute bottom-2 left-3 bg-clay-primary px-2.5 py-1 rounded-full">
+                                    <Text className="text-white font-bold text-xs font-sans-bold">₵{hItem.price}</Text>
+                                  </View>
+                                </View>
+                              </View>
+                              <View className="px-1 pt-3">
+                                <Text className="font-bold text-text-main text-base font-sans-bold mb-0.5" numberOfLines={1}>{hItem.title || hItem.name}</Text>
+                                <View className="flex-row justify-between items-center">
+                                  <Text className="text-[11px] font-bold text-clay-primary font-sans-bold">₵{hItem.price}</Text>
+                                  <View className="flex-row items-center gap-0.5">
+                                    <Star size={10} color="#D97706" fill="#D97706" />
+                                    <Text className="text-[10px] font-bold text-amber-700 font-sans-bold">{hItem.profiles?.rating || 'New'}</Text>
+                                  </View>
+                                </View>
+                                {hItem.profiles?.full_name && (
+                                  <Text className="text-[10px] text-text-sub font-sans mt-1" numberOfLines={1}>by {hItem.profiles.full_name}</Text>
+                                )}
+                              </View>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
             )}
           </View>
