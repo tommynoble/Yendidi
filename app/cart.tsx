@@ -155,6 +155,26 @@ export default function CartScreen() {
                             .insert(orderItems);
 
                         if (itemsError) throw itemsError;
+
+                        // Decrement portions_available for each listing
+                        for (const item of items) {
+                            const { data: listing } = await supabase
+                                .from('listings')
+                                .select('portions_available')
+                                .eq('id', item.id)
+                                .single();
+
+                            if (listing) {
+                                const newPortions = Math.max(0, (listing.portions_available || 0) - item.quantity);
+                                await supabase
+                                    .from('listings')
+                                    .update({
+                                        portions_available: newPortions,
+                                        available: newPortions > 0, // auto hide if sold out
+                                    })
+                                    .eq('id', item.id);
+                            }
+                        }
                     }
 
                     clearCart();
