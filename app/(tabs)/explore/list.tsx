@@ -119,7 +119,7 @@ export default function ExploreListScreen() {
     };
 
     const deleteProduct = async (id: string) => {
-        Alert.alert('Remove Dish', 'This will hide the dish from your menu. It won't affect any existing orders.', [
+        Alert.alert('Remove Dish', "This will hide the dish from your menu. It won't affect any existing orders.", [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Remove', style: 'destructive', onPress: async () => {

@@ -54,6 +54,7 @@ export default function AuthScreen() {
     const [resendCooldown, setResendCooldown] = useState(0);
     const [lastSentPhone, setLastSentPhone] = useState<string | null>(null);
     const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const autoVerifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [userName, setUserName] = useState('');
     const splashOpacity = useRef(new Animated.Value(0)).current;
     const splashScale = useRef(new Animated.Value(0.8)).current;
@@ -73,10 +74,11 @@ export default function AuthScreen() {
     // Refs for OTP inputs
     const otpRefs = React.useRef<(TextInput | null)[]>([]);
 
-    // Cleanup cooldown timer on unmount
+    // Cleanup timers on unmount
     useEffect(() => {
         return () => {
             if (cooldownRef.current) clearInterval(cooldownRef.current);
+            if (autoVerifyTimerRef.current) clearTimeout(autoVerifyTimerRef.current);
         };
     }, []);
 
@@ -95,20 +97,18 @@ export default function AuthScreen() {
     };
 
     const handleOtpChange = (value: string, index: number) => {
-        // Handle auto-fill/paste of full code
+        // Handle auto-fill/paste of full code — filter to digits only
         if (value.length > 1) {
-            const pastedCode = value.slice(0, 6).split('');
+            const digits = value.replace(/\D/g, '').slice(0, 6).split('');
             const newOtp = [...otp];
-            pastedCode.forEach((digit, i) => {
+            digits.forEach((digit, i) => {
                 if (i < 6) newOtp[i] = digit;
             });
             setOtp(newOtp);
-            // Focus last input or trigger verify
-            if (pastedCode.length === 6) {
+            if (digits.length === 6) {
                 otpRefs.current[5]?.focus();
-                // We'll let the useEffect handle auto-triggering verify
             } else {
-                otpRefs.current[Math.min(pastedCode.length, 5)]?.focus();
+                otpRefs.current[Math.min(digits.length, 5)]?.focus();
             }
             return;
         }
@@ -123,11 +123,18 @@ export default function AuthScreen() {
         }
     };
 
-    // Auto-verify when OTP is full
+    // Auto-verify when OTP is full — debounced 600ms so iOS autofill
+    // doesn't fire before all state updates have settled
     useEffect(() => {
+        if (autoVerifyTimerRef.current) clearTimeout(autoVerifyTimerRef.current);
         if (otp.every(digit => digit !== '') && otp.join('').length === 6 && mode === 'otp' && !loading) {
-            handleVerifyCode();
+            autoVerifyTimerRef.current = setTimeout(() => {
+                handleVerifyCode();
+            }, 600);
         }
+        return () => {
+            if (autoVerifyTimerRef.current) clearTimeout(autoVerifyTimerRef.current);
+        };
     }, [otp, mode]);
 
     const formatPhoneDisplay = (phone: string) => {
@@ -220,10 +227,22 @@ export default function AuthScreen() {
             }
         } catch (error: any) {
             console.error('Verify Exception:', error);
-            // Clear OTP so user can retype cleanly
-            setOtp(['', '', '', '', '', '']);
-            setTimeout(() => otpRefs.current[0]?.focus(), 100);
-            Alert.alert('Incorrect Code', 'That code didn\'t work. Please try again or tap Resend.');
+            // Keep OTP visible — user can see what they typed and fix the wrong digit
+            // Only offer a clear option, don't force it
+            Alert.alert(
+                'Incorrect Code',
+                'That code didn\'t work. Check your messages and try again.',
+                [
+                    {
+                        text: 'Clear & Retry',
+                        onPress: () => {
+                            setOtp(['', '', '', '', '', '']);
+                            setTimeout(() => otpRefs.current[0]?.focus(), 100);
+                        }
+                    },
+                    { text: 'OK', style: 'cancel' }
+                ]
+            );
         } finally {
             setLoading(false);
         }
