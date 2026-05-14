@@ -218,9 +218,6 @@ export default function ProfileScreen() {
                         </Text>
                         <Text className="text-sm text-text-sub font-sans">Manage your account and settings</Text>
                     </View>
-                    <TouchableOpacity>
-                        <Settings size={24} color="#2D241E" />
-                    </TouchableOpacity>
                 </View>
 
                 <ScrollView 
