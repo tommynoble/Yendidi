@@ -157,10 +157,10 @@ export default function ListingDetailScreen() {
 
     return (
         <View className="flex-1 bg-white">
-            {/* Floating Back + Save */}
+            {/* Floating Back + Save — sits above the rounded hero card */}
             <View
-                className="absolute top-0 left-0 right-0 z-20 flex-row justify-between items-center px-6"
-                style={{ paddingTop: insets.top + 8 }}
+                className="absolute left-0 right-0 z-20 flex-row justify-between items-center px-6"
+                style={{ top: insets.top + 12 }}
             >
                 <TouchableOpacity
                     className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm"
@@ -178,8 +178,8 @@ export default function ListingDetailScreen() {
             </View>
 
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-                {/* Hero Image */}
-                <View style={{ height: 380 }}>
+                {/* Hero Image — starts below status bar, rounded top corners */}
+                <View style={{ height: 360, marginTop: insets.top, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
                     <Image source={dishImage} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                     <LinearGradient
                         colors={['transparent', 'rgba(0,0,0,0.65)']}
