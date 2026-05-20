@@ -181,6 +181,14 @@ export default function CookScreen() {
         return;
       }
 
+      if (!locationLat || !locationLng) {
+        Alert.alert(
+          'Location Required 📍',
+          'Please set your location so customers can find you on the map. Tap "Use My Location" or type your address.',
+        );
+        return;
+      }
+
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();

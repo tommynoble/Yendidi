@@ -326,7 +326,7 @@ export default function AuthScreen() {
 
                         {mode === 'welcome' ? (
                             /* WELCOME SCREEN */
-                            <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+                            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                                 {/* Hero Image */}
                                 <View className="h-72 w-full relative">
                                     <Image

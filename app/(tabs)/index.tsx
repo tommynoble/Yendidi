@@ -1,10 +1,10 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, Alert, RefreshControl } from 'react-native';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Search, MapPin, Clock, Star, Sparkles, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, ShoppingCart, Loader2, Plus, Flame, ChefHat, Heart } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -58,6 +58,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const { isCookMode, userName: storeName, cartItems, addToCart } = useAppStore();
   const cartCount = cartItems.reduce((sum, ci) => sum + ci.quantity, 0);
+  const queryClient = useQueryClient();
 
   // -- State --
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,9 +114,32 @@ export default function HomeScreen() {
 
       return data;
     },
-    refetchInterval: 5000,
     enabled: !!user && !isCookMode
   });
+
+  // Real-time listener for active orders to prevent scroll lag
+  useEffect(() => {
+    if (!user || isCookMode) return;
+
+    const channel = supabase
+      .channel('public:orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${user.id}` },
+        () => {
+          // Wrap in requestAnimationFrame to prevent interrupting JS thread during scrolls
+          requestAnimationFrame(() => {
+            queryClient.invalidateQueries({ queryKey: ['active-order'] });
+            queryClient.invalidateQueries({ queryKey: ['chef-stats'] });
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, isCookMode, queryClient]);
 
   // --- QUERIES ---
 
@@ -711,7 +735,11 @@ export default function HomeScreen() {
             </View>
             <View className="flex-row items-center gap-3">
               {/* Cart Icon */}
-              <TouchableOpacity onPress={() => router.push('/cart')} className="relative">
+              <Pressable 
+                onPress={() => router.push('/cart')} 
+                className="relative"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <View className="w-9 h-9 bg-[#FFF9F5] border border-[#FFEDD5] shadow-sm rounded-full items-center justify-center" style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
                   <ShoppingCart size={18} color="#D65A31" />
                 </View>
@@ -720,9 +748,13 @@ export default function HomeScreen() {
                     <Text className="text-[9px] text-white font-bold">{cartCount}</Text>
                   </View>
                 )}
-              </TouchableOpacity>
+              </Pressable>
               {/* Notification Bell */}
-              <TouchableOpacity onPress={() => router.push('/notifications')} className="relative">
+              <Pressable 
+                onPress={() => router.push('/notifications')} 
+                className="relative"
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
                 <View className="w-9 h-9 bg-[#FFF9F5] border border-[#FFEDD5] shadow-sm rounded-full items-center justify-center" style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
                   <Bell size={18} color="#D65A31" />
                 </View>
@@ -732,7 +764,7 @@ export default function HomeScreen() {
                     <Text className="text-[9px] text-white font-bold">1</Text>
                   </View>
                 )}
-              </TouchableOpacity>
+              </Pressable>
             </View>
           </View>
 
@@ -761,13 +793,14 @@ export default function HomeScreen() {
             </View>
 
             {/* Location Button */}
-            <TouchableOpacity
+            <Pressable
               className="bg-white rounded-full w-12 h-12 border border-gray-100 items-center justify-center shadow-sm"
               style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
               onPress={() => router.push('/address')}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <MapPin size={22} color="#D65A31" />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
 
@@ -808,6 +841,8 @@ export default function HomeScreen() {
         <ScrollView 
           className="flex-1" 
           showsVerticalScrollIndicator={false} 
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D65A31" colors={["#D65A31"]} />
@@ -821,17 +856,20 @@ export default function HomeScreen() {
               {CATEGORIES.map(cat => {
                 const isActive = activeCategory === cat.name;
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={cat.id}
                     onPress={() => setActiveCategory(cat.name)}
-                    activeOpacity={0.8}
                     className={`mr-3 px-5 py-2.5 rounded-full ${isActive ? 'bg-clay-primary border-transparent' : 'bg-white border border-gray-100'}`}
-                    style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isActive ? 0.15 : 0.05, shadowRadius: 6, elevation: isActive ? 4 : 2 }}
+                    style={({ pressed }) => ({ 
+                      shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isActive ? 0.15 : 0.05, shadowRadius: 6, elevation: isActive ? 4 : 2,
+                      opacity: pressed ? 0.8 : 1
+                    })}
+                    hitSlop={{ top: 5, bottom: 5, left: 5, right: 5 }}
                   >
                     <Text className={`${isActive ? 'font-sans-bold text-white' : 'font-sans-medium text-text-sub'}`}>
                       {cat.name}
                     </Text>
-                  </TouchableOpacity>
+                  </Pressable>
                 );
               })}
             </ScrollView>
@@ -905,10 +943,10 @@ export default function HomeScreen() {
                 ) : (
                   <View>
                     {(featuredMeals || []).slice(0, 3).map((item: any) => (
-                      <TouchableOpacity
+                      <Pressable
                         key={item.id}
                         className="mb-8"
-                        activeOpacity={0.9}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                         onPress={() => router.push(`/listing/${item.id}`)}
                       >
                         {/* Thumbnail Wrapper with Shadow */}
@@ -978,7 +1016,7 @@ export default function HomeScreen() {
                             </View>
                           </View>
                         </View>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
 
                     {/* Horizontal Inject After 3rd Item */}
@@ -989,16 +1027,16 @@ export default function HomeScreen() {
                             <Flame size={18} color="#D65A31" fill="#D65A31" />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Popular Near You</Text>
                           </View>
-                          <TouchableOpacity onPress={() => router.push('/explore')}>
+                          <Pressable onPress={() => router.push('/explore')} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                             <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         </View>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6 pb-2" decelerationRate="fast">
                           {(featuredMeals || []).slice().reverse().map((hItem: any) => (
-                            <TouchableOpacity
+                            <Pressable
                               key={`popular-${hItem.id}`}
                               className="w-[220px] mr-5 mb-4 mt-1"
-                              activeOpacity={0.9}
+                              style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                               onPress={() => router.push(`/listing/${hItem.id}`)}
                             >
                               <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 }}>
@@ -1023,7 +1061,7 @@ export default function HomeScreen() {
                                   <Text className="text-[10px] text-text-sub font-sans mt-1" numberOfLines={1}>by {hItem.profiles.full_name}</Text>
                                 )}
                               </View>
-                            </TouchableOpacity>
+                            </Pressable>
                           ))}
                         </ScrollView>
                       </View>
@@ -1031,10 +1069,10 @@ export default function HomeScreen() {
 
                     {/* Remaining Vertical Cards */}
                     {(featuredMeals || []).slice(3).map((item: any) => (
-                      <TouchableOpacity
+                      <Pressable
                         key={item.id}
                         className="mb-8"
-                        activeOpacity={0.9}
+                        style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                         onPress={() => router.push(`/listing/${item.id}`)}
                       >
                         {/* Thumbnail Wrapper with Shadow */}
@@ -1074,7 +1112,7 @@ export default function HomeScreen() {
                             </View>
                           </View>
                         </View>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
 
                     {/* Loved Foods (Horizontal Scroll at bottom) */}
@@ -1085,16 +1123,16 @@ export default function HomeScreen() {
                             <Heart size={18} color="#D65A31" fill="#D65A31" />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Loved Foods</Text>
                           </View>
-                          <TouchableOpacity onPress={() => router.push('/explore')}>
+                          <Pressable onPress={() => router.push('/explore')} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                             <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
-                          </TouchableOpacity>
+                          </Pressable>
                         </View>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6 pb-2" decelerationRate="fast">
                           {(featuredMeals || []).slice(0, 3).map((hItem: any) => (
-                            <TouchableOpacity
+                            <Pressable
                               key={`loved-food-${hItem.id}`}
                               className="w-[220px] mr-5 mb-4 mt-1"
-                              activeOpacity={0.9}
+                              style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                               onPress={() => router.push(`/listing/${hItem.id}`)}
                             >
                               <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 }}>
@@ -1119,7 +1157,7 @@ export default function HomeScreen() {
                                   <Text className="text-[10px] text-text-sub font-sans mt-1" numberOfLines={1}>by {hItem.profiles.full_name}</Text>
                                 )}
                               </View>
-                            </TouchableOpacity>
+                            </Pressable>
                           ))}
                         </ScrollView>
                       </View>

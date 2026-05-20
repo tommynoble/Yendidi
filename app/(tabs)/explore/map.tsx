@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, ActivityIndicator, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Map, List, Star, ChevronRight, Navigation, MapPin, ChefHat } from 'lucide-react-native';
+import { Map, List, Star, ChevronRight, Navigation, MapPin, ChefHat, Search, X } from 'lucide-react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -43,6 +43,7 @@ export default function ExploreMapScreen() {
     // State
     const [selectedCook, setSelectedCook] = useState<CookMarker | null>(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [searchQuery, setSearchQuery] = useState('');
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
     // Get user's current location
@@ -126,13 +127,21 @@ export default function ExploreMapScreen() {
         return ['All', ...Array.from(cats)];
     }, [cooks]);
 
-    // Filter cooks by selected category
+    // Filter cooks by category AND food/cook name search
     const filteredCooks = useMemo(() => {
-        if (selectedCategory === 'All') return cooks;
-        return cooks.filter(cook =>
-            cook.listings.some(l => l.category === selectedCategory)
-        );
-    }, [cooks, selectedCategory]);
+        let result = cooks;
+        if (selectedCategory !== 'All') {
+            result = result.filter(cook => cook.listings.some(l => l.category === selectedCategory));
+        }
+        if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase();
+            result = result.filter(cook =>
+                cook.name.toLowerCase().includes(q) ||
+                cook.listings.some(l => l.title.toLowerCase().includes(q))
+            );
+        }
+        return result;
+    }, [cooks, selectedCategory, searchQuery]);
 
     // Calculate distance between two points (km)
     const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number): string => {
@@ -186,52 +195,51 @@ export default function ExploreMapScreen() {
                     style={{ zIndex: isSelected ? 100 : 1 }}
                 >
                     <View style={{ alignItems: 'center' }}>
+                        {/* Food image circle */}
                         <View style={{
-                            width: isSelected ? 56 : 48,
-                            height: isSelected ? 56 : 48,
-                            borderRadius: 28,
-                            backgroundColor: hasListings ? '#007A33' : '#FF9500',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderWidth: 3,
-                            borderColor: '#fff',
+                            width: isSelected ? 62 : 54,
+                            height: isSelected ? 62 : 54,
+                            borderRadius: 31,
+                            borderWidth: isSelected ? 3 : 2.5,
+                            borderColor: isSelected ? '#D65A31' : '#fff',
+                            overflow: 'hidden',
+                            backgroundColor: '#F3F4F6',
                             shadowColor: '#000',
-                            shadowOffset: { width: 0, height: isSelected ? 4 : 2 },
-                            shadowOpacity: isSelected ? 0.3 : 0.25,
-                            shadowRadius: isSelected ? 6 : 3.84,
-                            elevation: isSelected ? 8 : 5,
-                            transform: [{ scale: isSelected ? 1.1 : 1 }]
+                            shadowOffset: { width: 0, height: isSelected ? 5 : 2 },
+                            shadowOpacity: isSelected ? 0.3 : 0.2,
+                            shadowRadius: isSelected ? 8 : 4,
+                            elevation: isSelected ? 10 : 5,
+                            transform: [{ scale: isSelected ? 1.08 : 1 }],
                         }}>
-                            {cook.avatar_url ? (
+                            {cook.listings[0]?.image ? (
                                 <Image
-                                    source={{ uri: cook.avatar_url }}
-                                    style={{ width: isSelected ? 48 : 40, height: isSelected ? 48 : 40, borderRadius: 24 }}
+                                    source={{ uri: cook.listings[0].image }}
+                                    style={{ width: '100%', height: '100%' }}
+                                    resizeMode="cover"
                                 />
                             ) : (
-                                <ChefHat size={isSelected ? 28 : 22} color="white" />
+                                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0EB' }}>
+                                    <ChefHat size={22} color="#D65A31" />
+                                </View>
                             )}
                         </View>
-                        {/* Name badge */}
-                        <View style={{
-                            backgroundColor: isSelected ? '#D65A31' : '#fff',
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 8,
-                            marginTop: 4,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: 1 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 1.41,
-                            elevation: 2,
-                        }}>
-                            <Text style={{
-                                fontSize: isSelected ? 14 : 12,
-                                fontWeight: '700',
-                                color: isSelected ? '#fff' : '#2D241E',
+                        {/* Price pill */}
+                        {cook.listings[0]?.price !== undefined && (
+                            <View style={{
+                                marginTop: 4,
+                                backgroundColor: isSelected ? '#D65A31' : '#1F2937',
+                                paddingHorizontal: 8,
+                                paddingVertical: 3,
+                                borderRadius: 20,
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.2,
+                                shadowRadius: 3,
+                                elevation: 3,
                             }}>
-                                {cook.name}
-                            </Text>
-                        </View>
+                                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800' }}>₵{cook.listings[0].price}</Text>
+                            </View>
+                        )}
                     </View>
                 </Marker>
             );
@@ -268,7 +276,7 @@ export default function ExploreMapScreen() {
                 }}
             >
                 {/* Top Row: Title + Toggle */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 12 }}>
                     <View>
                         <Text className="text-xl font-bold text-text-main font-sans-bold">Map View</Text>
                         <Text className="text-sm text-text-sub font-sans">
@@ -290,6 +298,24 @@ export default function ExploreMapScreen() {
                             <List size={20} color="#9CA3AF" />
                         </TouchableOpacity>
                     </View>
+                </View>
+
+                {/* Search bar */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginBottom: 12, backgroundColor: '#F3F4F6', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
+                    <Search size={16} color="#9CA3AF" />
+                    <TextInput
+                        value={searchQuery}
+                        onChangeText={(t) => { setSearchQuery(t); setSelectedCook(null); }}
+                        placeholder="Search food or cook..."
+                        placeholderTextColor="#9CA3AF"
+                        style={{ flex: 1, fontSize: 15, color: '#1F2937' }}
+                        returnKeyType="search"
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => { setSearchQuery(''); setSelectedCook(null); }}>
+                            <X size={16} color="#9CA3AF" />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Categories Filter */}
