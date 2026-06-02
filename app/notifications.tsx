@@ -51,7 +51,8 @@ export default function NotificationsScreen() {
   const { data: user } = useQuery({
     queryKey: ['user-notif'],
     queryFn: async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
       return data.user;
     },
   });
@@ -77,7 +78,10 @@ export default function NotificationsScreen() {
         .order('updated_at', { ascending: false })
         .limit(15);
 
-      if (error) return [];
+      if (error) {
+        console.error('Notifications orders fetch error:', error);
+        return [];
+      }
       return data || [];
     },
     enabled: !!user,

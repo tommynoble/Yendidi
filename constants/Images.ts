@@ -24,16 +24,29 @@ export const DISH_IMAGES: Record<string, any> = {
     'gari foto': require('../assets/images/dishes/jollof_rice_chicken.jpg'), // Fallback
 };
 
-export const getDishImage = (name: string, fallbackUrl: string) => {
-    if (!name) return { uri: fallbackUrl };
-    const lowerName = name.toLowerCase().trim();
+export const getDishImage = (name: string, fallbackUrl?: string | null) => {
+    // Filter out Unsplash or placeholder URLs
+    const isUnsplashOrPlaceholder = fallbackUrl && (
+        fallbackUrl.includes('unsplash.com') || 
+        fallbackUrl.includes('placeholder') || 
+        fallbackUrl.includes('via.placeholder')
+    );
+    const safeUrl = isUnsplashOrPlaceholder ? null : fallbackUrl;
 
-    // Try exact match or partial match
-    for (const [key, asset] of Object.entries(DISH_IMAGES)) {
-        if (lowerName === key || lowerName.includes(key) || key.includes(lowerName)) {
-            return asset;
+    if (name) {
+        const lowerName = name.toLowerCase().trim();
+        // Try exact match or partial match
+        for (const [key, asset] of Object.entries(DISH_IMAGES)) {
+            if (lowerName === key || lowerName.includes(key) || key.includes(lowerName)) {
+                return asset;
+            }
         }
     }
 
-    return { uri: fallbackUrl || 'https://via.placeholder.com/400' };
+    if (safeUrl) {
+        return { uri: safeUrl };
+    }
+
+    // Default to a premium local asset (Ghanaian Jollof Rice) if no custom user upload and no match
+    return require('../assets/images/dishes/jollof_rice_chicken.jpg');
 };

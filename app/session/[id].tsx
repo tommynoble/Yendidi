@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { format, formatDistanceToNow } from 'date-fns';
+import { getDishImage } from '@/constants/Images';
 
 const { width } = Dimensions.get('window');
 
@@ -74,7 +75,7 @@ export default function SessionDetailScreen() {
                 {/* Hero Image */}
                 <View className="relative h-[300px] w-full bg-gray-200">
                     <Image
-                        source={{ uri: sessionImage }}
+                        source={getDishImage(session.listings?.title || session.title, session.listings?.image)}
                         className="w-full h-full object-cover"
                     />
                     <LinearGradient
@@ -90,10 +91,10 @@ export default function SessionDetailScreen() {
                             <ArrowLeft size={20} color="#1A1A1A" />
                         </TouchableOpacity>
                         <View className="flex-row gap-3">
-                            <TouchableOpacity className="w-10 h-10 rounded-full bg-white/90 items-center justify-center shadow-sm">
+                            <TouchableOpacity className="w-10 h-10 rounded-full bg-white/90 items-center justify-center shadow-sm" onPress={() => {}}>
                                 <Share2 size={20} color="#1A1A1A" />
                             </TouchableOpacity>
-                            <TouchableOpacity className="w-10 h-10 rounded-full bg-white/90 items-center justify-center shadow-sm">
+                            <TouchableOpacity className="w-10 h-10 rounded-full bg-white/90 items-center justify-center shadow-sm" onPress={() => {}}>
                                 <Heart size={20} color="#1A1A1A" />
                             </TouchableOpacity>
                         </View>
@@ -174,9 +175,9 @@ export default function SessionDetailScreen() {
 
                     {/* Cook Info */}
                     <Text className="font-bold text-text-main text-lg font-sans-bold mb-4">The Host</Text>
-                    <TouchableOpacity className="flex-row items-center bg-white p-4 rounded-3xl border border-gray-100 shadow-xs mb-8">
+                    <TouchableOpacity className="flex-row items-center bg-white p-4 rounded-3xl border border-gray-100 shadow-xs mb-8" onPress={() => {}}>
                         <Image
-                            source={{ uri: session.profiles?.avatar_url || 'https://via.placeholder.com/60' }}
+                            source={{ uri: session.profiles?.kitchen_image_url || session.profiles?.avatar_url || 'https://via.placeholder.com/60' }}
                             className="w-12 h-12 rounded-full border-2 border-orange-50"
                         />
                         <View className="flex-1 ml-4">

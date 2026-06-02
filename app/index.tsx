@@ -13,10 +13,17 @@ export default function Index() {
             if (session === null) setSession(false);
         }, 1500);
 
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(!!session);
+        supabase.auth.getSession().then(({ data: { session }, error }) => {
+            if (error) {
+                console.warn('Session recovery error, clearing tokens:', error.message);
+                supabase.auth.signOut();
+                setSession(false);
+            } else {
+                setSession(!!session);
+            }
             clearTimeout(outputTimeout);
         }).catch(() => {
+            supabase.auth.signOut();
             setSession(false);
         });
 

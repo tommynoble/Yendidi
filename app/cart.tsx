@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { usePaystack } from 'react-native-paystack-webview';
+import { getDishImage } from '@/constants/Images';
 
 type PaymentMethod = 'momo_mtn' | 'momo_voda' | 'momo_airtel' | 'card';
 
@@ -260,7 +261,7 @@ export default function CartScreen() {
                         <View key={item.id} className="bg-white rounded-2xl p-4 mb-3 shadow-sm">
                             <View className="flex-row gap-4">
                                 <Image
-                                    source={{ uri: item.image || 'https://via.placeholder.com/80' }}
+                                    source={getDishImage(item.name, item.image)}
                                     className="w-20 h-20 rounded-xl"
                                 />
                                 <View className="flex-1 justify-between">

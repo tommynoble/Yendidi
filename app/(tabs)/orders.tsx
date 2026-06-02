@@ -2,9 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Bike, Check, X, CookingPot, User } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
+import { getDishImage } from '@/constants/Images';
 
 // Types for our order structure
 type Order = {
@@ -26,6 +27,7 @@ type Order = {
             profiles: {
                 full_name: string | null;
                 avatar_url: string | null;
+                kitchen_image_url: string | null;
             } | null;
         } | null;
     }[];
@@ -44,7 +46,6 @@ const NEXT_STATUS: Record<string, string> = {
 };
 
 export default function OrdersScreen() {
-    const router = useRouter();
     const { isCookMode } = useAppStore();
     const [loading, setLoading] = useState(true);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -74,7 +75,8 @@ export default function OrdersScreen() {
                                 image,
                                 profiles (
                                     full_name,
-                                    avatar_url
+                                    avatar_url,
+                                    kitchen_image_url
                                 )
                             )
                         )
@@ -111,7 +113,8 @@ export default function OrdersScreen() {
                                 image,
                                 profiles (
                                     full_name,
-                                    avatar_url
+                                    avatar_url,
+                                    kitchen_image_url
                                 )
                             )
                         )
@@ -276,13 +279,7 @@ export default function OrdersScreen() {
                 {item.order_items.map((oi: any, idx: number) => (
                     <View key={idx} className="flex-row items-center gap-3 mb-2">
                         <View className="w-10 h-10 bg-gray-100 rounded-lg overflow-hidden">
-                            {oi.listings?.image ? (
-                                <Image source={{ uri: oi.listings.image }} className="w-full h-full" resizeMode="cover" />
-                            ) : (
-                                <View className="w-full h-full items-center justify-center">
-                                    <ShoppingBag size={16} color="#9CA3AF" />
-                                </View>
-                            )}
+                            <Image source={getDishImage(oi.listings?.title, oi.listings?.image)} className="w-full h-full" resizeMode="cover" />
                         </View>
                         <Text className="flex-1 text-text-main font-sans text-sm" numberOfLines={1}>
                             {oi.listings?.title || 'Item'} × {oi.quantity}
@@ -374,8 +371,8 @@ export default function OrdersScreen() {
                 <View className="flex-row justify-between items-start mb-4">
                     <View className="flex-row items-center gap-3">
                         <View className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                            {cook?.avatar_url ? (
-                                <Image source={{ uri: cook.avatar_url }} className="w-full h-full" />
+                            {cook?.kitchen_image_url || cook?.avatar_url ? (
+                                <Image source={{ uri: cook.kitchen_image_url || cook.avatar_url }} className="w-full h-full" />
                             ) : (
                                 <View className="w-full h-full items-center justify-center bg-clay-primary/10">
                                     <ChefHat size={20} color="#D65A31" />
@@ -402,13 +399,7 @@ export default function OrdersScreen() {
                 {/* Items Summary */}
                 <View className="flex-row gap-4 mb-4">
                     <View className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden">
-                        {listing?.image ? (
-                            <Image source={{ uri: listing.image }} className="w-full h-full" resizeMode="cover" />
-                        ) : (
-                            <View className="w-full h-full items-center justify-center bg-gray-200">
-                                <ShoppingBag size={24} color="#9CA3AF" />
-                            </View>
-                        )}
+                        <Image source={getDishImage(listing?.title, listing?.image)} className="w-full h-full" resizeMode="cover" />
                     </View>
                     <View className="flex-1 justify-center">
                         <Text className="text-text-main font-medium font-sans-medium text-base h-auto" numberOfLines={1}>
@@ -520,7 +511,7 @@ export default function OrdersScreen() {
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={{ paddingVertical: 20 }}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D65A31" colors={["#D65A31"]} />}
-                    ListEmptyComponent={
+                    ListEmptyComponent={() => (
                         <View className="items-center justify-center py-20 px-10">
                             <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
                                 <ShoppingBag size={40} color="#9CA3AF" />
@@ -546,7 +537,7 @@ export default function OrdersScreen() {
                                 </TouchableOpacity>
                             )}
                         </View>
-                    }
+                    )}
                 />
             )}
             </View>

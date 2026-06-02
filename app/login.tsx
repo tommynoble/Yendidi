@@ -129,7 +129,7 @@ export default function AuthScreen() {
         if (autoVerifyTimerRef.current) clearTimeout(autoVerifyTimerRef.current);
         if (otp.every(digit => digit !== '') && otp.join('').length === 6 && mode === 'otp' && !loading) {
             autoVerifyTimerRef.current = setTimeout(() => {
-                handleVerifyCode();
+                handleVerifyCode().catch(() => {});
             }, 600);
         }
         return () => {
@@ -212,9 +212,10 @@ export default function AuthScreen() {
                     console.log('Returning user, going to dashboard:', profile.full_name, profile.role);
                     setStoreName(profile.full_name);
                     
-                    // ONLY unlock cook mode if they are a COOK AND they are approved
-                    const isApprovedCook = profile.role === 'COOK' && profile.cook_application_status === 'approved';
-                    setCookMode(isApprovedCook);
+                    // Start all users in Eater Mode by default when they log in.
+                    // If they are an approved cook, they will see the "You're Approved!" notification
+                    // on their Profile tab where they can switch to Kitchen Mode.
+                    setCookMode(false);
                     
                     setTimeout(() => {
                         router.replace('/(tabs)');

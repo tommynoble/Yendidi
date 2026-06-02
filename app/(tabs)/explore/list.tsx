@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, Switch, ActivityIndicator, Alert, FlatList } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, MessageCircle, ChefHat, Flame, Sparkles, Clock, ArrowRight, Trash2, Plus, Map, List } from 'lucide-react-native';
+import { Play, MessageCircle, ChefHat, Flame, Sparkles, Clock, ArrowRight, Trash2, Plus, Map, List, Lock, UtensilsCrossed, Pencil } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '@/lib/store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -65,6 +65,7 @@ export default function ExploreListScreen() {
                 .from('listings')
                 .select('*')
                 .eq('cook_id', userSession.id)
+                .or('archived.eq.false,archived.is.null')
                 .order('created_at', { ascending: false });
             if (error) throw error;
             return data;
@@ -81,7 +82,7 @@ export default function ExploreListScreen() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('id, full_name, avatar_url')
+                .select('id, full_name, avatar_url, kitchen_image_url')
                 .eq('role', 'COOK')
                 .eq('cook_application_status', 'approved')
                 .limit(10);
@@ -89,7 +90,7 @@ export default function ExploreListScreen() {
             return (data || []).map((c: any) => ({
                 id: c.id,
                 name: c.full_name?.split(' ')[0] || 'Chef',
-                avatar_url: c.avatar_url,
+                avatar_url: c.kitchen_image_url || c.avatar_url,
             }));
         },
         staleTime: 5 * 60 * 1000,
@@ -134,10 +135,7 @@ export default function ExploreListScreen() {
                             .from('listings')
                             .update({ available: false, archived: true })
                             .eq('id', id);
-                        if (error) {
-                            // If archived column doesn't exist, fall back to just setting unavailable
-                            await supabase.from('listings').update({ available: false }).eq('id', id);
-                        }
+                        if (error) throw error;
                     } catch (err: any) {
                         // Restore on failure
                         queryClient.invalidateQueries({ queryKey: ['my-menu', userSession?.id] });
@@ -148,8 +146,65 @@ export default function ExploreListScreen() {
         ]);
     };
 
+    // Check cook approval
+    const { data: cookProfile, isLoading: isCookProfileLoading } = useQuery({
+        queryKey: ['cook-approval-check'],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return null;
+            const { data } = await supabase
+                .from('profiles')
+                .select('role, cook_application_status')
+                .eq('id', user.id)
+                .single();
+            return data;
+        },
+        staleTime: 30 * 1000,
+    });
+
+    const isApprovedCook = cookProfile?.role === 'COOK' && cookProfile?.cook_application_status === 'approved';
+
     // COOK MODE — My Menu
     if (isCookMode) {
+        if (isCookProfileLoading) {
+            return (
+                <View className="flex-1 bg-warm-cream items-center justify-center">
+                    <ActivityIndicator size="large" color="#D65A31" />
+                </View>
+            );
+        }
+
+        // LOCKED: Not an approved cook
+        if (!isApprovedCook) {
+            return (
+                <View className="flex-1 bg-warm-cream items-center justify-center px-8" style={{ paddingTop: insets.top }}>
+                    <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-6">
+                        <Lock size={36} color="#9CA3AF" />
+                    </View>
+                    <Text className="text-2xl font-bold text-text-main text-center mb-3 font-sans-bold">
+                        Menu Locked
+                    </Text>
+                    <Text className="text-text-sub text-center text-base font-sans mb-8 leading-relaxed">
+                        Get approved as a cook to manage your menu and list dishes.
+                    </Text>
+                    {cookProfile?.cook_application_status === 'pending' ? (
+                        <View className="bg-orange-50 rounded-2xl px-6 py-4 border border-orange-100 w-full items-center">
+                            <Text className="text-clay-primary font-bold text-base font-sans-bold">⏳ Under Review</Text>
+                            <Text className="text-text-sub text-sm font-sans mt-1">We'll notify you once approved</Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity
+                            onPress={() => router.push('/onboarding/apply-to-cook')}
+                            className="bg-clay-primary rounded-2xl px-8 py-4 flex-row items-center gap-3 w-full justify-center"
+                        >
+                            <UtensilsCrossed size={20} color="white" />
+                            <Text className="text-white font-bold text-lg font-sans-bold">Apply to Cook</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            );
+        }
+
         return (
             <View className="flex-1 bg-warm-cream" style={{ paddingTop: insets.top }}>
                 {/* Header */}
@@ -274,20 +329,26 @@ export default function ExploreListScreen() {
                                     </View>
 
                                     {/* Actions */}
-                                    <View className="flex-row gap-3 pt-3 border-t border-gray-50">
+                                    <View className="flex-row gap-2 pt-3 border-t border-gray-50">
+                                        <TouchableOpacity
+                                            className="flex-1 flex-row items-center justify-center gap-2 py-2.5 bg-clay-primary/10 rounded-xl"
+                                            onPress={() => router.push(`/(tabs)/cook?edit_id=${dish.id}`)}
+                                        >
+                                            <Pencil size={15} color="#D65A31" />
+                                            <Text className="text-sm font-semibold text-clay-primary font-sans">Edit</Text>
+                                        </TouchableOpacity>
                                         <TouchableOpacity
                                             className="flex-1 flex-row items-center justify-center gap-2 py-2.5 bg-gray-50 rounded-xl border border-gray-100"
                                             onPress={() => router.push('/(tabs)/cook')}
                                         >
                                             <Plus size={15} color="#6B7280" />
-                                            <Text className="text-sm font-semibold text-gray-600 font-sans">Post Again</Text>
+                                            <Text className="text-sm font-semibold text-gray-600 font-sans">New</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             className="flex-row items-center justify-center gap-2 py-2.5 px-4 bg-red-50 rounded-xl"
                                             onPress={() => deleteProduct(dish.id)}
                                         >
                                             <Trash2 size={15} color="#DC2626" />
-                                            <Text className="text-sm font-semibold text-red-600 font-sans">Delete</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -377,7 +438,7 @@ export default function ExploreListScreen() {
                             contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
                             keyboardShouldPersistTaps="handled"
                             renderItem={({ item: story }) => (
-                                <TouchableOpacity className="items-center" activeOpacity={0.7}>
+                                <TouchableOpacity className="items-center" activeOpacity={0.7} onPress={() => {}}>
                                     <View style={{ width: 68, height: 68, borderRadius: 34, padding: 2, backgroundColor: story.hasNew ? '#D65A31' : '#E5E7EB' }}>
                                         <View style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: 'white', overflow: 'hidden' }}>
                                             <Image source={{ uri: story.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
@@ -400,7 +461,7 @@ export default function ExploreListScreen() {
                             <Play size={20} color="#D65A31" fill="#D65A31" />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Kitchen Stories</Text>
                         </View>
-                        <TouchableOpacity>
+                        <TouchableOpacity onPress={() => {}}>
                             <Text className="text-sm font-semibold text-clay-primary font-sans-semibold">See All</Text>
                         </TouchableOpacity>
                     </View>
@@ -413,9 +474,9 @@ export default function ExploreListScreen() {
                         contentContainerStyle={{ gap: 12 }}
                         keyboardShouldPersistTaps="handled"
                         renderItem={({ item: reel }) => (
-                            <TouchableOpacity className="rounded-3xl overflow-hidden" style={{ width: width * 0.55, height: 280 }} activeOpacity={0.9}>
+                            <TouchableOpacity className="rounded-3xl overflow-hidden" style={{ width: width * 0.55, height: 280 }} activeOpacity={0.9} onPress={() => {}}>
                                 <Image source={{ uri: reel.image }} className="w-full h-full absolute" />
-                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} className="absolute bottom-0 left-0 right-0 h-32" />
+                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} className="absolute bottom-0 left-0 right-0 h-32" pointerEvents="none" />
 
                                 <View className="absolute top-3 right-3 bg-black/60 px-2 py-1 rounded-full flex-row items-center gap-1">
                                     <Clock size={10} color="white" />
@@ -458,7 +519,7 @@ export default function ExploreListScreen() {
                         contentContainerStyle={{ gap: 12 }}
                         keyboardShouldPersistTaps="handled"
                         renderItem={({ item }) => (
-                            <TouchableOpacity className="bg-white p-4 rounded-3xl" style={{ width: width * 0.75, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7}>
+                            <TouchableOpacity className="bg-white p-4 rounded-3xl" style={{ width: width * 0.75, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => {}}>
                                 <Text className="text-3xl mb-2">{item.emoji}</Text>
                                 <Text className="text-text-main text-sm leading-5 font-sans">{item.fact}</Text>
                             </TouchableOpacity>
@@ -479,7 +540,7 @@ export default function ExploreListScreen() {
                     </View>
 
                     {TRENDING_NOW.map((item, index) => (
-                        <TouchableOpacity key={item.id} className="flex-row items-center gap-4 mb-3 bg-white p-3 rounded-2xl" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7}>
+                        <TouchableOpacity key={item.id} className="flex-row items-center gap-4 mb-3 bg-white p-3 rounded-2xl" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => {}}>
                             <Text className="text-2xl font-bold text-clay-primary w-8 font-sans-bold">{index + 1}</Text>
                             <Image source={{ uri: item.image }} className="w-14 h-14 rounded-xl" />
                             <View className="flex-1">
@@ -499,7 +560,7 @@ export default function ExploreListScreen() {
                     </View>
 
                     {WHATS_NEW.map((item) => (
-                        <TouchableOpacity key={item.id} className="bg-white p-4 rounded-3xl mb-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7}>
+                        <TouchableOpacity key={item.id} className="bg-white p-4 rounded-3xl mb-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => {}}>
                             <View className="flex-row justify-between items-start">
                                 <View className="flex-1">
                                     <Text className="font-semibold text-text-main font-sans-semibold">{item.title}</Text>

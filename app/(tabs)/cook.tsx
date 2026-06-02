@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Store, Truck, Calendar, Info, Star, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation } from 'lucide-react-native';
+import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Store, Truck, Calendar, Info, Star, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation, Lock } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,25 +23,13 @@ const PREP_TIMES = [
   { label: '60 min', value: 60 },
 ];
 
-// High-quality local images for catalog items
-const DISH_ASSETS: Record<string, any> = {
-  jollof_rice_chicken: require('@/assets/images/dishes/jollof_rice_chicken.jpg'),
-  waakye_special: require('@/assets/images/dishes/waakye_special.jpg'),
-  banku_tilapia: require('@/assets/images/dishes/banku_tilapia.jpg'),
-  fufu_light_soup: require('@/assets/images/dishes/fufu_light_soup.jpg'),
-  red_red_gob3: require('@/assets/images/dishes/red_red_gob3.jpg'),
-  kenkey_and_fish: require('@/assets/images/dishes/kenkey_and_fish.jpg'),
-  banku_and_okro: require('@/assets/images/dishes/banku_and_okro.jpg'),
-  ampesi: require('@/assets/images/dishes/ampesi.jpg'),
-  kelewele: require('@/assets/images/dishes/kelewele.jpg'),
-  fried_rice: require('@/assets/images/dishes/fried_rice.jpg'),
-  emo_tuo_with_groundutsoup: require('@/assets/images/dishes/emo_tuo_with_groundutsoup.jpg'),
-};
+
 
 export default function CookScreen() {
   const router = useRouter();
   const { isCookMode } = useAppStore();
   const queryClient = useQueryClient();
+  const { edit_id } = useLocalSearchParams();
 
   // -- COOK MODE STATE --
   const [mealName, setMealName] = useState('');
@@ -52,6 +40,30 @@ export default function CookScreen() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [supportsSessions, setSupportsSessions] = useState(true); // Default to true now
   const [image, setImage] = useState<string | null>(null);
+
+  // Load existing data if edit_id is provided
+  useEffect(() => {
+    if (edit_id) {
+      const fetchListing = async () => {
+        const { data, error } = await supabase.from('listings').select('*').eq('id', edit_id).single();
+        if (data && !error) {
+          setMealName(data.title || '');
+          setDescription(data.description || '');
+          setPrice(data.price?.toString() || '');
+          setPortions(data.portions_available?.toString() || '10');
+          setPrepTime(data.prep_time_minutes || 30);
+          setIsAvailable(data.available !== false);
+          setSupportsSessions(data.supports_sessions || false);
+          setSelectedCategory(data.category || '');
+          setImage(data.image || null);
+          setLocationLat(data.latitude || null);
+          setLocationLng(data.longitude || null);
+          setLocationText(data.location_text || '');
+        }
+      };
+      fetchListing();
+    }
+  }, [edit_id]);
 
   // -- CATEGORY STATE --
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -196,27 +208,46 @@ export default function CookScreen() {
 
       const imageUrl = await uploadImage(user.id);
 
-      // 1. Create Listing
-      const { data: listing, error: listingError } = await supabase
-        .from('listings')
-        .insert({
-          cook_id: user.id,
-          main_dish_id: null,
-          title: mealName,
-          description: description,
-          price: parseFloat(finalPrice),
-          portions_available: parseInt(portions),
-          prep_time_minutes: prepTime,
-          available: isAvailable,
-          supports_sessions: supportsSessions,
-          image: imageUrl || null,
-          category: selectedCategory || 'Custom',
-          location_text: locationText || null,
-          latitude: locationLat,
-          longitude: locationLng,
-        })
-        .select()
-        .single();
+      // 1. Create or Update Listing
+      const listingData: any = {
+        cook_id: user.id,
+        title: mealName,
+        description: description,
+        price: parseFloat(finalPrice),
+        portions_available: parseInt(portions),
+        prep_time_minutes: prepTime,
+        available: isAvailable,
+        supports_sessions: supportsSessions,
+        category: selectedCategory || 'Custom',
+        location_text: locationText || null,
+        latitude: locationLat,
+        longitude: locationLng,
+      };
+
+      if (imageUrl) {
+        listingData.image = imageUrl;
+      }
+
+      let listingError, listing;
+
+      if (edit_id) {
+        const { data, error } = await supabase
+          .from('listings')
+          .update(listingData)
+          .eq('id', edit_id)
+          .select()
+          .single();
+        listingError = error;
+        listing = data;
+      } else {
+        const { data, error } = await supabase
+          .from('listings')
+          .insert(listingData)
+          .select()
+          .single();
+        listingError = error;
+        listing = data;
+      }
 
       if (listingError) throw listingError;
 
@@ -242,7 +273,7 @@ export default function CookScreen() {
         if (sessionError) throw sessionError;
       }
 
-      Alert.alert('Success! 🎉', 'Your dish is now live on the marketplace.');
+      Alert.alert('Success! 🎉', edit_id ? 'Your dish has been updated.' : 'Your dish is now live on the marketplace.');
 
       // Reset form
       setMealName('');
@@ -254,7 +285,13 @@ export default function CookScreen() {
       setSupportsSessions(false);
 
       queryClient.invalidateQueries({ queryKey: ['my-menu', user.id] });
-      router.push('/(tabs)');
+      queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
+      
+      if (edit_id) {
+        router.back();
+      } else {
+        router.push('/(tabs)');
+      }
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
@@ -262,18 +299,80 @@ export default function CookScreen() {
     }
   };
 
+  // Check if user is an approved cook
+  const { data: cookProfile, isLoading: isCookProfileLoading } = useQuery({
+    queryKey: ['cook-approval-check'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, cook_application_status')
+        .eq('id', user.id)
+        .single();
+      return data;
+    },
+    staleTime: 30 * 1000,
+  });
+
+  const isApprovedCook = cookProfile?.role === 'COOK' && cookProfile?.cook_application_status === 'approved';
+
   // ----------------------
   // RENDER: COOK MODE (Post a Meal)
   // ----------------------
   if (isCookMode) {
+    if (isCookProfileLoading) {
+        return (
+            <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+                <View className="flex-1 bg-warm-cream items-center justify-center">
+                    <ActivityIndicator size="large" color="#D65A31" />
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // LOCKED: Not an approved cook
+    if (!isApprovedCook) {
+      return (
+        <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+          <View className="flex-1 bg-warm-cream items-center justify-center px-8">
+            <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-6">
+              <Lock size={36} color="#9CA3AF" />
+            </View>
+            <Text className="text-2xl font-bold text-text-main text-center mb-3 font-sans-bold">
+              Kitchen Locked
+            </Text>
+            <Text className="text-text-sub text-center text-base font-sans mb-8 leading-relaxed">
+              You need to apply and get approved as a cook before you can post meals. Complete the application to unlock your kitchen.
+            </Text>
+            {cookProfile?.cook_application_status === 'pending' ? (
+              <View className="bg-orange-50 rounded-2xl px-6 py-4 border border-orange-100 w-full items-center">
+                <Text className="text-clay-primary font-bold text-base font-sans-bold">⏳ Application Under Review</Text>
+                <Text className="text-text-sub text-sm font-sans mt-1 text-center">We'll notify you once approved</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => router.push('/onboarding/apply-to-cook')}
+                className="bg-clay-primary rounded-2xl px-8 py-4 flex-row items-center gap-3 w-full justify-center"
+                style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
+              >
+                <UtensilsCrossed size={20} color="white" />
+                <Text className="text-white font-bold text-lg font-sans-bold">Apply to Cook</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView className="flex-1 bg-white" edges={['top']}>
         <View className="flex-1 bg-warm-cream">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
           <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100 flex-row justify-between items-center">
             <View>
-              <Text className="text-xl font-bold text-text-main font-sans-bold">Cook Something</Text>
-              <Text className="text-sm text-text-sub font-sans">Create a listing or launch a drop</Text>
+              <Text className="text-xl font-bold text-text-main font-sans-bold">{edit_id ? 'Edit Your Dish' : 'Post a New Dish'}</Text>
+              <Text className="text-text-sub text-sm font-sans">{edit_id ? 'Update the details for your listing' : 'Share your culinary creation with the community'}</Text>
             </View>
             <TouchableOpacity 
               onPress={() => router.back()} 
@@ -561,7 +660,7 @@ export default function CookScreen() {
                   <>
                     <Plus size={20} color="white" />
                     <Text className="text-white font-bold text-lg font-sans-bold">
-                      {supportsSessions ? 'Launch Meal Drop' : 'Publish Listing'}
+                      {edit_id ? 'Update Dish' : (supportsSessions ? 'Launch Meal Drop' : 'Publish Listing')}
                     </Text>
                   </>
                 )}

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Share } from 'react-native';
 const { width } = Dimensions.get('window');
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Heart, Clock, Star, Plus, Minus, ChefHat, Flame, ShoppingCart, MapPin, Utensils, Navigation, Share2, Upload } from 'lucide-react-native';
+import { ArrowLeft, Heart, Clock, Star, Plus, Minus, ChefHat, Flame, ShoppingCart, MapPin, Utensils, Navigation, Share2, Upload, Pencil } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getDishImage } from '@/constants/Images';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,7 +29,7 @@ export default function ListingDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { addToCart } = useAppStore();
+    const { addToCart, isCookMode } = useAppStore();
     const [quantity, setQuantity] = useState(1);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [saved, setSaved] = useState(false);
@@ -76,7 +77,7 @@ export default function ListingDetailScreen() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('listings')
-                .select('*, profiles(id, full_name, avatar_url, rating, served_count)')
+                .select('*, profiles(id, full_name, avatar_url, kitchen_image_url, rating, served_count)')
                 .eq('id', id as string)
                 .single();
             if (error) throw error;
@@ -100,6 +101,17 @@ export default function ListingDetailScreen() {
         enabled: !!listing?.cook_id,
     });
 
+    // Check if current user is the owner of this listing
+    const { data: currentUser } = useQuery({
+        queryKey: ['current-user'],
+        queryFn: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            return user;
+        }
+    });
+
+    const isOwner = currentUser?.id === listing?.cook_id;
+
     if (isLoading) {
         return (
             <View className="flex-1 items-center justify-center bg-white">
@@ -121,9 +133,7 @@ export default function ListingDetailScreen() {
         );
     }
 
-    const dishImage = listing.image
-        ? { uri: listing.image }
-        : { uri: 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' };
+    const dishImage = getDishImage(listing.title, listing.image);
 
     // Create an array of images for the slider (using placeholders for demo since DB only has 1 image currently)
     const sliderImages = [
@@ -167,8 +177,8 @@ export default function ListingDetailScreen() {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Check out this delicious ${listing.title} on YenDidii!`,
-                url: `yendidii://listing/${listing.id}`,
+                title: `${listing.title} on YɛnDidii`,
+                message: `Check out "${listing.title}" for ₵${listing.price} on YɛnDidii! 🤤\n\nOpen this link to order:\nyendidii://listing/${listing.id}`,
             });
         } catch (error) {
             console.log('Error sharing:', error);
@@ -326,8 +336,8 @@ export default function ListingDetailScreen() {
                         <Text className="text-[15px] tracking-wide uppercase font-bold text-text-main/60 font-sans-bold mb-4">The Chef</Text>
 
                         <View className="flex-row items-center gap-4 mb-2">
-                            {listing.profiles?.avatar_url ? (
-                                <Image source={{ uri: listing.profiles.avatar_url }} className="w-16 h-16 rounded-2xl" />
+                            {listing.profiles?.kitchen_image_url || listing.profiles?.avatar_url ? (
+                                <Image source={{ uri: listing.profiles.kitchen_image_url || listing.profiles.avatar_url }} className="w-16 h-16 rounded-2xl" />
                             ) : (
                                 <View className="w-16 h-16 rounded-2xl bg-clay-primary/15 items-center justify-center">
                                     <ChefHat size={30} color="#D65A31" />
@@ -335,10 +345,10 @@ export default function ListingDetailScreen() {
                             )}
                             <View className="flex-1">
                                 <Text className="font-bold text-text-main text-base font-sans-bold">
-                                    {listing.profiles?.full_name || 'Home Cook'}
+                                    {cookApp?.kitchen_name || listing.profiles?.full_name || 'Home Cook'}
                                 </Text>
-                                {cookApp?.kitchen_name ? (
-                                    <Text className="text-xs text-clay-primary font-bold mt-0.5">{cookApp.kitchen_name}</Text>
+                                {cookApp?.kitchen_name && listing.profiles?.full_name ? (
+                                    <Text className="text-xs text-text-sub mt-0.5 font-sans">by {listing.profiles.full_name}</Text>
                                 ) : null}
                                 <View className="flex-row items-center gap-3 mt-1">
                                     <View className="flex-row items-center gap-1">
@@ -397,35 +407,51 @@ export default function ListingDetailScreen() {
                 className="absolute bottom-0 left-0 right-0 bg-[#FFF9F5] px-6 pt-4 border-t border-[#FFEDD5]"
                 style={{ paddingBottom: insets.bottom + 8 }}
             >
-                <View className="flex-row items-center gap-4">
-                    <View className="flex-row items-center gap-3 bg-white border border-[#FFEDD5] shadow-sm rounded-2xl px-3 py-2">
+                {isOwner && isCookMode ? (
+                    <View className="flex-row items-center justify-between">
+                        <View className="flex-1 mr-4">
+                            <Text className="text-sm font-bold text-text-main font-sans-bold">Preview Mode</Text>
+                            <Text className="text-xs text-text-sub font-sans">This is how Eaters see your dish.</Text>
+                        </View>
                         <TouchableOpacity
-                            onPress={() => setQuantity(q => Math.max(1, q - 1))}
-                            className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 items-center justify-center"
+                            className="bg-clay-primary rounded-2xl py-3 px-6 items-center flex-row gap-2"
+                            onPress={() => router.push(`/(tabs)/cook?edit_id=${listing.id}`)}
                         >
-                            <Minus size={16} color="#2D241E" />
-                        </TouchableOpacity>
-                        <Text className="text-lg font-bold text-text-main w-6 text-center font-sans-bold">{quantity}</Text>
-                        <TouchableOpacity
-                            onPress={() => setQuantity(q => q + 1)}
-                            className="w-8 h-8 rounded-full bg-clay-primary items-center justify-center"
-                        >
-                            <Plus size={16} color="white" />
+                            <Pencil size={16} color="white" />
+                            <Text className="text-white font-bold text-sm font-sans-bold">Edit Dish</Text>
                         </TouchableOpacity>
                     </View>
+                ) : (
+                    <View className="flex-row items-center gap-4">
+                        <View className="flex-row items-center gap-3 bg-white border border-[#FFEDD5] shadow-sm rounded-2xl px-3 py-2">
+                            <TouchableOpacity
+                                onPress={() => setQuantity(q => Math.max(1, q - 1))}
+                                className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 items-center justify-center"
+                            >
+                                <Minus size={16} color="#2D241E" />
+                            </TouchableOpacity>
+                            <Text className="text-lg font-bold text-text-main w-6 text-center font-sans-bold">{quantity}</Text>
+                            <TouchableOpacity
+                                onPress={() => setQuantity(q => q + 1)}
+                                className="w-8 h-8 rounded-full bg-clay-primary items-center justify-center"
+                            >
+                                <Plus size={16} color="white" />
+                            </TouchableOpacity>
+                        </View>
 
-                    <TouchableOpacity
-                        className="flex-1 bg-clay-primary rounded-2xl py-4 items-center flex-row justify-center gap-2"
-                        style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
-                        onPress={handleAddToCart}
-                        disabled={!listing.available}
-                    >
-                        <ShoppingCart size={18} color="white" />
-                        <Text className="text-white font-bold text-base font-sans-bold">
-                            Add to Cart · ₵{(Number(listing.price) * quantity).toFixed(2)}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
+                        <TouchableOpacity
+                            className="flex-1 bg-clay-primary rounded-2xl py-4 items-center flex-row justify-center gap-2"
+                            style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
+                            onPress={handleAddToCart}
+                            disabled={!listing.available}
+                        >
+                            <ShoppingCart size={18} color="white" />
+                            <Text className="text-white font-bold text-base font-sans-bold">
+                                Add to Cart · ₵{(Number(listing.price) * quantity).toFixed(2)}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         </View>
     );

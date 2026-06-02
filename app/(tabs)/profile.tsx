@@ -1,14 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, RefreshControl, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Settings, LogOut, ChevronRight, User, Phone, ShieldCheck, ChefHat, RefreshCw, MapPin, Clock, Utensils, Calendar, Navigation, X, Check } from 'lucide-react-native';
+import { Settings, LogOut, ChevronRight, User, Phone, ShieldCheck, ChefHat, RefreshCw, MapPin, Clock, Utensils, Calendar, Navigation, X, Check, Camera } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
-import { useRouter, useRootNavigationState } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useAppStore } from '@/lib/store';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 
 export default function ProfileScreen() {
-    const rootNavigationState = useRootNavigationState();
     const router = useRouter();
     const { isCookMode, toggleCookMode } = useAppStore();
 
@@ -21,6 +22,53 @@ export default function ProfileScreen() {
     const [locationDraft, setLocationDraft] = useState('');
     const [locationFetching, setLocationFetching] = useState(false);
     const [locationSaving, setLocationSaving] = useState(false);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+
+    const pickAvatar = async () => {
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+            base64: true,
+        });
+
+        if (result.canceled || !result.assets[0].base64) return;
+
+        setAvatarUploading(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) throw new Error('Not logged in');
+
+            const filePath = `${user.id}/avatar_${Date.now()}.jpg`;
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, decode(result.assets[0].base64), {
+                    contentType: 'image/jpeg',
+                    upsert: true,
+                });
+
+            if (uploadError) throw uploadError;
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ avatar_url: publicUrl })
+                .eq('id', user.id);
+
+            if (updateError) throw updateError;
+
+            setProfile((p: any) => ({ ...p, avatar_url: publicUrl }));
+            Alert.alert('Done! 📸', 'Profile picture updated.');
+        } catch (err: any) {
+            Alert.alert('Upload Failed', err.message);
+        } finally {
+            setAvatarUploading(false);
+        }
+    };
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -122,14 +170,6 @@ export default function ProfileScreen() {
         setLocationSaving(false);
     };
 
-    // Wait for navigation to be ready before rendering
-    if (!rootNavigationState?.key) {
-        return (
-            <View className="flex-1 items-center justify-center bg-white">
-                <ActivityIndicator size="large" color="#D65A31" />
-            </View>
-        );
-    }
 
     if (loading) {
         return (
@@ -230,15 +270,24 @@ export default function ProfileScreen() {
                     {/* Profile Card */}
                     <View className="m-6 bg-white p-6 rounded-3xl shadow-sm">
                         <View className="flex-row items-center gap-4 mb-6">
-                            <View className="w-20 h-20 bg-gray-100 rounded-full overflow-hidden border-2 border-white shadow-sm">
-                                {profile.avatar_url ? (
-                                    <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
-                                ) : (
-                                    <View className="w-full h-full items-center justify-center bg-clay-primary/10">
-                                        <User size={32} color="#D65A31" />
-                                    </View>
-                                )}
-                            </View>
+                            <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} className="relative">
+                                <View className="w-20 h-20 bg-gray-100 rounded-full overflow-hidden border-2 border-white shadow-sm">
+                                    {avatarUploading ? (
+                                        <View className="w-full h-full items-center justify-center bg-gray-100">
+                                            <ActivityIndicator size="small" color="#D65A31" />
+                                        </View>
+                                    ) : profile.avatar_url ? (
+                                        <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
+                                    ) : (
+                                        <View className="w-full h-full items-center justify-center bg-clay-primary/10">
+                                            <User size={32} color="#D65A31" />
+                                        </View>
+                                    )}
+                                </View>
+                                <View className="absolute bottom-0 right-0 w-7 h-7 bg-clay-primary rounded-full items-center justify-center border-2 border-white">
+                                    <Camera size={14} color="white" />
+                                </View>
+                            </TouchableOpacity>
                             <View className="flex-1">
                                 <Text className="text-xl font-bold text-text-main font-sans-bold">{profile.full_name || 'Foodie'}</Text>
                                 <Text className="text-text-sub text-sm font-sans mb-1">{profile.phone || 'No phone'}</Text>
@@ -281,15 +330,15 @@ export default function ProfileScreen() {
                     </View>
 
                     {/* COOK STATUS / SWITCH MODE BUTTON */}
-                    {/* COOK STATUS / SWITCH MODE BUTTON */}
                     {profile.role === 'COOK' && profile.cook_application_status === 'approved' ? (
                         <View>
-                            {/* Celebration Banner (shows for recently approved cooks) */}
+                            {/* Celebration Banner (shows for 24 hours after approval) */}
                             {profile.cook_approved_at && (function() {
                                 try {
                                     const approvedDate = new Date(profile.cook_approved_at);
                                     if (isNaN(approvedDate.getTime())) return false;
-                                    return (Date.now() - approvedDate.getTime()) < 7 * 24 * 60 * 60 * 1000;
+                                    const diff = Date.now() - approvedDate.getTime();
+                                    return diff < (24 * 60 * 60 * 1000);
                                 } catch (e) {
                                     return false;
                                 }
@@ -434,6 +483,29 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     )}
 
+                    {/* Show Switch to Eating for non-approved users stuck in cook mode */}
+                    {isCookMode && !(profile.role === 'COOK' && profile.cook_application_status === 'approved') && (
+                        <TouchableOpacity
+                            className="mx-6 mb-6 bg-white rounded-2xl p-4 shadow-sm flex-row items-center justify-between border border-gray-100 active:scale-98"
+                            onPress={toggleCookMode}
+                        >
+                            <View className="flex-row items-center gap-4">
+                                <View className="w-12 h-12 rounded-full bg-gray-50 items-center justify-center">
+                                    <RefreshCw size={24} color="#D65A31" />
+                                </View>
+                                <View>
+                                    <Text className="font-bold text-text-main text-lg font-sans-bold">
+                                        Switch to Eating
+                                    </Text>
+                                    <Text className="text-text-sub text-xs font-sans">
+                                        Go back to finding food
+                                    </Text>
+                                </View>
+                            </View>
+                            <ChevronRight size={20} color="#9CA3AF" />
+                        </TouchableOpacity>
+                    )}
+
                     {/* Menu Items */}
                     <View className="mx-6 bg-white rounded-3xl overflow-hidden shadow-sm mb-6">
                         <TouchableOpacity
@@ -448,6 +520,21 @@ export default function ProfileScreen() {
                             </View>
                             <ChevronRight size={20} color="#9CA3AF" />
                         </TouchableOpacity>
+
+                        {profile.role === 'COOK' && profile.cook_application_status === 'approved' && isCookMode && (
+                            <TouchableOpacity
+                                className="flex-row items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50"
+                                onPress={() => router.push('/kitchen-settings')}
+                            >
+                                <View className="flex-row items-center gap-3">
+                                    <View className="w-10 h-10 bg-kente-yellow/20 rounded-full items-center justify-center">
+                                        <ChefHat size={20} color="#D65A31" />
+                                    </View>
+                                    <Text className="text-text-main font-medium font-sans-medium">Kitchen Settings</Text>
+                                </View>
+                                <ChevronRight size={20} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        )}
 
                         <TouchableOpacity
                             className="flex-row items-center justify-between p-4 border-b border-gray-100 active:bg-gray-50"

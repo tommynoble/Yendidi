@@ -2,12 +2,13 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, MapPin, Clock, Star, Sparkles, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, ShoppingCart, Loader2, Plus, Flame, ChefHat, Heart } from 'lucide-react-native';
+import { Search, MapPin, Clock, Star, Sparkles, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, ShoppingCart, Loader2, Plus, Flame, ChefHat, Heart, Lock, UtensilsCrossed } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { format, formatDistanceToNow } from 'date-fns';
+import { getDishImage } from '@/constants/Images';
 
 const getGreeting = () => {
   const hour = new Date().getHours();
@@ -150,7 +151,7 @@ export default function HomeScreen() {
         .from('meal_sessions')
         .select(`
           *,
-          profiles:cook_id (full_name, avatar_url, rating),
+          profiles:cook_id (full_name, avatar_url, rating, kitchen_image_url),
           listings:listing_id (title, price, image)
         `)
         .eq('status', 'open')
@@ -194,7 +195,7 @@ export default function HomeScreen() {
     queryFn: async () => {
       let query = supabase
         .from('listings')
-        .select('*, profiles(full_name, avatar_url, rating)')
+        .select('*, profiles(full_name, avatar_url, rating, kitchen_image_url)')
         .eq('available', true);
 
       if (activeCategory !== 'All') {
@@ -222,7 +223,7 @@ export default function HomeScreen() {
     queryFn: async () => {
       const { data } = await supabase
         .from('listings')
-        .select('*, profiles(full_name, avatar_url, rating)')
+        .select('*, profiles(full_name, avatar_url, rating, kitchen_image_url)')
         .eq('available', true);
       return data || [];
     },
@@ -274,7 +275,8 @@ export default function HomeScreen() {
       const { data } = await supabase
         .from('listings')
         .select('*')
-        .eq('cook_id', user.id);
+        .eq('cook_id', user.id)
+        .or('archived.eq.false,archived.is.null');
       return data || [];
     },
     enabled: !!user && isCookMode
@@ -361,7 +363,7 @@ export default function HomeScreen() {
 
       const { data: mainDishResults } = await supabase
         .from('listings')
-        .select('*, profiles(full_name, avatar_url, rating)')
+        .select('*, profiles(full_name, avatar_url, rating, kitchen_image_url)')
         .ilike('title', `%${searchQuery}%`);
 
       setSearchResults(mainDishResults || []);
@@ -448,7 +450,7 @@ export default function HomeScreen() {
             <View>
               <View className="flex-row items-center gap-2 mb-2">
                 <Image
-                  source={{ uri: session.profiles?.avatar_url || 'https://via.placeholder.com/24' }}
+                  source={{ uri: session.profiles?.kitchen_image_url || session.profiles?.avatar_url || 'https://via.placeholder.com/24' }}
                   className="w-6 h-6 rounded-full"
                 />
                 <View>
@@ -485,7 +487,7 @@ export default function HomeScreen() {
           {/* Right Image with Fade */}
           <View className="w-32 relative">
             <Image
-              source={{ uri: session.listings?.image || 'https://i.imgur.com/yF9WbdD.png' }}
+              source={getDishImage(session.listings?.title || session.title, session.listings?.image)}
               className="w-full h-full object-cover"
             />
             <LinearGradient
@@ -544,7 +546,8 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView 
-          className="flex-1 p-6" 
+          className="flex-1"
+          contentContainerStyle={{ padding: 24, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D65A31" colors={["#D65A31"]} />
@@ -659,19 +662,18 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
             {myMenu && myMenu.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-6 px-6">
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 8 }} className="-mx-6">
                 {myMenu.map((item: any) => (
-                  <View key={item.id} className="w-40 bg-white rounded-2xl mr-4 p-3 shadow-sm border border-gray-100">
-                    {item.image ? (
-                      <Image source={{ uri: item.image }} className="w-full h-24 rounded-xl mb-2 bg-gray-50" resizeMode="cover" />
-                    ) : (
-                      <View className="w-full h-24 rounded-xl mb-2 bg-gray-100 items-center justify-center">
-                        <Text style={{ fontSize: 28 }}>🍽️</Text>
-                      </View>
-                    )}
+                  <TouchableOpacity 
+                    key={item.id} 
+                    onPress={() => router.push(`/listing/${item.id}`)}
+                    activeOpacity={0.7}
+                    className="w-40 bg-white rounded-2xl mr-4 p-3 shadow-sm border border-gray-100"
+                  >
+                    <Image source={getDishImage(item.title, item.image)} className="w-full h-24 rounded-xl mb-2 bg-gray-50" resizeMode="cover" />
                     <Text className="font-bold text-text-main text-xs font-sans-bold" numberOfLines={1}>{item.title}</Text>
                     <Text className="text-clay-primary font-bold text-xs mt-1">₵{item.price}</Text>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             ) : (
@@ -813,8 +815,8 @@ export default function HomeScreen() {
                 onPress={() => router.push(`/(tabs)/orders`)}
                 activeOpacity={0.8}
               >
-                {activeOrder.order_items?.[0]?.listings?.image ? (
-                  <Image source={{ uri: activeOrder.order_items[0].listings.image }} className="w-10 h-10 rounded-full" />
+                {activeOrder.order_items?.[0]?.listings ? (
+                  <Image source={getDishImage(activeOrder.order_items[0].listings.title, activeOrder.order_items[0].listings.image)} className="w-10 h-10 rounded-full" />
                 ) : (
                   <View className="w-10 h-10 rounded-full bg-kente-green/20 items-center justify-center">
                     <ChefHat size={20} color="#007A33" />
@@ -909,19 +911,19 @@ export default function HomeScreen() {
                       key={item.id}
                       className="bg-white rounded-3xl p-4 mb-4 flex-row items-start gap-4 border border-gray-50 bg-white"
                       style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 5 }}
-                      onPress={() => router.push(`/meal/${item.id}`)}
+                      onPress={() => router.push(`/listing/${item.id}`)}
                     >
-                      <Image source={{ uri: item.base_image_url || item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} className="w-20 h-20 rounded-2xl bg-gray-100 object-cover" resizeMode="cover" />
+                      <Image source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} className="w-20 h-20 rounded-2xl bg-gray-100 object-cover" resizeMode="cover" />
                       <View className="flex-1 justify-between min-h-[80px] py-1">
                         <View>
-                          <Text className="font-bold text-text-main text-lg font-sans-bold leading-tight" numberOfLines={2}>{item.name}</Text>
+                          <Text className="font-bold text-text-main text-lg font-sans-bold leading-tight" numberOfLines={2}>{item.title}</Text>
                           <View className="flex-row items-center gap-1.5 mt-1">
                             <MapPin size={12} color="#D65A31" />
-                            <Text className="text-sm text-text-sub font-sans">See cooks near you</Text>
+                            <Text className="text-sm text-text-sub font-sans">by {item.profiles?.full_name || 'Local Cook'}</Text>
                           </View>
                         </View>
                         <View className="flex-row justify-between items-end mt-2">
-                          <Text className="text-clay-primary font-bold text-sm font-sans-bold">₵15 – ₵50</Text>
+                          <Text className="text-clay-primary font-bold text-sm font-sans-bold">₵{item.price}</Text>
                         </View>
                       </View>
                     </TouchableOpacity>
@@ -957,13 +959,13 @@ export default function HomeScreen() {
                             style={{ height: 220 }}
                           >
                             <Image
-                              source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' }}
+                              source={getDishImage(item.title || item.name, item.image)}
                               style={{ width: '100%', height: '100%' }}
                               resizeMode="cover"
                             />
                             <LinearGradient
                               colors={['transparent', 'rgba(0,0,0,0.6)']}
-                              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }}
+                              pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }}
                             />
                             {/* Price badge */}
                             <View 
@@ -1041,8 +1043,8 @@ export default function HomeScreen() {
                             >
                               <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 }}>
                                 <View className="w-full h-36 relative bg-gray-100 rounded-[32px] overflow-hidden border border-gray-200/50">
-                                  <Image source={{ uri: hItem.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} className="w-full h-full object-cover" resizeMode="cover" />
-                                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 }} />
+                                  <Image source={getDishImage(hItem.title || hItem.name, hItem.image)} className="w-full h-full object-cover" resizeMode="cover" />
+                                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 }} />
                                   <View className="absolute bottom-2 left-3 bg-clay-primary px-2.5 py-1 rounded-full">
                                     <Text className="text-white font-bold text-xs font-sans-bold">₵{hItem.price}</Text>
                                   </View>
@@ -1078,8 +1080,8 @@ export default function HomeScreen() {
                         {/* Thumbnail Wrapper with Shadow */}
                         <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 20, elevation: 6 }}>
                           <View className="w-full relative bg-gray-100 rounded-[40px] overflow-hidden border border-gray-200/50" style={{ height: 220 }}>
-                            <Image source={{ uri: item.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }} />
+                            <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 }} />
                             <View className="absolute bottom-4 left-5 bg-clay-primary px-4 py-1.5 rounded-full" style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5 }}>
                               <Text className="text-white font-bold text-lg font-sans-bold tracking-tight">₵{item.price}</Text>
                             </View>
@@ -1095,9 +1097,16 @@ export default function HomeScreen() {
                           <Text className="font-bold text-text-main text-lg font-sans-bold mb-2 leading-tight" numberOfLines={1}>{item.title || item.name}</Text>
                           <View className="flex-row items-center justify-between mt-1">
                             <View className="flex-row items-center gap-2">
-                              <View className="w-6 h-6 bg-orange-50 rounded-full items-center justify-center border border-orange-100">
-                                <Text className="text-[10px]">👨‍🍳</Text>
-                              </View>
+                              {item.profiles?.kitchen_image_url || item.profiles?.avatar_url ? (
+                                <Image
+                                  source={{ uri: item.profiles.kitchen_image_url || item.profiles.avatar_url }}
+                                  className="w-6 h-6 rounded-full border border-orange-100"
+                                />
+                              ) : (
+                                <View className="w-6 h-6 bg-orange-50 rounded-full items-center justify-center border border-orange-100">
+                                  <Text className="text-[10px]">👨‍🍳</Text>
+                                </View>
+                              )}
                               <Text className="text-[13px] text-text-sub font-sans font-medium" numberOfLines={1}>{item.profiles?.full_name || 'Chef'}</Text>
                             </View>
                             <View className="flex-row items-center gap-3">
@@ -1137,8 +1146,8 @@ export default function HomeScreen() {
                             >
                               <View style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5 }}>
                                 <View className="w-full h-36 relative bg-gray-100 rounded-[32px] overflow-hidden border border-gray-200/50">
-                                  <Image source={{ uri: hItem.image || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} className="w-full h-full object-cover" resizeMode="cover" />
-                                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 }} />
+                                  <Image source={getDishImage(hItem.title || hItem.name, hItem.image)} className="w-full h-full object-cover" resizeMode="cover" />
+                                  <LinearGradient colors={['transparent', 'rgba(0,0,0,0.6)']} pointerEvents="none" style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 60 }} />
                                   <View className="absolute bottom-2 left-3 bg-clay-primary px-2.5 py-1 rounded-full">
                                     <Text className="text-white font-bold text-xs font-sans-bold">₵{hItem.price}</Text>
                                   </View>

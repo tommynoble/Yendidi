@@ -110,12 +110,11 @@ create table public.main_dishes (
   created_at timestamp with time zone default timezone('utc'::text, now())
 );
 
--- LISTINGS (Cook-Specific Versions)
+-- LISTINGS (Cook's Custom Dishes)
 create table public.listings (
   id uuid default uuid_generate_v4() primary key,
-  main_dish_id uuid references public.main_dishes(id) on delete restrict not null,
   cook_id uuid references public.profiles(id) on delete cascade not null,
-  title text not null, -- Replaces 'custom_title' and 'name'
+  title text not null,
   description text,
   price numeric not null check (price >= 0),
   image text,
@@ -124,6 +123,11 @@ create table public.listings (
   supports_sessions boolean default false,
   portions_available int default 1 check (portions_available >= 0),
   prep_time_minutes int default 30 check (prep_time_minutes >= 0),
+  pickup_available boolean default true,
+  delivery_available boolean default false,
+  location_text text,
+  latitude double precision,
+  longitude double precision,
   created_at timestamp with time zone default timezone('utc'::text, now()),
   updated_at timestamp with time zone default timezone('utc'::text, now())
 );
@@ -133,7 +137,6 @@ create table public.meal_sessions (
   id uuid default uuid_generate_v4() primary key,
   listing_id uuid references public.listings(id) on delete cascade not null,
   cook_id uuid references public.profiles(id) on delete cascade not null,
-  main_dish_id uuid references public.main_dishes(id) not null,
   title text not null,
   description text,
   session_date date not null,

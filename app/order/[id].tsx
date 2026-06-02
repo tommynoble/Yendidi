@@ -5,6 +5,7 @@ import { ArrowLeft, Phone, MapPin, Clock, Star, Check, ChefHat, Navigation, Shie
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { getDishImage } from '@/constants/Images';
 
 const STATUS_STEPS = [
     { key: 'New', label: 'Placed', icon: Package },
@@ -41,10 +42,15 @@ export default function OrderDetailScreen() {
                                 id,
                                 full_name,
                                 avatar_url,
+                                kitchen_image_url,
                                 phone,
                                 rating,
                                 served_count,
-                                location
+                                location,
+                                kitchen_name,
+                                location_description,
+                                latitude,
+                                longitude
                             )
                         )
                     )
@@ -146,9 +152,12 @@ export default function OrderDetailScreen() {
         );
     }
 
-    // Get cook info from first order item
     const cook = order.order_items?.[0]?.listings?.profiles;
     const cookLocation = cook?.location || order.order_items?.[0]?.listings?.location_text || null;
+    const cookLandmark = cook?.location_description || null;
+    const cookKitchenName = cook?.kitchen_name || null;
+    const cookLat = cook?.latitude;
+    const cookLng = cook?.longitude;
     const currentStepIndex = STATUS_ORDER.indexOf(order.status);
     const isActive = ['New', 'Accepted', 'Cooking', 'Ready'].includes(order.status);
     const isCompleted = order.status === 'Completed';
@@ -247,6 +256,22 @@ export default function OrderDetailScreen() {
                             </View>
                         </View>
                     )}
+
+                    {/* Pickup Location — shows when order is Ready */}
+                    {order.status === 'Ready' && (cookLocation || cookLandmark) && (
+                        <View className="bg-green-50 rounded-2xl p-4 mt-3 border border-green-200">
+                            <View className="flex-row items-center gap-2 mb-2">
+                                <MapPin size={18} color="#007A33" />
+                                <Text className="font-bold text-kente-green font-sans-bold text-base">Pickup Location</Text>
+                            </View>
+                            {cookLocation && (
+                                <Text className="text-sm text-text-main font-sans mb-1">{cookLocation}</Text>
+                            )}
+                            {cookLandmark && (
+                                <Text className="text-sm text-text-sub font-sans italic">📍 {cookLandmark}</Text>
+                            )}
+                        </View>
+                    )}
                 </View>
 
                 {/* Order Items */}
@@ -255,13 +280,7 @@ export default function OrderDetailScreen() {
 
                     {order.order_items?.map((item: any, index: number) => (
                         <View key={item.id || index} className={`flex-row gap-4 ${index > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}`}>
-                            {item.listings?.image ? (
-                                <Image source={{ uri: item.listings.image }} className="w-20 h-20 rounded-xl" />
-                            ) : (
-                                <View className="w-20 h-20 rounded-xl bg-gray-100 items-center justify-center">
-                                    <ChefHat size={28} color="#D4D4D4" />
-                                </View>
-                            )}
+                            <Image source={getDishImage(item.listings?.title, item.listings?.image)} className="w-20 h-20 rounded-xl" />
                             <View className="flex-1">
                                 <Text className="font-bold text-text-main font-sans-bold text-base">
                                     {item.listings?.title || 'Meal'}
@@ -324,15 +343,18 @@ export default function OrderDetailScreen() {
                     <View className="bg-white mx-6 mt-4 rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
                         <Text className="text-lg font-bold text-text-main mb-4 font-sans-bold">Your Cook</Text>
                         <View className="flex-row items-center gap-4 mb-4">
-                            {cook.avatar_url ? (
-                                <Image source={{ uri: cook.avatar_url }} className="w-16 h-16 rounded-full" />
+                            {cook.kitchen_image_url || cook.avatar_url ? (
+                                <Image source={{ uri: cook.kitchen_image_url || cook.avatar_url }} className="w-16 h-16 rounded-full" />
                             ) : (
                                 <View className="w-16 h-16 rounded-full bg-clay-primary/15 items-center justify-center">
                                     <ChefHat size={28} color="#D65A31" />
                                 </View>
                             )}
                             <View className="flex-1">
-                                <Text className="font-bold text-text-main text-lg font-sans-bold">{cook.full_name || 'Home Cook'}</Text>
+                                <Text className="font-bold text-text-main text-lg font-sans-bold">{cookKitchenName || cook.full_name || 'Home Cook'}</Text>
+                                {cookKitchenName && cook.full_name && (
+                                    <Text className="text-xs text-text-sub font-sans">by {cook.full_name}</Text>
+                                )}
                                 <View className="flex-row items-center gap-2 mt-1">
                                     <Star size={14} color="#FFCD00" fill="#FFCD00" />
                                     <Text className="text-sm text-text-main font-sans">{cook.rating || '4.8'}</Text>
@@ -343,6 +365,9 @@ export default function OrderDetailScreen() {
                                         <MapPin size={12} color="#D65A31" />
                                         <Text className="text-xs text-text-sub font-sans">{cookLocation}</Text>
                                     </View>
+                                )}
+                                {cookLandmark && (
+                                    <Text className="text-xs text-text-sub font-sans italic mt-0.5">📍 {cookLandmark}</Text>
                                 )}
                             </View>
                         </View>
@@ -360,14 +385,12 @@ export default function OrderDetailScreen() {
                     </View>
                 )}
 
-                {/* Get Directions */}
-                {cookLocation && (
+                {(cookLat && cookLng) && (
                     <TouchableOpacity
                         className="bg-white mx-6 mt-4 rounded-3xl p-5 flex-row items-center justify-between"
                         style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}
                         onPress={() => {
-                            const query = encodeURIComponent(cookLocation);
-                            Linking.openURL(`https://maps.apple.com/?q=${query}`);
+                            Linking.openURL(`https://maps.apple.com/?daddr=${cookLat},${cookLng}`);
                         }}
                     >
                         <View className="flex-row items-center gap-3">
@@ -376,7 +399,7 @@ export default function OrderDetailScreen() {
                             </View>
                             <View>
                                 <Text className="font-bold text-text-main font-sans-bold">Get Directions</Text>
-                                <Text className="text-xs text-text-sub font-sans">{cookLocation}</Text>
+                                <Text className="text-xs text-text-sub font-sans">{cookLocation || 'Navigate to kitchen'}</Text>
                             </View>
                         </View>
                         <ArrowLeft size={20} color="#9CA3AF" style={{ transform: [{ rotate: '180deg' }] }} />

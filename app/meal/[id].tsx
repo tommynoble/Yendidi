@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { format } from 'date-fns';
+import { getDishImage } from '@/constants/Images';
 
 const { width } = Dimensions.get('window');
 
@@ -148,10 +149,10 @@ export default function MealDetailScreen() {
                     <ArrowLeft size={20} color="#2D241E" />
                 </TouchableOpacity>
                 <View className="flex-row gap-3">
-                    <TouchableOpacity className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95">
+                    <TouchableOpacity className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95" onPress={() => {}}>
                         <Share size={20} color="#2D241E" />
                     </TouchableOpacity>
-                    <TouchableOpacity className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95">
+                    <TouchableOpacity className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95" onPress={() => {}}>
                         <Heart size={20} color="#2D241E" />
                     </TouchableOpacity>
                 </View>
@@ -161,7 +162,7 @@ export default function MealDetailScreen() {
                 {/* Hero Image */}
                 <View className="w-full h-[400px] relative">
                     <Image
-                        source={{ uri: mainDish.base_image_url || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=800' }}
+                        source={getDishImage(mainDish.name, mainDish.base_image_url)}
                         className="w-full h-full object-cover"
                     />
                     <LinearGradient
@@ -261,7 +262,7 @@ export default function MealDetailScreen() {
 
                                 <View className="flex-col gap-3">
                                     {activeSessions.map((session: any) => {
-                                        const dishName = session.listings?.title || session.main_dishes?.name || 'Local Dish';
+                                        const dishName = session.listings?.title || session.title || 'Local Dish';
                                         const sessionTitle = session.listings?.title || session.title;
                                         return (
                                             <TouchableOpacity
@@ -330,7 +331,7 @@ export default function MealDetailScreen() {
                                     <View className="flex-row items-start mb-4">
                                         <View className="relative">
                                             <Image
-                                                source={{ uri: cookItem.image || mainDish.base_image_url || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }}
+                                                source={getDishImage(cookItem.title || mainDish.name, cookItem.image || mainDish.base_image_url)}
                                                 className="w-24 h-24 rounded-2xl object-cover mr-4 bg-gray-100"
                                             />
                                         </View>
