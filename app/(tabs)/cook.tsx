@@ -201,6 +201,25 @@ export default function CookScreen() {
         return;
       }
 
+    const numPrice = parseFloat(finalPrice);
+    const numPortions = parseInt(portions, 10);
+    if (isNaN(numPrice) || numPrice <= 0) {
+      Alert.alert('Invalid Price', 'Please enter a valid price.');
+      return;
+    }
+    if (isNaN(numPortions) || numPortions <= 0) {
+      Alert.alert('Invalid Portions', 'Please enter a valid number of portions.');
+      return;
+    }
+    if (supportsSessions) {
+      const numTotal = parseInt(totalSlots, 10);
+      const numMin = parseInt(minSlots, 10);
+      if (isNaN(numTotal) || numTotal <= 0 || isNaN(numMin) || numMin <= 0) {
+        Alert.alert('Invalid Session Details', 'Please enter valid plate and minimum numbers.');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -213,8 +232,8 @@ export default function CookScreen() {
         cook_id: user.id,
         title: mealName,
         description: description,
-        price: parseFloat(finalPrice),
-        portions_available: parseInt(portions),
+        price: numPrice,
+        portions_available: numPortions,
         prep_time_minutes: prepTime,
         available: isAvailable,
         supports_sessions: supportsSessions,
@@ -270,7 +289,13 @@ export default function CookScreen() {
             price_per_plate: parseFloat(sessionPrice || price)
           });
 
-        if (sessionError) throw sessionError;
+        if (sessionError) {
+          // Roll back: delete the listing we just created to keep DB consistent
+          if (!edit_id) {
+            await supabase.from('listings').delete().eq('id', listing.id);
+          }
+          throw sessionError;
+        }
       }
 
       Alert.alert('Success! 🎉', edit_id ? 'Your dish has been updated.' : 'Your dish is now live on the marketplace.');

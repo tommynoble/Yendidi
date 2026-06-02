@@ -106,9 +106,9 @@ export default function NotificationsScreen() {
   const orderNotifications = orders
     .filter((o: any) => o.status !== 'New') // "New" = just placed, not a real update yet
     .map((o: any) => {
-      const cook = Array.isArray(o.profiles) ? o.profiles[0] : o.profiles;
+      const cook = Array.isArray(o.profiles) ? (o.profiles.length > 0 ? o.profiles[0] : null) : o.profiles;
       const firstItem = o.order_items?.[0];
-      const listing = Array.isArray(firstItem?.listings) ? firstItem?.listings[0] : firstItem?.listings;
+      const listing = Array.isArray(firstItem?.listings) ? (firstItem.listings.length > 0 ? firstItem.listings[0] : null) : firstItem?.listings;
       const dishName = listing?.title || 'your dish';
       const cookName = cook?.full_name || 'Your cook';
       const updatedAt = new Date(o.updated_at || o.created_at);

@@ -328,19 +328,24 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([
-      refetchUser(),
-      refetchProfile(),
-      refetchActiveOrder(),
-      refetchMealSessions(),
-      refetchCookSessions(),
-      refetchFeaturedMeals(),
-      refetchAllListings(),
-      refetchChefStats(),
-      refetchMyMenu(),
-      refetchRecentActivity()
-    ]);
-    setRefreshing(false);
+    try {
+      await Promise.all([
+        refetchUser(),
+        refetchProfile(),
+        refetchActiveOrder(),
+        refetchMealSessions(),
+        refetchCookSessions(),
+        refetchFeaturedMeals(),
+        refetchAllListings(),
+        refetchChefStats(),
+        refetchMyMenu(),
+        refetchRecentActivity()
+      ]);
+    } catch (e) {
+      console.error('Refresh error:', e);
+    } finally {
+      setRefreshing(false);
+    }
   }, [
     refetchUser, refetchProfile, refetchActiveOrder, refetchMealSessions, 
     refetchCookSessions, refetchFeaturedMeals, refetchAllListings,
