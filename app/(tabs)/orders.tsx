@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Bike, Check, X, CookingPot, User } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import { getDishImage } from '@/constants/Images';
@@ -134,11 +134,9 @@ export default function OrdersScreen() {
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            fetchOrders();
-        }, [isCookMode])
-    );
+    useEffect(() => {
+        fetchOrders();
+    }, [isCookMode]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
