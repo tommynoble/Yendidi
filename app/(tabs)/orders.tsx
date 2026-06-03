@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Bike, Check, X, CookingPot, User } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import { getDishImage } from '@/constants/Images';
@@ -46,6 +46,7 @@ const NEXT_STATUS: Record<string, string> = {
 };
 
 export default function OrdersScreen() {
+    const router = useRouter();
     const { isCookMode } = useAppStore();
     const [loading, setLoading] = useState(true);
     const [orders, setOrders] = useState<Order[]>([]);
@@ -372,7 +373,7 @@ export default function OrdersScreen() {
                     <View className="flex-row items-center gap-3">
                         <View className="w-10 h-10 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
                             {cook?.kitchen_image_url || cook?.avatar_url ? (
-                                <Image source={{ uri: cook.kitchen_image_url || cook.avatar_url }} className="w-full h-full" />
+                                <Image source={{ uri: (cook.kitchen_image_url || cook.avatar_url) ?? undefined }} className="w-full h-full" />
                             ) : (
                                 <View className="w-full h-full items-center justify-center bg-clay-primary/10">
                                     <ChefHat size={20} color="#D65A31" />
@@ -399,7 +400,7 @@ export default function OrdersScreen() {
                 {/* Items Summary */}
                 <View className="flex-row gap-4 mb-4">
                     <View className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden">
-                        <Image source={getDishImage(listing?.title, listing?.image)} className="w-full h-full" resizeMode="cover" />
+                        <Image source={getDishImage(listing?.title ?? '', listing?.image)} className="w-full h-full" resizeMode="cover" />
                     </View>
                     <View className="flex-1 justify-center">
                         <Text className="text-text-main font-medium font-sans-medium text-base h-auto" numberOfLines={1}>
