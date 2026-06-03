@@ -14,20 +14,32 @@ web-build/
 .DS_Store
 **/.DS_Store
 
+# macOS AppleDouble resource fork files (cause tar "File exists" errors on Linux)
+._*
+**/._*
+.AppleDouble
+.LSOverride
+
 # Local env files (EAS has its own env vars)
 .env
 .env*.local
 
-# Database seed/util scripts not needed for build
+# Specific utility/seed scripts not needed for build
 *.sql
-*.ts
 seed.ts
 check_data.ts
 check_policies.ts
 check_user.ts
+meal_sessions_schema.sql
+supabase_schema.sql
+seed_main_dishes.sql
+seed_sessions.sql
+seed.sql
+update_categories.sql
 
 # Local store (Zustand persist, not needed for build)
 store/
+store.config.json
 
 # Supabase local config
 supabase/
