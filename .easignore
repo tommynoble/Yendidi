@@ -1,0 +1,43 @@
+# EAS Build ignore file
+# EAS uses .gitignore by default, this file adds extra exclusions
+
+# Large binary files not needed for builds
+jq
+
+# Local development folders
+node_modules/
+.expo/
+dist/
+web-build/
+
+# macOS junk
+.DS_Store
+**/.DS_Store
+
+# Local env files (EAS has its own env vars)
+.env
+.env*.local
+
+# Database seed/util scripts not needed for build
+*.sql
+*.ts
+seed.ts
+check_data.ts
+check_policies.ts
+check_user.ts
+
+# Local store (Zustand persist, not needed for build)
+store/
+
+# Supabase local config
+supabase/
+
+# Editor configs
+.vscode/
+
+# Git
+.git/
+
+# TypeScript build info
+*.tsbuildinfo
+expo-env.d.ts
