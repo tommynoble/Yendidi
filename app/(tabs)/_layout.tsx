@@ -49,7 +49,6 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explore"
         options={{
-          href: isCookMode ? '/(tabs)/explore/list' : '/(tabs)/explore/map',
           tabBarIcon: ({ color, focused }) => (
             <View className="items-center justify-center" style={{ width: 60 }}>
               {isCookMode ? (
