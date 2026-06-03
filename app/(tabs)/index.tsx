@@ -1034,7 +1034,7 @@ export default function HomeScreen() {
                             <Flame size={18} color="#D65A31" fill="#D65A31" />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Popular Near You</Text>
                           </View>
-                          <Pressable onPress={() => router.push('/explore')} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+                          <Pressable onPress={() => router.push('/(tabs)/explore/list')} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                             <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
                           </Pressable>
                         </View>
@@ -1137,7 +1137,7 @@ export default function HomeScreen() {
                             <Heart size={18} color="#D65A31" fill="#D65A31" />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Loved Foods</Text>
                           </View>
-                          <Pressable onPress={() => router.push('/explore')} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
+                          <Pressable onPress={() => router.push('/(tabs)/explore/list')} hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}>
                             <Text className="text-clay-primary text-xs font-bold font-sans-bold">See all</Text>
                           </Pressable>
                         </View>

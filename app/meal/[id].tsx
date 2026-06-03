@@ -276,7 +276,7 @@ export default function MealDetailScreen() {
                                                             {sessionTitle}
                                                         </Text>
                                                         <Text className="text-xs text-text-sub font-sans mt-0.5">
-                                                            {format(new Date(session.session_date), 'EEEE, MMM d')} • {session.start_time.slice(0, 5)}
+                                                            {session.session_date ? format(new Date(session.session_date), 'EEEE, MMM d') : 'Soon'} • {session.start_time?.slice(0, 5) ?? ''}
                                                         </Text>
                                                     </View>
                                                     <Text className="text-clay-primary font-bold text-lg font-sans-bold">₵{session.price_per_plate}</Text>
