@@ -361,7 +361,7 @@ export default function OrdersScreen() {
 
         return (
             <TouchableOpacity
-                className="bg-white mx-6 mb-4 rounded-3xl p-4 shadow-sm active:scale-[0.98]"
+                className="bg-white mx-6 mb-4 rounded-3xl p-4 active:scale-[0.98]"
                 style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
                 activeOpacity={0.9}
                 onPress={() => router.push(`/order/${item.id}`)}
@@ -373,7 +373,7 @@ export default function OrdersScreen() {
                             {cook?.kitchen_image_url || cook?.avatar_url ? (
                                 <Image source={{ uri: (cook.kitchen_image_url || cook.avatar_url) ?? undefined }} className="w-full h-full" />
                             ) : (
-                                <View className="w-full h-full items-center justify-center bg-clay-primary/10">
+                                <View className="w-full h-full items-center justify-center" style={{ backgroundColor: 'rgba(214, 90, 49, 0.1)' }}>
                                     <ChefHat size={20} color="#D65A31" />
                                 </View>
                             )}
@@ -426,7 +426,7 @@ export default function OrdersScreen() {
 
                 {/* Footer / Actions - Only for Active */}
                 {activeTab === 'active' && (
-                    <View className="mt-2 bg-warm-cream/50 rounded-xl p-3 flex-row items-center gap-3">
+                    <View className="mt-2 rounded-xl p-3 flex-row items-center gap-3" style={{ backgroundColor: 'rgba(250, 249, 246, 0.5)' }}>
                         {item.status === 'New' && (
                             <>
                                 <ActivityIndicator size="small" color="#D65A31" />
@@ -482,7 +482,8 @@ export default function OrdersScreen() {
                 {/* Tabs */}
                 <View className="flex-row bg-gray-100 p-1 rounded-xl">
                     <TouchableOpacity
-                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'active' ? 'bg-white shadow-sm' : ''}`}
+                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'active' ? 'bg-white' : ''}`}
+                        style={activeTab === 'active' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 1.5, elevation: 1 } : {}}
                         onPress={() => setActiveTab('active')}
                     >
                         <Text className={`font-bold font-sans-bold ${activeTab === 'active' ? 'text-text-main' : 'text-gray-400'}`}>
@@ -490,7 +491,8 @@ export default function OrdersScreen() {
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'history' ? 'bg-white shadow-sm' : ''}`}
+                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'history' ? 'bg-white' : ''}`}
+                        style={activeTab === 'history' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 1.5, elevation: 1 } : {}}
                         onPress={() => setActiveTab('history')}
                     >
                         <Text className={`font-bold font-sans-bold ${activeTab === 'history' ? 'text-text-main' : 'text-gray-400'}`}>History</Text>

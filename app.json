@@ -22,6 +22,7 @@
       "bundleIdentifier": "com.yendidii.app"
     },
     "android": {
+      "package": "com.yendidii.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

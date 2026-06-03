@@ -189,7 +189,8 @@ export default function NotificationsScreen() {
           setReadIds(prev => new Set([...prev, item.id]));
           item.onPress?.();
         }}
-        className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${!isRead ? 'bg-clay-primary/5' : 'bg-white'}`}
+        className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${isRead ? 'bg-white' : ''}`}
+        style={!isRead ? { backgroundColor: 'rgba(214, 90, 49, 0.05)' } : {}}
         activeOpacity={0.7}
       >
         {/* Avatar or Icon */}
