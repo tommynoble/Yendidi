@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Store, Truck, Calendar, Info, Star, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation, Lock } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -90,31 +90,29 @@ export default function CookScreen() {
   const [savedListings, setSavedListings] = useState<any[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
 
-  // Reload favorites every time the tab is focused
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
-      const loadFavorites = async () => {
-        setSavedLoading(true);
-        try {
-          const raw = await AsyncStorage.getItem('yendidii_favorites');
-          const ids: string[] = raw ? JSON.parse(raw) : [];
-          if (!active) return;
-          setSavedIds(ids);
-          if (ids.length === 0) { setSavedListings([]); setSavedLoading(false); return; }
-          const { data } = await supabase
-            .from('listings')
-            .select('id, title, price, image, profiles(full_name)')
-            .in('id', ids);
-          if (!active) return;
-          setSavedListings(data || []);
-        } catch (_) {}
-        if (active) setSavedLoading(false);
-      };
-      loadFavorites();
-      return () => { active = false; };
-    }, [])
-  );
+  // Load favorites on mount
+  useEffect(() => {
+    let active = true;
+    const loadFavorites = async () => {
+      setSavedLoading(true);
+      try {
+        const raw = await AsyncStorage.getItem('yendidii_favorites');
+        const ids: string[] = raw ? JSON.parse(raw) : [];
+        if (!active) return;
+        setSavedIds(ids);
+        if (ids.length === 0) { setSavedListings([]); setSavedLoading(false); return; }
+        const { data } = await supabase
+          .from('listings')
+          .select('id, title, price, image, profiles(full_name)')
+          .in('id', ids);
+        if (!active) return;
+        setSavedListings(data || []);
+      } catch (_) {}
+      if (active) setSavedLoading(false);
+    };
+    loadFavorites();
+    return () => { active = false; };
+  }, []);
 
   const useCurrentLocation = async () => {
     setLocationFetching(true);
