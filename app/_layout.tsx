@@ -9,13 +9,14 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
-import { ErrorBoundary, Stack } from 'expo-router';
+import { ErrorBoundary, Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
+import { supabase } from '@/lib/supabase';
 import './global.css';
 
 export { ErrorBoundary };
@@ -36,6 +37,19 @@ try {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+  // Redirect to onboarding whenever Supabase fires SIGNED_OUT — this covers
+  // both explicit sign-out and background token refresh failures where
+  // autoRefreshToken exhausts its retries and clears the session.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        router.replace('/onboarding');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [loaded, error] = useFonts({
     DMSerifDisplay_400Regular,
@@ -73,7 +87,6 @@ export default function RootLayout() {
             <Stack.Screen name="cook/[id]" />
             <Stack.Screen name="meal/[id]" />
             <Stack.Screen name="cart" options={{ presentation: 'card' }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', headerShown: true }} />
           </Stack>
         </ThemeProvider>
       </PaystackProvider>

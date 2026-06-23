@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, ChefHat, MessageCircle, Bell, Check, Flame, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Bell, Check, Flame, MapPin } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -42,6 +42,63 @@ const getStatusMessage = (status: string, cookName: string, dishName: string) =>
     default: return `Your order for ${dishName} has been updated.`;
   }
 };
+
+const getIcon = (type: string) => {
+  switch (type) {
+    case 'order_accepted': return <Check size={18} color="#007A33" />;
+    case 'declined': return <Bell size={18} color="#EF4444" />;
+    case 'cook_nearby': return <MapPin size={18} color="#D65A31" />;
+    case 'promo': return <Flame size={18} color="#D65A31" />;
+    default: return <Bell size={18} color="#D65A31" />;
+  }
+};
+
+const getBgColor = (type: string) => {
+  switch (type) {
+    case 'order_accepted': return '#DCFCE7';
+    case 'declined': return '#FEE2E2';
+    case 'cook_nearby': return '#FFF0EB';
+    case 'promo': return '#FEF3C7';
+    default: return '#F3F4F6';
+  }
+};
+
+const NotificationRow = React.memo(({ item, readIds, onPress }: { item: any; readIds: Set<string>; onPress: (id: string) => void }) => {
+  const isRead = item.read || readIds.has(item.id);
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        onPress(item.id);
+        item.onPress?.();
+      }}
+      className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${isRead ? 'bg-white' : ''}`}
+      style={!isRead ? { backgroundColor: 'rgba(214, 90, 49, 0.05)' } : {}}
+      activeOpacity={0.7}
+    >
+      {item.image ? (
+        <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
+          <Image source={{ uri: item.image }} style={{ width: 48, height: 48 }} resizeMode="cover" />
+        </View>
+      ) : (
+        <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: getBgColor(item.type), alignItems: 'center', justifyContent: 'center' }}>
+          {getIcon(item.type)}
+        </View>
+      )}
+      <View className="flex-1">
+        <View className="flex-row items-center gap-2">
+          <Text className="font-semibold text-text-main flex-1 font-sans-semibold" numberOfLines={1}>
+            {item.title}
+          </Text>
+          {!isRead && <View className="w-2 h-2 bg-clay-primary rounded-full" />}
+        </View>
+        <Text className="text-sm text-text-sub mt-1 font-sans leading-relaxed" numberOfLines={2}>
+          {item.message}
+        </Text>
+        <Text className="text-xs text-text-sub mt-2 font-sans">{item.time}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -85,7 +142,8 @@ export default function NotificationsScreen() {
       return data || [];
     },
     enabled: !!user,
-    refetchInterval: 15000, // poll every 15s for new status changes
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false, // pause polling when app is backgrounded
   });
 
   // Fetch nearby approved cooks
@@ -161,64 +219,9 @@ export default function NotificationsScreen() {
     setReadIds(new Set(allNotifications.map(n => n.id)));
   };
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'order_accepted': return <Check size={18} color="#007A33" />;
-      case 'declined': return <Bell size={18} color="#EF4444" />;
-      case 'cook_nearby': return <MapPin size={18} color="#D65A31" />;
-      case 'promo': return <Flame size={18} color="#D65A31" />;
-      default: return <Bell size={18} color="#D65A31" />;
-    }
-  };
-
-  const getBgColor = (type: string) => {
-    switch (type) {
-      case 'order_accepted': return '#DCFCE7';
-      case 'declined': return '#FEE2E2';
-      case 'cook_nearby': return '#FFF0EB';
-      case 'promo': return '#FEF3C7';
-      default: return '#F3F4F6';
-    }
-  };
-
-  const NotificationRow = ({ item }: { item: any }) => {
-    const isRead = item.read || readIds.has(item.id);
-    return (
-      <TouchableOpacity
-        onPress={() => {
-          setReadIds(prev => new Set([...prev, item.id]));
-          item.onPress?.();
-        }}
-        className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${isRead ? 'bg-white' : ''}`}
-        style={!isRead ? { backgroundColor: 'rgba(214, 90, 49, 0.05)' } : {}}
-        activeOpacity={0.7}
-      >
-        {/* Avatar or Icon */}
-        {item.image ? (
-          <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
-            <Image source={{ uri: item.image }} style={{ width: 48, height: 48 }} resizeMode="cover" />
-          </View>
-        ) : (
-          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: getBgColor(item.type), alignItems: 'center', justifyContent: 'center' }}>
-            {getIcon(item.type)}
-          </View>
-        )}
-
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
-            <Text className="font-semibold text-text-main flex-1 font-sans-semibold" numberOfLines={1}>
-              {item.title}
-            </Text>
-            {!isRead && <View className="w-2 h-2 bg-clay-primary rounded-full" />}
-          </View>
-          <Text className="text-sm text-text-sub mt-1 font-sans leading-relaxed" numberOfLines={2}>
-            {item.message}
-          </Text>
-          <Text className="text-xs text-text-sub mt-2 font-sans">{item.time}</Text>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const handleMarkRead = useCallback((id: string) => {
+    setReadIds(prev => new Set([...prev, id]));
+  }, []);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={['top']}>
@@ -255,7 +258,7 @@ export default function NotificationsScreen() {
                 <View className="px-6 pt-5 pb-2">
                   <Text className="text-xs font-semibold text-text-sub uppercase tracking-widest font-sans-semibold">Today</Text>
                 </View>
-                {todayNotifs.map(n => <NotificationRow key={n.id} item={n} />)}
+                {todayNotifs.map(n => <NotificationRow key={n.id} item={n} readIds={readIds} onPress={handleMarkRead} />)}
               </>
             )}
 
@@ -265,7 +268,7 @@ export default function NotificationsScreen() {
                 <View className="px-6 pt-6 pb-2">
                   <Text className="text-xs font-semibold text-text-sub uppercase tracking-widest font-sans-semibold">Earlier</Text>
                 </View>
-                {earlierNotifs.map(n => <NotificationRow key={n.id} item={n} />)}
+                {earlierNotifs.map(n => <NotificationRow key={n.id} item={n} readIds={readIds} onPress={handleMarkRead} />)}
               </>
             )}
 

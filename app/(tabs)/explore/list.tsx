@@ -159,7 +159,9 @@ export default function ExploreListScreen() {
                 .single();
             return data;
         },
-        staleTime: 30 * 1000,
+        staleTime: 5 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
+        refetchOnWindowFocus: false,
     });
 
     const isApprovedCook = cookProfile?.role === 'COOK' && cookProfile?.cook_application_status === 'approved';
@@ -206,11 +208,11 @@ export default function ExploreListScreen() {
         }
 
         return (
-            <View className="flex-1 bg-warm-cream" style={{ paddingTop: insets.top }}>
+            <View className="flex-1 bg-warm-cream">
                 {/* Header */}
-                <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100 flex-row justify-between items-center">
+                <View className="px-6 pb-4 bg-white border-b border-gray-100 flex-row justify-between items-center" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
                     <View>
-                        <Text className="text-2xl font-bold text-text-main font-sans-bold">My Menu</Text>
+                        <Text className="text-3xl font-bold text-text-main font-sans-bold">My Menu</Text>
                         <Text className="text-sm text-text-sub font-sans">
                             {menuLoading ? 'Loading...' : `${myMenu.length} dish${myMenu.length !== 1 ? 'es' : ''} posted`}
                         </Text>
@@ -259,14 +261,14 @@ export default function ExploreListScreen() {
                             <View
                                 key={dish.id}
                                 className="bg-white rounded-3xl mb-5 overflow-hidden"
-                                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 }}
+                                style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 6 }}
                             >
                                 {/* Cover Image */}
                                 <View className="relative">
                                     {dish.image ? (
                                         <Image
                                             source={{ uri: dish.image }}
-                                            style={{ width: '100%', height: 160 }}
+                                            style={{ width: '100%', height: 220 }}
                                             resizeMode="cover"
                                         />
                                     ) : (
@@ -362,18 +364,23 @@ export default function ExploreListScreen() {
 
     // EATER MODE
     return (
-        <View className="flex-1 bg-warm-cream" style={{ paddingTop: insets.top }}>
+        <View className="flex-1 bg-warm-cream">
 
-            {/* HEADER OVERLAY (always on top) */}
+            {/* HEADER OVERLAY — extends behind status bar */}
             <View
-                className="px-6 pt-3 pb-4 flex-row justify-between items-center bg-white border-b border-gray-100"
+                className="px-6 pb-4 flex-row justify-between items-center bg-white"
                 style={{
+                    paddingTop: insets.top + 48,
                     zIndex: 50,
                     elevation: 10,
+                    shadowColor: '#2D241E',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 20,
                 }}
             >
                 <View>
-                    <Text className="text-xl font-bold text-text-main font-sans-bold">Discover</Text>
+                    <Text className="text-2xl font-bold text-text-main font-sans-bold">Discover</Text>
                     <Text className="text-sm text-text-sub font-sans">Explore Ghanaian food culture</Text>
                 </View>
                 <View className="flex-row bg-gray-100 p-1 rounded-full">
@@ -438,7 +445,7 @@ export default function ExploreListScreen() {
                             contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
                             keyboardShouldPersistTaps="handled"
                             renderItem={({ item: story }) => (
-                                <TouchableOpacity className="items-center" activeOpacity={0.7} onPress={() => {}}>
+                                <TouchableOpacity className="items-center" activeOpacity={0.7} onPress={() => router.push('/(tabs)/explore/map')}>
                                     <View style={{ width: 68, height: 68, borderRadius: 34, padding: 2, backgroundColor: story.hasNew ? '#D65A31' : '#E5E7EB' }}>
                                         <View style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: 'white', overflow: 'hidden' }}>
                                             <Image source={{ uri: story.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
@@ -461,7 +468,7 @@ export default function ExploreListScreen() {
                             <Play size={20} color="#D65A31" fill="#D65A31" />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Kitchen Stories</Text>
                         </View>
-                        <TouchableOpacity onPress={() => {}}>
+                        <TouchableOpacity onPress={() => router.push('/(tabs)/explore/map')}>
                             <Text className="text-sm font-semibold text-clay-primary font-sans-semibold">See All</Text>
                         </TouchableOpacity>
                     </View>
@@ -474,7 +481,7 @@ export default function ExploreListScreen() {
                         contentContainerStyle={{ gap: 12 }}
                         keyboardShouldPersistTaps="handled"
                         renderItem={({ item: reel }) => (
-                            <TouchableOpacity className="rounded-3xl overflow-hidden" style={{ width: width * 0.55, height: 280 }} activeOpacity={0.9} onPress={() => {}}>
+                            <TouchableOpacity className="rounded-3xl overflow-hidden" style={{ width: width * 0.55, height: 280 }} activeOpacity={0.9} onPress={() => router.push('/(tabs)/explore/map')}>
                                 <Image source={{ uri: reel.image }} className="w-full h-full absolute" />
                                 <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} className="absolute bottom-0 left-0 right-0 h-32" pointerEvents="none" />
 
@@ -519,7 +526,7 @@ export default function ExploreListScreen() {
                         contentContainerStyle={{ gap: 12 }}
                         keyboardShouldPersistTaps="handled"
                         renderItem={({ item }) => (
-                            <TouchableOpacity className="bg-white p-4 rounded-3xl" style={{ width: width * 0.75, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => {}}>
+                             <TouchableOpacity className="bg-white p-4 rounded-3xl" style={{ width: width * 0.75, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7}>
                                 <Text className="text-3xl mb-2">{item.emoji}</Text>
                                 <Text className="text-text-main text-sm leading-5 font-sans">{item.fact}</Text>
                             </TouchableOpacity>
@@ -540,7 +547,7 @@ export default function ExploreListScreen() {
                     </View>
 
                     {TRENDING_NOW.map((item, index) => (
-                        <TouchableOpacity key={item.id} className="flex-row items-center gap-4 mb-3 bg-white p-3 rounded-2xl" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => {}}>
+                        <TouchableOpacity key={item.id} className="flex-row items-center gap-4 mb-3 bg-white p-3 rounded-2xl" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => router.push('/(tabs)')}>
                             <Text className="text-2xl font-bold text-clay-primary w-8 font-sans-bold">{index + 1}</Text>
                             <Image source={{ uri: item.image }} className="w-14 h-14 rounded-xl" />
                             <View className="flex-1">
@@ -560,7 +567,7 @@ export default function ExploreListScreen() {
                     </View>
 
                     {WHATS_NEW.map((item) => (
-                        <TouchableOpacity key={item.id} className="bg-white p-4 rounded-3xl mb-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => {}}>
+                        <TouchableOpacity key={item.id} className="bg-white p-4 rounded-3xl mb-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => router.push(item.type === 'new_cook' ? '/(tabs)/explore/map' : '/(tabs)')}>
                             <View className="flex-row justify-between items-start">
                                 <View className="flex-1">
                                     <Text className="font-semibold text-text-main font-sans-semibold">{item.title}</Text>

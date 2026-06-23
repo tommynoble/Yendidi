@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Bike, Check, X, CookingPot, User } from 'lucide-react-native';
@@ -48,6 +48,7 @@ const NEXT_STATUS: Record<string, string> = {
 export default function OrdersScreen() {
     const router = useRouter();
     const { isCookMode } = useAppStore();
+    const insets = useSafeAreaInsets();
     const [loading, setLoading] = useState(true);
     const [orders, setOrders] = useState<Order[]>([]);
     const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
@@ -87,17 +88,20 @@ export default function OrdersScreen() {
 
                 if (error) throw error;
 
-                // Fetch eater profiles for each order
-                const ordersWithEaters = await Promise.all(
-                    (data || []).map(async (order: any) => {
-                        const { data: eater } = await supabase
-                            .from('profiles')
-                            .select('full_name, avatar_url, phone')
-                            .eq('id', order.user_id)
-                            .single();
-                        return { ...order, eater };
-                    })
-                );
+                // Batch-fetch all eater profiles in a single query instead of one-per-order
+                const userIds = [...new Set((data || []).map((o: any) => o.user_id).filter(Boolean))];
+                let eaterMap: Record<string, any> = {};
+                if (userIds.length > 0) {
+                    const { data: eaterProfiles } = await supabase
+                        .from('profiles')
+                        .select('id, full_name, avatar_url, phone')
+                        .in('id', userIds);
+                    eaterMap = Object.fromEntries((eaterProfiles || []).map((p: any) => [p.id, p]));
+                }
+                const ordersWithEaters = (data || []).map((order: any) => ({
+                    ...order,
+                    eater: eaterMap[order.user_id] || null,
+                }));
 
                 setOrders(ordersWithEaters as any);
             } else {
@@ -233,10 +237,7 @@ export default function OrdersScreen() {
     };
 
     // ---- COOK MODE ORDER CARD ----
-    const renderCookOrderItem = ({ item }: { item: Order }) => {
-        const firstItem = item.order_items[0];
-        const listing = firstItem?.listings;
-        const itemCount = item.order_items.length;
+    const renderCookOrderItem = useCallback(({ item }: { item: Order }) => {
         const isUpdating = updatingId === item.id;
 
         return (
@@ -349,15 +350,14 @@ export default function OrdersScreen() {
                 )}
             </View>
         );
-    };
+    }, [updatingId, handleReject, handleAccept, handleAdvance]);
 
     // ---- EATER MODE ORDER CARD ----
-    const renderEaterOrderItem = ({ item }: { item: Order }) => {
+    const renderEaterOrderItem = useCallback(({ item }: { item: Order }) => {
         const firstItem = item.order_items[0];
         const listing = firstItem?.listings;
         const cook = listing?.profiles;
-        const itemCount = item.order_items.length;
-        const otherItemsCount = itemCount - 1;
+        const otherItemsCount = item.order_items.length - 1;
 
         return (
             <TouchableOpacity
@@ -463,15 +463,15 @@ export default function OrdersScreen() {
                 )}
             </TouchableOpacity>
         );
-    };
+    }, [updatingId, activeTab, router]);
 
     return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
             <View className="flex-1 bg-warm-cream">
             {/* Header */}
-            <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100">
+            <View className="px-6 pb-4 bg-white border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
                 <View className="mb-4">
-                    <Text className="text-xl font-bold text-text-main font-sans-bold">
+                    <Text className="text-2xl font-bold text-text-main font-sans-bold">
                         {isCookMode ? 'Incoming Orders' : 'Your Orders'}
                     </Text>
                     <Text className="text-sm text-text-sub font-sans">
@@ -511,6 +511,10 @@ export default function OrdersScreen() {
                     renderItem={isCookMode ? renderCookOrderItem : renderEaterOrderItem}
                     keyExtractor={(item) => item.id.toString()}
                     contentContainerStyle={{ paddingVertical: 20 }}
+                    initialNumToRender={10}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={true}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D65A31" colors={["#D65A31"]} />}
                     ListEmptyComponent={() => (
                         <View className="items-center justify-center py-20 px-10">

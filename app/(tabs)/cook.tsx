@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Store, Truck, Calendar, Info, Star, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation, Lock } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -28,6 +28,7 @@ const PREP_TIMES = [
 export default function CookScreen() {
   const router = useRouter();
   const { isCookMode } = useAppStore();
+  const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const { edit_id } = useLocalSearchParams();
 
@@ -335,7 +336,9 @@ export default function CookScreen() {
         .single();
       return data;
     },
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const isApprovedCook = cookProfile?.role === 'COOK' && cookProfile?.cook_application_status === 'approved';
@@ -389,12 +392,12 @@ export default function CookScreen() {
     }
 
     return (
-      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+      <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
         <View className="flex-1 bg-warm-cream">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-          <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100 flex-row justify-between items-center">
+          <View className="px-6 pb-4 bg-white border-b border-gray-100 flex-row justify-between items-center" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
             <View>
-              <Text className="text-xl font-bold text-text-main font-sans-bold">{edit_id ? 'Edit Your Dish' : 'Post a New Dish'}</Text>
+              <Text className="text-2xl font-bold text-text-main font-sans-bold">{edit_id ? 'Edit Your Dish' : 'Post a New Dish'}</Text>
               <Text className="text-text-sub text-sm font-sans">{edit_id ? 'Update the details for your listing' : 'Share your culinary creation with the community'}</Text>
             </View>
             <TouchableOpacity 
@@ -737,10 +740,10 @@ export default function CookScreen() {
   // ----------------------
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
       <View className="flex-1 bg-warm-cream">
-      <View className="px-6 pt-3 pb-4 bg-white border-b border-gray-100">
-        <Text className="text-xl font-bold text-text-main font-sans-bold">Saved</Text>
+      <View className="px-6 pb-4 bg-white border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
+        <Text className="text-2xl font-bold text-text-main font-sans-bold">Saved</Text>
         <Text className="text-sm text-text-sub font-sans">Your favorite meals and cooks</Text>
       </View>
 
