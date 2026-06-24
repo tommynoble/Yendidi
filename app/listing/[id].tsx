@@ -6,8 +6,31 @@ import {
     ArrowLeft, Heart, Clock, Star, Plus, Minus, ChefHat, Flame, 
     ShoppingCart, MapPin, Utensils, Navigation, Share2, Upload, Pencil,
     Sparkles, Shield, Check, Wifi, Music, Car, Droplet, MessageSquare, 
-    Info, ChevronRight, CheckCircle2, Coffee, Users as UsersIcon
+    Info, ChevronRight, CheckCircle2, Coffee, Users as UsersIcon, Leaf,
+    Wheat, Soup, Apple, Fish, Cake, Sprout
 } from 'lucide-react-native';
+
+const CATEGORY_TAG_STYLES: { 
+    [key: string]: { 
+        bg: string; 
+        border: string; 
+        text: string; 
+        iconBg: string; 
+        iconColor: string; 
+        icon: React.ComponentType<any> 
+    } 
+} = {
+    'Rice Dishes': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Wheat },
+    'Soups & Stews': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Soup },
+    'Grills & Kebabs': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Flame },
+    'Traditional Snacks': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Apple },
+    'Seafood': { bg: '#EBF5FF', border: '#CCE5FF', text: '#231915', iconBg: 'rgba(0,102,204,0.1)', iconColor: '#0066CC', icon: Fish },
+    'Pastries': { bg: '#FFF0F5', border: '#FFD2E5', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Cake },
+    'Vegan': { bg: '#F0FFF8', border: '#B2DFCC', text: '#231915', iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Leaf },
+    'Vegetarian': { bg: '#F0FFF8', border: '#B2DFCC', text: '#231915', iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Sprout }
+};
+
+const DEFAULT_TAG_STYLE = { bg: '#FFF8F6', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(132,82,60,0.1)', iconColor: '#8A7269', icon: Utensils };
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -17,6 +40,10 @@ import { getDishImage } from '@/constants/Images';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+
+const DINE_IN_1 = require('@/assets/images/dine_in_1.jpg');
+const DINE_IN_2 = require('@/assets/images/dine_in_2.jpg');
+const DINE_IN_3 = require('@/assets/images/dine_in_3.jpg');
 
 // Haversine formula → distance in km
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -130,12 +157,16 @@ export default function ListingDetailScreen() {
     // Create array of images for slider (food, kitchen workspace, dining table)
     const sliderImages = useMemo(() => {
         if (!listing) return [];
+        const imgs = listing.image ? listing.image.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+        if (imgs.length > 0) {
+            return imgs.map((img: string) => getDishImage(listing.title, img));
+        }
         return [
-            dishImage,
+            getDishImage(listing.title, null),
             { uri: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800' }, // Cozy kitchen workspace (no people)
             { uri: 'https://images.unsplash.com/photo-1529566652340-2c41a226ce81?w=800' }  // Cozy table setup (no people)
         ];
-    }, [listing, dishImage]);
+    }, [listing]);
 
     // Compute distance between eater and cook
     const distanceKm = useMemo(() => {
@@ -158,6 +189,10 @@ export default function ListingDetailScreen() {
     const basePrice = useMemo(() => Number(listing?.price || 0), [listing]);
 
     const getOptionPrice = useCallback((option: 'standard' | 'vip' | 'takeaway') => {
+        if (option === 'takeaway') {
+            const discount = basePrice > 30 ? 15 : basePrice * 0.15;
+            return Math.max(0, basePrice - discount);
+        }
         return basePrice;
     }, [basePrice]);
 
@@ -235,496 +270,612 @@ export default function ListingDetailScreen() {
     }
 
     return (
-        <View className="flex-1 bg-[#FCFBFA]">
+        <View style={{ flex: 1, backgroundColor: '#FFF8F6' }}>
             {/* Floating Top Navigation Overlay */}
             <View
-                className="absolute left-0 right-0 z-20 flex-row justify-between items-center px-6"
-                style={{ top: insets.top + 12 }}
+                style={{
+                    position: 'absolute',
+                    left: 20,
+                    right: 20,
+                    top: insets.top + 12,
+                    zIndex: 20,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}
             >
                 <TouchableOpacity
-                    className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm"
+                    style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: 'white',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#231915',
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 6,
+                        elevation: 4
+                    }}
                     onPress={() => router.back()}
                 >
-                    <ArrowLeft size={20} color="#2D241E" />
+                    <ArrowLeft size={20} color="#231915" />
                 </TouchableOpacity>
-                <View className="flex-row items-center gap-3">
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
-                        className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm"
+                        style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: 'white',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#231915',
+                            shadowOffset: { width: 0, height: 3 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 6,
+                            elevation: 4
+                        }}
                         onPress={handleShare}
-                        activeOpacity={0.8}
                     >
-                        <Upload size={19} color="#2D241E" />
+                        <Share2 size={18} color="#231915" />
                     </TouchableOpacity>
                     <TouchableOpacity
-                        className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm"
+                        style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: 'white',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#231915',
+                            shadowOffset: { width: 0, height: 3 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 6,
+                            elevation: 4
+                        }}
                         onPress={toggleSaved}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        activeOpacity={0.8}
                     >
-                        <Heart size={20} color={saved ? '#D65A31' : '#2D241E'} fill={saved ? '#D65A31' : 'transparent'} />
+                        <Heart size={18} color={saved ? '#BA1A1A' : '#231915'} fill={saved ? '#BA1A1A' : 'transparent'} />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            <ScrollView className="flex-1" showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 130 }}>
-                {/* Hero Image Slider — curved top banner */}
-                <View style={{ height: 360, marginTop: insets.top, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' }}>
+            <ScrollView 
+                style={{ flex: 1 }} 
+                showsVerticalScrollIndicator={false} 
+                contentContainerStyle={{ paddingBottom: 130 }}
+            >
+                {/* Hero Image Slider — curved bottom layout */}
+                <View style={{ height: 340, width: '100%', position: 'relative' }}>
                     <ScrollView
                         horizontal
                         pagingEnabled
                         showsHorizontalScrollIndicator={false}
-                        onMomentumScrollEnd={(e) => {
-                            const slideIndex = Math.round(e.nativeEvent.contentOffset.x / width);
-                            setActiveImageIndex(slideIndex);
+                        onScroll={(e) => {
+                            const contentOffset = e.nativeEvent.contentOffset.x;
+                            const index = Math.round(contentOffset / width);
+                            setActiveImageIndex(index);
                         }}
+                        scrollEventThrottle={16}
+                        style={{ width: '100%', height: '100%' }}
                     >
-                        {sliderImages.map((img, index) => (
-                            <Image key={index} source={img} style={{ width, height: 360 }} resizeMode="cover" />
-                        ))}
-                    </ScrollView>
-                    
-                    <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.4)', 'rgba(0,0,0,0.8)']}
-                        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 200 }}
-                        pointerEvents="none"
-                    />
-
-                    {/* Image Pager Dots */}
-                    <View className="absolute bottom-[90px] left-0 right-0 flex-row justify-center gap-1.5" pointerEvents="none">
-                        {sliderImages.map((_, index) => (
-                            <View 
-                                key={index} 
-                                className={`h-1.5 rounded-full ${index === activeImageIndex ? 'w-4 bg-clay-primary' : 'w-1.5 bg-white/50'}`} 
+                        {sliderImages.map((img: any, index: number) => (
+                            <Image
+                                key={index}
+                                source={img}
+                                style={{ width, height: '100%' }}
+                                resizeMode="cover"
                             />
                         ))}
-                    </View>
+                    </ScrollView>
 
-                    {/* Overlay Details */}
-                    <View className="absolute bottom-6 left-6 right-6" pointerEvents="none">
-                        <Text className="text-white text-2xl font-bold font-sans-bold mb-2.5 leading-tight" numberOfLines={2}>
-                            {listing.title}
-                        </Text>
-                        <View className="flex-row flex-wrap gap-2">
-                            <View className="flex-row items-center gap-1 bg-white/25 px-2.5 py-0.5 rounded-full">
-                                <Star size={11} color="#FFCD00" fill="#FFCD00" />
-                                <Text className="text-white text-xs font-bold font-sans-semibold">{listing.profiles?.rating || '4.8'}</Text>
-                            </View>
-                            <View className="flex-row items-center gap-1 bg-white/25 px-2.5 py-0.5 rounded-full">
-                                <Clock size={11} color="white" />
-                                <Text className="text-white text-xs font-sans">{listing.prep_time_minutes || 30} mins prep</Text>
-                            </View>
-                            {listing.portions_available > 0 && (
-                                <View className="flex-row items-center gap-1 bg-[#FF4500]/80 px-2.5 py-0.5 rounded-full">
-                                    <Flame size={11} color="white" fill="white" />
-                                    <Text className="text-white text-xs font-bold font-sans-semibold">{listing.portions_available} left</Text>
-                                </View>
-                            )}
-                            {distanceLabel ? (
-                                <View className="flex-row items-center gap-1 bg-black/40 px-2.5 py-0.5 rounded-full">
-                                    <MapPin size={11} color="white" />
-                                    <Text className="text-white text-xs font-sans">{distanceLabel}</Text>
-                                </View>
-                            ) : null}
+                    {/* Pagination dots indicator */}
+                    {sliderImages.length > 1 && (
+                        <View
+                            style={{
+                                position: 'absolute',
+                                bottom: 48,
+                                left: 0,
+                                right: 0,
+                                flexDirection: 'row',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                gap: 6,
+                                zIndex: 10
+                            }}
+                        >
+                            {sliderImages.map((_: any, idx: number) => (
+                                <View
+                                    key={idx}
+                                    style={{
+                                        width: idx === activeImageIndex ? 16 : 8,
+                                        height: 8,
+                                        borderRadius: 4,
+                                        backgroundColor: idx === activeImageIndex ? 'white' : 'rgba(255, 255, 255, 0.5)'
+                                    }}
+                                />
+                            ))}
                         </View>
+                    )}
+
+                    <View
+                        style={{
+                            position: 'absolute',
+                            bottom: 48,
+                            right: 24,
+                            backgroundColor: '#BF592B',
+                            paddingHorizontal: 18,
+                            paddingVertical: 10,
+                            borderRadius: 9999,
+                            shadowColor: '#231915',
+                            shadowOffset: { width: 0, height: 4 },
+                            shadowOpacity: 0.2,
+                            shadowRadius: 8,
+                            elevation: 5,
+                            zIndex: 10
+                        }}
+                    >
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: 'white' }}>
+                            GHS {currentPrice.toFixed(2)}
+                        </Text>
                     </View>
                 </View>
 
-                {/* Price, Status, and Overview */}
-                <View className="px-6 -mt-6 relative z-10">
-                    <View
-                        className="bg-white rounded-3xl p-6 mb-5"
-                        style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)' }}
-                    >
-                        <View className="flex-row items-center justify-between">
-                            <View className="flex-row items-baseline gap-1">
-                                <Text className="text-3xl font-bold text-clay-primary font-sans-bold tracking-tight">₵{listing.price}</Text>
-                                <Text className="text-xs text-text-sub font-sans">base price</Text>
-                            </View>
-                            <View className={`px-3 py-1 rounded-full flex-row items-center gap-1.5 ${listing.available ? 'bg-green-50 border border-green-100' : 'bg-gray-50 border border-gray-100'}`}>
-                                <View className={`w-1.5 h-1.5 rounded-full ${listing.available ? 'bg-green-600' : 'bg-gray-400'}`} />
-                                <Text className={`text-[10px] font-bold tracking-wider uppercase ${listing.available ? 'text-green-700' : 'text-gray-500 font-sans-bold'}`}>
-                                    {listing.available ? 'Dining Open' : 'Fully Booked'}
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Thin Divider */}
-                        <View className="h-[1px] bg-gray-100 my-4" />
-
-                        {listing.description ? (
-                            <>
-                                <Text className="text-text-sub font-sans leading-relaxed text-sm">
-                                    {listing.description}
-                                </Text>
-                                {/* Thin Divider */}
-                                <View className="h-[1px] bg-gray-100 my-4" />
-                            </>
-                        ) : null}
-
-                        {/* Summary Badges Row */}
-                        <View className="flex-row gap-2.5">
-                            <View className="flex-1 bg-[#FFF9F5] border border-[#FFEDD5] rounded-2xl p-3 items-center justify-center">
-                                <Clock size={18} color="#D65A31" strokeWidth={2.5} />
-                                <Text className="text-xs font-bold text-text-main mt-1.5 font-sans-bold">{listing.prep_time_minutes || 30}m</Text>
-                                <Text className="text-[9px] text-text-sub font-sans uppercase tracking-wider">Cooking Time</Text>
-                            </View>
-                            <View className="flex-1 bg-[#F0FDF4] border border-[#DCFCE7] rounded-2xl p-3 items-center justify-center">
-                                <ShoppingCart size={18} color="#10B981" strokeWidth={2.5} />
-                                <Text className="text-xs font-bold text-text-main mt-1.5 font-sans-bold">{listing.portions_available || 0}</Text>
-                                <Text className="text-[9px] text-text-sub font-sans uppercase tracking-wider">Seats Left</Text>
-                            </View>
-                            <View className="flex-1 bg-[#F8FAFC] border border-[#E2E8F0] rounded-2xl p-3 items-center justify-center">
-                                <Utensils size={18} color="#475569" strokeWidth={2.5} />
-                                <Text className="text-xs font-bold text-text-main mt-1.5 font-sans-bold text-center" numberOfLines={1}>
-                                    {listing.category || 'Traditional'}
-                                </Text>
-                                <Text className="text-[9px] text-text-sub font-sans uppercase tracking-wider">Style</Text>
-                            </View>
+                {/* White Content Card curving over the image */}
+                <View 
+                    style={{ 
+                        backgroundColor: '#FCFBFA', 
+                        borderTopLeftRadius: 36, 
+                        borderTopRightRadius: 36, 
+                        marginTop: -32, 
+                        paddingHorizontal: 20, 
+                        paddingTop: 28,
+                        shadowColor: '#231915',
+                        shadowOffset: { width: 0, height: -4 },
+                        shadowOpacity: 0.04,
+                        shadowRadius: 12,
+                        elevation: 2
+                    }}
+                >
+                    {/* Title & Best Seller Badge Section */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', flex: 1, marginRight: 16, lineHeight: 32 }}>
+                            {listing.title}
+                        </Text>
+                        <View style={{ backgroundColor: '#FFF1EC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#BF592B' }}>Best Seller</Text>
                         </View>
                     </View>
 
-                    {/* Choose Your Dining Experience Section */}
-                    <View className="mb-8">
-                        <View className="flex-row items-center gap-2 mb-4 px-1">
-                            <Text className="text-xl font-bold text-text-main font-sans-bold">Choose Your Experience Option</Text>
+                    {/* Rating & Prep Time Row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Star size={14} color="#BF592B" fill="#BF592B" />
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#BF592B' }}>
+                                {listing.profiles?.rating || '4.8'}
+                            </Text>
                         </View>
-
-                        {/* Package Card 1: Standard */}
-                        <TouchableOpacity
-                            onPress={() => setSelectedOption('standard')}
-                            className={`bg-white rounded-3xl p-5 mb-4 border-2 transition-all ${selectedOption === 'standard' ? 'border-clay-primary bg-orange-50/10' : 'border-gray-100'}`}
-                            style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6 }}
-                            activeOpacity={0.9}
-                        >
-                            <View className="flex-row justify-between items-center mb-2.5">
-                                <View className="flex-row items-center gap-3">
-                                    <View className={`w-8 h-8 rounded-full items-center justify-center ${selectedOption === 'standard' ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                                        <UsersIcon size={16} color={selectedOption === 'standard' ? '#D65A31' : '#6B7280'} />
-                                    </View>
-                                    <View>
-                                        <Text className="font-bold text-text-main text-sm font-sans-bold">Standard Spot</Text>
-                                        <Text className="text-sm text-text-sub font-sans">Communal Dining Table</Text>
-                                    </View>
-                                </View>
-                            </View>
-                            <Text className="text-sm text-text-sub font-sans leading-relaxed pl-11">
-                                Dine at the communal host table. Share stories with other guests over hot plates, background music, and a cold Sobolo.
+                        <Text style={{ color: '#DDC1B6', marginHorizontal: 2 }}>•</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Clock size={14} color="#56423B" />
+                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B' }}>
+                                Ready in {listing.prep_time_minutes || 30} min
                             </Text>
-                        </TouchableOpacity>
-
-                        {/* Package Card 2: VIP */}
-                        <TouchableOpacity
-                            onPress={() => setSelectedOption('vip')}
-                            className={`bg-white rounded-3xl p-5 mb-4 border-2 transition-all ${selectedOption === 'vip' ? 'border-clay-primary bg-orange-50/10' : 'border-gray-100'}`}
-                            style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6 }}
-                            activeOpacity={0.9}
-                        >
-                            <View className="flex-row justify-between items-center mb-2.5">
-                                <View className="flex-row items-center gap-3">
-                                    <View className={`w-8 h-8 rounded-full items-center justify-center ${selectedOption === 'vip' ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                                        <Sparkles size={15} color={selectedOption === 'vip' ? '#D65A31' : '#6B7280'} fill={selectedOption === 'vip' ? '#D65A31' : 'transparent'} />
-                                    </View>
-                                    <View>
-                                        <Text className="font-bold text-text-main text-sm font-sans-bold">Chef's Table VIP</Text>
-                                        <Text className="text-sm text-text-sub font-sans">Premium Seating & Perks</Text>
-                                    </View>
-                                </View>
-                            </View>
-                            <Text className="text-sm text-text-sub font-sans leading-relaxed pl-11">
-                                Premium front-row kitchen counter seats. Customize your spices, chat with the chef, and get a signature take-home spice pack.
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* Package Card 3: Takeaway */}
-                        <TouchableOpacity
-                            onPress={() => setSelectedOption('takeaway')}
-                            className={`bg-white rounded-3xl p-5 border-2 transition-all ${selectedOption === 'takeaway' ? 'border-clay-primary bg-orange-50/10' : 'border-gray-100'}`}
-                            style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6 }}
-                            activeOpacity={0.9}
-                        >
-                            <View className="flex-row justify-between items-center mb-2.5">
-                                <View className="flex-row items-center gap-3">
-                                    <View className={`w-8 h-8 rounded-full items-center justify-center ${selectedOption === 'takeaway' ? 'bg-orange-100' : 'bg-gray-100'}`}>
-                                        <Utensils size={15} color={selectedOption === 'takeaway' ? '#D65A31' : '#6B7280'} />
-                                    </View>
-                                    <View>
-                                        <Text className="font-bold text-text-main text-sm font-sans-bold">Takeaway Express</Text>
-                                        <Text className="text-sm text-text-sub font-sans">Packed to go</Text>
-                                    </View>
-                                </View>
-                            </View>
-                            <Text className="text-sm text-text-sub font-sans leading-relaxed pl-11">
-                                Skip the sitting experience. The cook will pack your hot portion in an insulated eco-box takeaway container for pickup.
-                            </Text>
-                        </TouchableOpacity>
+                        </View>
                     </View>
 
-                    {/* About the Experience Section & Image Collage */}
-                    <View
-                        className="bg-white rounded-3xl p-6 mb-5"
-                        style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)' }}
-                    >
-                        <Text className="text-[11px] tracking-widest uppercase font-bold text-[#A3A3A3] font-sans-bold mb-3.5">The Dining Experience</Text>
+                    {/* Description */}
+                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: '#56423B', lineHeight: 22, marginBottom: 20 }}>
+                        {listing.description || "Authentic Ghanaian food served fresh. Cooked with traditional recipes passed down through generations in a clean host kitchen."}
+                    </Text>
 
-                        {/* 3-Image Grid Collage (Atmosphere / Listing Photos) */}
-                        <View className="flex-row gap-2 mt-1" style={{ height: 200 }}>
-                            {/* Left large photo (60% width) */}
-                            <View className="w-[60%] h-full rounded-2xl overflow-hidden bg-gray-100">
-                                <Image source={dishImage} className="w-full h-full object-cover" />
-                            </View>
-                            {/* Right stacked photos (38% width) */}
-                            <View className="w-[38%] h-full flex-col justify-between">
-                                <View className="h-[48%] rounded-2xl overflow-hidden bg-gray-100">
-                                    <Image 
-                                        source={{ uri: 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=400' }} 
-                                        className="w-full h-full object-cover" 
-                                    />
-                                </View>
-                                <View className="h-[48%] rounded-2xl overflow-hidden bg-gray-100">
-                                    <Image 
-                                        source={{ uri: 'https://images.unsplash.com/photo-1529566652340-2c41a226ce81?w=400' }} 
-                                        className="w-full h-full object-cover" 
-                                    />
-                                </View>
-                            </View>
-                        </View>
-
-                        {/* Thin Divider */}
-                        <View className="h-[1px] bg-gray-100 my-4" />
-
-                        {/* Chef Profile Header (Without Images) */}
-                        <TouchableOpacity 
-                            onPress={() => router.push(`/cook/${listing.cook_id}`)}
-                            className="flex-row items-center justify-between"
-                            activeOpacity={0.8}
-                        >
-                            <View className="flex-1">
-                                <Text className="font-bold text-text-main text-[16px] font-sans-bold leading-tight">
-                                    {cookApp?.kitchen_name || listing.profiles?.full_name || 'Ghanaian Host'}
-                                </Text>
-                                <Text className="text-xs text-text-sub font-sans mt-0.5">Hosted by Chef {listing.profiles?.full_name || 'Ama'}</Text>
-                                <View className="flex-row items-center gap-2.5 mt-1">
-                                    <View className="flex-row items-center gap-0.5">
-                                        <Star size={10} color="#D97706" fill="#D97706" />
-                                        <Text className="text-sm text-text-sub font-sans-semibold font-bold">{listing.profiles?.rating || '4.8'}</Text>
+                    {/* Info Tags */}
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+                        {(() => {
+                            const cats = listing.category ? listing.category.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                            const finalCats = cats.length > 0 ? cats : ['Spicy Hearth'];
+                            return finalCats.map((catName: string) => {
+                                const style = CATEGORY_TAG_STYLES[catName] || DEFAULT_TAG_STYLE;
+                                const IconComponent = style.icon;
+                                return (
+                                    <View key={catName} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: style.bg, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: style.border }}>
+                                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: style.iconBg, alignItems: 'center', justifyContent: 'center' }}>
+                                            <IconComponent size={12} color={style.iconColor} />
+                                        </View>
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: style.text }}>
+                                            {catName}
+                                        </Text>
                                     </View>
-                                    <Text className="text-gray-300 text-[10px]">•</Text>
-                                    <Text className="text-sm text-text-sub font-sans">
-                                        {listing.profiles?.served_count || 0}+ hosts served
+                                );
+                            });
+                        })()}
+
+                        {/* Always include Earthenware as a premium tag if not already selected */}
+                        {!listing.category?.includes('Earthenware') && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF8F6', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#F2DFD7' }}>
+                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(132,82,60,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Utensils size={12} color="#8A7269" />
+                                </View>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915' }}>
+                                    Earthenware
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginVertical: 20 }} />
+
+                    {/* Dine-In Experience Preview */}
+                    <View style={{ marginBottom: 20 }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', letterSpacing: 0.5, marginBottom: 14 }}>
+                            Your Dine-In Experience Preview
+                        </Text>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={{ gap: 12, paddingRight: 20 }}
+                        >
+                            {/* Card 1: Eating Kenkey */}
+                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
+                                <Image 
+                                    source={DINE_IN_3} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover" 
+                                />
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(0,0,0,0.85)']}
+                                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
+                                >
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', lineHeight: 14 }}>
+                                        True local flavors
+                                    </Text>
+                                </LinearGradient>
+                            </View>
+
+                            {/* Card 2: Group Dining */}
+                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
+                                <Image 
+                                    source={DINE_IN_2} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover" 
+                                />
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(0,0,0,0.85)']}
+                                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
+                                >
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', lineHeight: 14 }}>
+                                        Authentic dining seating
+                                    </Text>
+                                </LinearGradient>
+                            </View>
+
+                            {/* Card 3: Preparation */}
+                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
+                                <Image 
+                                    source={DINE_IN_1} 
+                                    style={{ width: '100%', height: '100%' }} 
+                                    resizeMode="cover" 
+                                />
+                                <LinearGradient
+                                    colors={['transparent', 'rgba(0,0,0,0.85)']}
+                                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
+                                >
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', lineHeight: 14 }}>
+                                        Traditional food preparation
+                                    </Text>
+                                </LinearGradient>
+                            </View>
+                        </ScrollView>
+                    </View>
+
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginVertical: 20 }} />
+
+                    {/* Dining Options */}
+                    <View style={{ marginBottom: 20 }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', letterSpacing: 0.5, marginBottom: 14 }}>
+                            Dining Options
+                        </Text>
+                        <View style={{ flexDirection: 'column', gap: 14 }}>
+                            {/* Pickup Option */}
+                            <TouchableOpacity
+                                onPress={() => setSelectedOption('takeaway')}
+                                style={{
+                                    backgroundColor: selectedOption === 'takeaway' ? '#FFF1EC' : 'white',
+                                    borderWidth: 1.5,
+                                    borderColor: selectedOption === 'takeaway' ? '#BF592B' : '#F2DFD7',
+                                    borderRadius: 20,
+                                    padding: 16,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    position: 'relative',
+                                    shadowColor: '#231915',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.04,
+                                    shadowRadius: 6,
+                                    elevation: 2
+                                }}
+                                activeOpacity={0.9}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 16 }}>
+                                    <View style={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 22,
+                                        backgroundColor: selectedOption === 'takeaway' ? '#BF592B' : '#FFF1EC',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderWidth: selectedOption === 'takeaway' ? 0 : 1,
+                                        borderColor: '#F2DFD7'
+                                    }}>
+                                        <ShoppingCart size={20} color={selectedOption === 'takeaway' ? 'white' : '#BF592B'} />
+                                    </View>
+                                    <View style={{ marginLeft: 14, flex: 1 }}>
+                                        <Text style={{ 
+                                            fontFamily: 'PlusJakartaSans_700Bold', 
+                                            fontSize: 16, 
+                                            color: selectedOption === 'takeaway' ? '#BF592B' : '#231915', 
+                                            textTransform: 'uppercase' 
+                                        }}>
+                                            Pickup
+                                        </Text>
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', marginTop: 3 }} numberOfLines={2}>
+                                            Order ready in 60 min. No service charge.
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={{ 
+                                        fontFamily: 'PlusJakartaSans_700Bold', 
+                                        fontSize: 15, 
+                                        color: selectedOption === 'takeaway' ? '#BF592B' : '#231915' 
+                                    }}>
+                                        GHS {getOptionPrice('takeaway').toFixed(2)}
                                     </Text>
                                 </View>
-                            </View>
-                            <ChevronRight size={18} color="#A3A3A3" />
-                        </TouchableOpacity>
-
-                        {/* Thin Divider */}
-                        <View className="h-[1px] bg-gray-100 my-4" />
-
-                        {/* Bio / BACKSTORY */}
-                        <Text className="text-sm text-text-sub font-sans leading-relaxed">
-                            {cookApp?.bio ? `"${cookApp.bio}"` : "Join the host kitchen for an authentic Ghanaian home-dining session. Enjoy seasoned recipes passed down through generations, cooked in a clean, welcoming environment."}
-                        </Text>
-                    </View>
-
-                    {/* What this Experience Offers (Amenities) Section (Inspired by Screenshot 2) */}
-                    <View
-                        className="bg-white rounded-3xl p-6 mb-8"
-                        style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)' }}
-                    >
-                        <Text className="text-xl font-bold text-text-main font-sans-bold mb-5">What this experience offers</Text>
-                        
-                        <View className="flex-row flex-wrap gap-y-5">
-                            <View className="w-1/2 flex-row items-center gap-3.5">
-                                <Flame size={18} color="#D65A31" fill="#D65A31" />
-                                <View className="flex-1">
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">Ghanaian Spices</Text>
-                                    <Text className="text-sm text-text-sub font-sans leading-relaxed">Adjustable spice levels</Text>
-                                </View>
-                            </View>
-
-                            <View className="w-1/2 flex-row items-center gap-3.5">
-                                <Coffee size={18} color="#D65A31" />
-                                <View className="flex-1">
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">Sobolo Beverage</Text>
-                                    <Text className="text-sm text-text-sub font-sans leading-relaxed">Homemade local drink</Text>
-                                </View>
-                            </View>
-
-                            <View className="w-1/2 flex-row items-center gap-3.5">
-                                <Music size={18} color="#D65A31" />
-                                <View className="flex-1">
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">African Beats</Text>
-                                    <Text className="text-sm text-text-sub font-sans leading-relaxed">Afrobeats background play</Text>
-                                </View>
-                            </View>
-
-                            <View className="w-1/2 flex-row items-center gap-3.5">
-                                <Utensils size={17} color="#D65A31" />
-                                <View className="flex-1">
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">Veranda Dining</Text>
-                                    <Text className="text-sm text-text-sub font-sans leading-relaxed">Outdoor garden seating</Text>
-                                </View>
-                            </View>
-
-                            <View className="w-1/2 flex-row items-center gap-3.5">
-                                <MessageSquare size={17} color="#D65A31" />
-                                <View className="flex-1">
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">Host Chat</Text>
-                                    <Text className="text-sm text-text-sub font-sans leading-relaxed">Stories & cooking tips</Text>
-                                </View>
-                            </View>
-
-                            <View className="w-1/2 flex-row items-center gap-3.5">
-                                <Droplet size={18} color="#D65A31" />
-                                <View className="flex-1">
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">Hand Washing</Text>
-                                    <Text className="text-sm text-text-sub font-sans leading-relaxed">Traditional setup provided</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Where You'll Be Map Section (Inspired by Screenshot 4) */}
-                    <View
-                        className="bg-white rounded-3xl p-6 mb-8"
-                        style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)' }}
-                    >
-                        <Text className="text-xl font-bold text-text-main font-sans-bold">Where you'll be</Text>
-
-                        {/* Thin Divider */}
-                        <View className="h-[1px] bg-gray-100 my-3.5" />
-
-                        <Text className="text-sm text-text-sub font-sans mt-1.5 leading-relaxed">
-                            {cookApp?.location || listing.location_text || 'East Legon, near ANC Mall, Accra, Ghana'}
-                        </Text>
-
-                        {/* Map — loaded on demand to avoid blocking initial render */}
-                        <View className="rounded-2xl overflow-hidden bg-gray-100 border border-gray-100 mt-4" style={{ height: 200 }}>
-                            {mapVisible ? (
-                                <MapView
-                                    provider={PROVIDER_DEFAULT}
-                                    initialRegion={mapCoordinates}
-                                    scrollEnabled={false}
-                                    zoomEnabled={false}
-                                    pitchEnabled={false}
-                                    rotateEnabled={false}
-                                    style={StyleSheet.absoluteFillObject}
-                                >
-                                    <Marker coordinate={{ latitude: mapCoordinates.latitude, longitude: mapCoordinates.longitude }}>
-                                        <View className="w-9 h-9 bg-clay-primary rounded-full items-center justify-center border-2 border-white shadow-md">
-                                            <ChefHat size={16} color="white" />
-                                        </View>
-                                    </Marker>
-                                </MapView>
-                            ) : (
-                                <TouchableOpacity
-                                    onPress={() => setMapVisible(true)}
-                                    className="w-full h-full items-center justify-center bg-gray-100"
-                                    activeOpacity={0.8}
-                                >
-                                    <View className="w-12 h-12 bg-white rounded-full items-center justify-center shadow-sm mb-2">
-                                        <MapPin size={22} color="#D65A31" />
+                                {selectedOption === 'takeaway' && (
+                                    <View style={{ position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: '#BF592B', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'white' }}>
+                                        <Check size={12} color="white" strokeWidth={3} />
                                     </View>
-                                    <Text className="text-sm text-text-sub font-sans">Tap to view map</Text>
-                                </TouchableOpacity>
-                            )}
+                                )}
+                            </TouchableOpacity>
+
+                            {/* Dine-In Option */}
+                            <TouchableOpacity
+                                onPress={() => setSelectedOption('standard')}
+                                style={{
+                                    backgroundColor: selectedOption === 'standard' ? '#FFF1EC' : 'white',
+                                    borderWidth: 1.5,
+                                    borderColor: selectedOption === 'standard' ? '#BF592B' : '#F2DFD7',
+                                    borderRadius: 20,
+                                    padding: 16,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    position: 'relative',
+                                    shadowColor: '#231915',
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.04,
+                                    shadowRadius: 6,
+                                    elevation: 2
+                                }}
+                                activeOpacity={0.9}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 16 }}>
+                                    <View style={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 22,
+                                        backgroundColor: selectedOption === 'standard' ? '#BF592B' : '#FFF1EC',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        borderWidth: selectedOption === 'standard' ? 0 : 1,
+                                        borderColor: '#F2DFD7'
+                                    }}>
+                                        <Utensils size={20} color={selectedOption === 'standard' ? 'white' : '#BF592B'} />
+                                    </View>
+                                    <View style={{ marginLeft: 14, flex: 1 }}>
+                                        <Text style={{ 
+                                            fontFamily: 'PlusJakartaSans_700Bold', 
+                                            fontSize: 16, 
+                                            color: selectedOption === 'standard' ? '#BF592B' : '#231915', 
+                                            textTransform: 'uppercase' 
+                                        }}>
+                                            Dine-In
+                                        </Text>
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', marginTop: 3 }} numberOfLines={2}>
+                                            Authentic experience. Savor your meal in our handcrafted earthenware.
+                                        </Text>
+                                    </View>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={{ 
+                                        fontFamily: 'PlusJakartaSans_700Bold', 
+                                        fontSize: 15, 
+                                        color: selectedOption === 'standard' ? '#BF592B' : '#231915' 
+                                    }}>
+                                        GHS {getOptionPrice('standard').toFixed(2)}
+                                    </Text>
+                                </View>
+                                {selectedOption === 'standard' && (
+                                    <View style={{ position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: '#BF592B', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'white' }}>
+                                        <Check size={12} color="white" strokeWidth={3} />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
                         </View>
                     </View>
 
-                    {/* Things to Know Section (Inspired by Screenshot 1) */}
-                    <View
-                        className="bg-white rounded-3xl p-6 mb-2"
-                        style={{ shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: 'rgba(0,0,0,0.02)' }}
-                    >
-                        <Text className="text-xl font-bold text-text-main font-sans-bold mb-5">Things to know</Text>
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginVertical: 20 }} />
 
-                        {/* Booking requirements */}
-                        <View className="flex-row items-start gap-4 mb-4 pb-4 border-b border-gray-100">
-                            <CheckCircle2 size={18} color="#D65A31" className="mt-0.5" />
-                            <View className="flex-1">
-                                <Text className="text-sm font-bold text-text-main font-sans-bold">Booking expectations</Text>
-                                <Text className="text-sm text-text-sub font-sans mt-1 leading-relaxed">
-                                    Akwaaba spirit! Arrive with a big appetite and love for meeting fellow food lovers.
-                                </Text>
+                    {/* Chef Section */}
+                    <View style={{ marginBottom: 28 }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', letterSpacing: 0.5, marginBottom: 14 }}>
+                            Chef
+                        </Text>
+                        <TouchableOpacity
+                            onPress={() => router.push(`/cook/${listing.cook_id}`)}
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                backgroundColor: '#FFF1EC',
+                                borderRadius: 24,
+                                padding: 16,
+                                borderWidth: 1,
+                                borderColor: '#F2DFD7'
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <View style={{ position: 'relative' }}>
+                                <Image 
+                                    source={{ uri: listing.profiles?.avatar_url || 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=150' }} 
+                                    style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#F2DFD7' }} 
+                                />
+                                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: '#006A3C', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'white' }}>
+                                    <Check size={9} color="white" strokeWidth={3} />
+                                </View>
                             </View>
-                        </View>
-
-                        {/* Rules */}
-                        <View className="flex-row items-start gap-4 mb-4 pb-4 border-b border-gray-100">
-                            <Clock size={18} color="#D65A31" className="mt-0.5" />
-                            <View className="flex-1">
-                                <Text className="text-sm font-bold text-text-main font-sans-bold">Dining house rules</Text>
-                                <Text className="text-sm text-text-sub font-sans mt-1 leading-relaxed">
-                                    Dine starts strictly on time. Traditional handwashing before eating is encouraged.
+                            <View style={{ flex: 1, marginLeft: 14 }}>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
+                                    {cookApp?.kitchen_name || listing.profiles?.full_name || "Tamara's Kitchen"}
                                 </Text>
-                            </View>
-                        </View>
-
-                        {/* Safety & property */}
-                        <View className="flex-row items-start gap-4">
-                            <Shield size={18} color="#D65A31" className="mt-0.5" />
-                            <View className="flex-1">
-                                <Text className="text-sm font-bold text-text-main font-sans-bold">Health & safety</Text>
-                                <Text className="text-sm text-text-sub font-sans mt-1 leading-relaxed">
-                                    Sanitized home kitchen. Outdoor garden/veranda dining. Notify host of allergies in advance.
+                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', marginTop: 2 }} numberOfLines={1}>
+                                    Expertly chef and clean • 15y exp.
                                 </Text>
+                                <View style={{ flexDirection: 'row', gap: 2, marginTop: 4 }}>
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                        <Star key={s} size={12} color="#BF592B" fill="#BF592B" />
+                                    ))}
+                                </View>
                             </View>
-                        </View>
+                            <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F2DFD7' }}>
+                                <MessageSquare size={20} color="#231915" />
+                            </TouchableOpacity>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </ScrollView>
 
             {/* Bottom sticky checkout bar */}
             <View
-                className="absolute bottom-0 left-0 right-0 bg-[#FFF9F5] px-6 pt-4 border-t border-[#FFEDD5] z-30"
-                style={{ paddingBottom: insets.bottom + 8, shadowColor: '#2D241E', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 8 }}
+                style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: 'white',
+                    borderTopWidth: 1.5,
+                    borderTopColor: '#F2DFD7',
+                    paddingHorizontal: 20,
+                    paddingTop: 16,
+                    paddingBottom: insets.bottom + 12,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    zIndex: 30
+                }}
             >
                 {isOwner && isCookMode ? (
-                    <View className="flex-row items-center justify-between">
-                        <View className="flex-1 mr-4">
-                            <Text className="text-sm font-bold text-text-main font-sans-bold">Preview Mode</Text>
-                            <Text className="text-xs text-text-sub font-sans mt-0.5">This is how eaters see your dining experience.</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                        <View style={{ flex: 1, marginRight: 16 }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Preview Mode</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#56423B', marginTop: 2 }}>This is how eaters see your dining experience.</Text>
                         </View>
                         <TouchableOpacity
-                            className="bg-clay-primary rounded-2xl py-3 px-6 items-center flex-row gap-2 active:scale-95"
+                            style={{
+                                backgroundColor: '#BF592B',
+                                borderRadius: 16,
+                                paddingVertical: 12,
+                                paddingHorizontal: 20,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 8,
+                                shadowColor: '#BF592B',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 10,
+                                elevation: 5
+                            }}
                             onPress={() => router.push(`/(tabs)/cook?edit_id=${listing.id}`)}
+                            activeOpacity={0.9}
                         >
                             <Pencil size={16} color="white" />
-                            <Text className="text-white font-bold text-sm font-sans-bold">Edit Dish</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: 'white' }}>Edit Dish</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
-                    <View className="flex-row items-center gap-4">
+                    <>
                         {/* Quantity Counter */}
-                        <View className="flex-row items-center gap-3 bg-white border border-[#FFEDD5] shadow-sm rounded-2xl px-3 py-2">
+                        <View style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 14,
+                            backgroundColor: '#FFF1EC',
+                            borderRadius: 9999,
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderWidth: 1,
+                            borderColor: '#F2DFD7',
+                            height: 52
+                        }}>
                             <TouchableOpacity
                                 onPress={() => setQuantity(q => Math.max(1, q - 1))}
-                                className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 items-center justify-center active:bg-gray-100"
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
-                                <Minus size={15} color="#2D241E" />
+                                <Minus size={16} color="#BF592B" strokeWidth={2.5} />
                             </TouchableOpacity>
-                            <Text className="text-base font-bold text-text-main w-5 text-center font-sans-bold">{quantity}</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915', minWidth: 16, textAlign: 'center' }}>
+                                {quantity}
+                            </Text>
                             <TouchableOpacity
                                 onPress={() => setQuantity(q => q + 1)}
-                                className="w-8 h-8 rounded-full bg-clay-primary items-center justify-center active:opacity-90"
+                                style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 18,
+                                    backgroundColor: '#BF592B',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
                             >
-                                <Plus size={15} color="white" />
+                                <Plus size={16} color="white" strokeWidth={2.5} />
                             </TouchableOpacity>
                         </View>
 
                         {/* Booking CTA button */}
                         <TouchableOpacity
-                            className="flex-1 bg-clay-primary rounded-2xl py-4 items-center flex-row justify-center gap-2 active:opacity-95"
-                            style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
+                            style={{
+                                flex: 1,
+                                backgroundColor: '#BF592B',
+                                borderRadius: 9999,
+                                height: 52,
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                shadowColor: '#BF592B',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 10,
+                                elevation: 5
+                            }}
                             onPress={handleAddToCart}
                             disabled={!listing.available}
+                            activeOpacity={0.9}
                         >
-                            <ShoppingCart size={18} color="white" />
-                            <Text className="text-white font-bold text-base font-sans-bold">
-                                Reserve Spot · ₵{(currentPrice * quantity).toFixed(2)}
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: 'white' }}>
+                                {selectedOption === 'takeaway' ? 'Reserve & Pickup' : 'Reserve & Dine-In'}
+                            </Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+                                Total: GHS {(currentPrice * quantity).toFixed(2)}
                             </Text>
                         </TouchableOpacity>
-                    </View>
+                    </>
                 )}
             </View>
         </View>

@@ -53,9 +53,9 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#E5E0D8',
-          borderTopWidth: 0.5,
+          backgroundColor: '#FFF1EC',
+          borderTopColor: '#DDC1B6',
+          borderTopWidth: 1,
           height: 100,
           paddingTop: 12,
           zIndex: 9999,
@@ -64,14 +64,14 @@ export default function TabLayout() {
           left: 0,
           right: 0,
           bottom: 0,
-          shadowColor: '#2D241E',
+          shadowColor: '#231915',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.08,
+          shadowOpacity: 0.06,
           shadowRadius: 12,
         },
         tabBarShowLabel: false,
-        tabBarActiveTintColor: '#D65A31',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: '#BF592B',
+        tabBarInactiveTintColor: '#8A7269',
       }}
     >
       <Tabs.Screen name="index" options={{ tabBarIcon: HomeIcon }} />

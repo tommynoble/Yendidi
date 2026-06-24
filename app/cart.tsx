@@ -7,6 +7,7 @@ import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { usePaystack } from 'react-native-paystack-webview';
 import { getDishImage } from '@/constants/Images';
+import ProcessLoader from '@/components/ProcessLoader';
 
 type PaymentMethod = 'momo_mtn' | 'momo_voda' | 'momo_airtel' | 'card';
 
@@ -196,7 +197,7 @@ export default function CartScreen() {
             onError: (error: any) => {
                 Alert.alert("Payment Failed", error?.message || "Something went wrong with the payment. Please try again.");
             },
-        });
+        } as any);
     };
 
     // Empty Cart
@@ -391,6 +392,11 @@ export default function CartScreen() {
                 </TouchableOpacity>
             </View>
             </View>
+
+            <ProcessLoader 
+                visible={loading} 
+                message="Processing Payment..."
+            />
         </SafeAreaView>
     );
 }

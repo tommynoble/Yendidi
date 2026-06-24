@@ -1,0 +1,58 @@
+{
+  "configVersion": 0,
+  "apple": {
+    "version": "1.0",
+    "copyright": "© 2026 YenDidii",
+    "release": {
+      "automaticRelease": true
+    },
+    "info": {
+      "en-US": {
+        "title": "YenDidii",
+        "subtitle": "Authentic home-cooked meals",
+        "description": "YenDidii is a dual-mode foodsharing platform that allows users to act both as an Eater (ordering food) and a Cook (listing and selling home-cooked meals). Connect with local home cooks near you and experience true Ghanaian hospitality.",
+        "keywords": ["food", "sharing", "ghana", "meals", "homecooked", "delivery", "local"],
+        "promoText": "Join the YenDidii community today and taste the difference of home-cooked meals!",
+        "releaseNotes": "Initial release of YenDidii! Enjoy finding and sharing authentic local meals in your community.",
+        "privacyPolicyUrl": "https://yendidii.com/privacy"
+      }
+    },
+    "advisory": {
+      "ageRatingOverride": "NONE",
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gambling": false,
+      "gamblingSimulated": "NONE",
+      "horrorOrFearThemes": "NONE",
+      "kidsAgeBand": null,
+      "koreaAgeRatingOverride": "NONE",
+      "lootBox": false,
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "unrestrictedWebAccess": false,
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "advertising": false,
+      "ageAssurance": false,
+      "ageRatingOverrideV2": "NONE",
+      "developerAgeRatingInfoUrl": null,
+      "gunsOrOtherWeapons": "NONE",
+      "healthOrWellnessTopics": false,
+      "messagingAndChat": false,
+      "parentalControls": false,
+      "userGeneratedContent": false
+    },
+    "review": {
+      "firstName": "Thomas",
+      "lastName": "Asante",
+      "email": "thomas@yendidii.com",
+      "phone": "",
+      "demoRequired": true,
+      "notes": "YenDidii is a dual-mode foodsharing platform that allows users to act both as an Eater (ordering food) and a Cook (listing and selling home-cooked meals).\n\nTo review the full experience of the app:\n1. Log in using the provided demo credentials.\n2. On the default 'Home' tab, you can view active local food listings (e.g., Fufu and Jollof).\n3. Tap on a food card to view the listing details, including portion availability and cook details.\n4. Tap the 'Explore' tab to test the Map View, which uses geographical location to plot nearby active home kitchens.\n5. To test the Cook experience: Go to the 'Profile' tab and tap \"Switch to Kitchen Mode\".\n6. This will load the Kitchen Dashboard, where you can test listing a test dish (using the \"New Dish\" button) and launching a simulation cooking session (using \"New Session\").\n\nNote: The app requests location access to query nearby home cooks relative to the user's coordinates. It does not run continuous GPS tracking in the background.\n"
+    }
+  }
+}

@@ -220,7 +220,7 @@ export default function CookProfileScreen() {
                                                 className={`rounded-2xl overflow-hidden mb-2 relative aspect-[4/3] bg-gray-100 shadow-sm ${!isReady ? 'opacity-80' : ''}`}
                                             >
                                                 <Image
-                                                    source={{ uri: meal.image || 'https://via.placeholder.com/300' }}
+                                                    source={{ uri: (meal.image && meal.image.includes(',') ? meal.image.split(',')[0].trim() : meal.image) || 'https://via.placeholder.com/300' }}
                                                     className="w-full h-full object-cover"
                                                 />
 

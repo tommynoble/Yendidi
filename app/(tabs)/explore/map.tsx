@@ -213,7 +213,7 @@ export default function ExploreMapScreen() {
                         }}>
                             {cook.listings[0]?.image ? (
                                 <Image
-                                    source={{ uri: cook.listings[0].image }}
+                                    source={{ uri: (cook.listings[0].image.includes(',') ? cook.listings[0].image.split(',')[0].trim() : cook.listings[0].image) }}
                                     style={{ width: '100%', height: '100%' }}
                                     resizeMode="cover"
                                 />
@@ -264,21 +264,25 @@ export default function ExploreMapScreen() {
             {/* HEADER OVERLAY */}
             <View
                 style={{
-                    paddingTop: insets.top + 12,
+                    paddingTop: insets.top + 48,
                     paddingBottom: 16,
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    backgroundColor: '#FFFFFF',
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     right: 0,
                     zIndex: 50,
                     elevation: 10,
+                    shadowColor: '#2D241E',
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.12,
+                    shadowRadius: 20,
                 }}
             >
                 {/* Top Row: Title + Toggle */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 12 }}>
                     <View>
-                        <Text className="text-xl font-bold text-text-main font-sans-bold">Map View</Text>
+                        <Text className="text-2xl font-bold text-text-main font-sans-bold">Map View</Text>
                         <Text className="text-sm text-text-sub font-sans">
                             {isLoading ? 'Loading cooks...' : `${filteredCooks.length} cook${filteredCooks.length !== 1 ? 's' : ''} near you`}
                         </Text>
@@ -387,7 +391,7 @@ export default function ExploreMapScreen() {
                         {/* Cook Avatar or First Listing Image */}
                         {selectedCook.listings.length > 0 && selectedCook.listings[0].image ? (
                             <Image
-                            source={{ uri: selectedCook.listings[0].image! }}
+                                source={{ uri: (selectedCook.listings[0].image.includes(',') ? selectedCook.listings[0].image.split(',')[0].trim() : selectedCook.listings[0].image) }}
                                 style={{ width: 80, height: 80, borderRadius: 16, backgroundColor: '#F3F4F6' }}
                             />
                         ) : (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, Switch, ActivityIndicator, Alert, FlatList } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Play, MessageCircle, ChefHat, Flame, Sparkles, Clock, ArrowRight, Trash2, Plus, Map, List, Lock, UtensilsCrossed, Pencil } from 'lucide-react-native';
+import { ChefHat, Flame, Trash2, Plus, Map, List, Lock, UtensilsCrossed, Pencil, Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAppStore } from '@/lib/store';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -18,27 +18,12 @@ const FOOD_STORIES = [
     { id: '4', name: 'Nana Yaa', image: 'https://images.unsplash.com/photo-1489424731084-a5d8b219a5bb?w=100&q=80', hasNew: true },
 ];
 
-const FOOD_REELS = [
-    { id: '1', title: 'How to make the perfect Jollof', chef: 'Aunty Ama', chefImage: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=60&q=80', image: 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=600&q=80', likes: '2.4k', comments: '89', duration: '2:30' },
-    { id: '2', title: 'Secret to fluffy Banku', chef: 'Chef Kofi', chefImage: 'https://images.unsplash.com/photo-1607631568010-a87245c0daf8?w=60&q=80', image: 'https://images.unsplash.com/photo-1580476262798-bddd9f4b7369?w=600&q=80', likes: '1.8k', comments: '56', duration: '1:45' },
-];
-
-const DID_YOU_KNOW = [
-    { id: '1', fact: 'Jollof rice originated from the Wolof people of Senegal, but Ghana has perfected it! 🇬🇭', emoji: '🍚' },
-    { id: '2', fact: 'Waakye gets its unique color from dried millet leaves (waakye leaves) or sorghum leaves.', emoji: '🌿' },
-    { id: '3', fact: 'Fufu is traditionally pounded by two people - one turning, one pounding. It\'s a dance!', emoji: '🥁' },
-];
-
 const TRENDING_NOW = [
     { id: '1', name: 'Waakye', searches: '1.2k searches today', image: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=200&q=80' },
     { id: '2', name: 'Kelewele', searches: '890 searches today', image: 'https://images.unsplash.com/photo-1596797882870-8c33deeac224?w=200&q=80' },
     { id: '3', name: 'Kontomire Stew', searches: '756 searches today', image: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=200&q=80' },
 ];
 
-const WHATS_NEW = [
-    { id: '1', title: 'New Cook Alert! 🎉', description: 'Mama Adwoa from Kumasi just joined with her famous Emo Tuo & Groundnut Soup', time: '2 hours ago', type: 'new_cook' },
-    { id: '2', title: 'Special Offer 🥗', description: 'Get 10% off Kelewele for the next 2 hours!', time: '3 hours ago', type: 'promo' },
-];
 
 export default function ExploreListScreen() {
     const router = useRouter();
@@ -267,7 +252,7 @@ export default function ExploreListScreen() {
                                 <View className="relative">
                                     {dish.image ? (
                                         <Image
-                                            source={{ uri: dish.image }}
+                                            source={{ uri: (dish.image.includes(',') ? dish.image.split(',')[0].trim() : dish.image) }}
                                             style={{ width: '100%', height: 220 }}
                                             resizeMode="cover"
                                         />
@@ -364,223 +349,296 @@ export default function ExploreListScreen() {
 
     // EATER MODE
     return (
-        <View className="flex-1 bg-warm-cream">
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF8F6' }} edges={['top']}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }}>
 
-            {/* HEADER OVERLAY — extends behind status bar */}
-            <View
-                className="px-6 pb-4 flex-row justify-between items-center bg-white"
-                style={{
-                    paddingTop: insets.top + 48,
-                    zIndex: 50,
-                    elevation: 10,
-                    shadowColor: '#2D241E',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.12,
-                    shadowRadius: 20,
-                }}
-            >
-                <View>
-                    <Text className="text-2xl font-bold text-text-main font-sans-bold">Discover</Text>
-                    <Text className="text-sm text-text-sub font-sans">Explore Ghanaian food culture</Text>
+                {/* HEADER */}
+                <View style={{ paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <View>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', letterSpacing: 1.4, textTransform: 'uppercase', marginBottom: 2 }}>Explore</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', letterSpacing: -0.5 }}>Ghanaian Kitchens</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+                        <TouchableOpacity
+                            style={{ width: 40, height: 40, backgroundColor: '#FFF1EC', borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}
+                            onPress={() => router.push('/(tabs)/explore/map')}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <Map size={18} color="#BF592B" />
+                        </TouchableOpacity>
+                        <View style={{ width: 40, height: 40, backgroundColor: '#BF592B', borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+                            <List size={18} color="white" />
+                        </View>
+                    </View>
                 </View>
-                <View className="flex-row bg-gray-100 p-1 rounded-full">
+
+                {/* SEARCH BAR */}
+                <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={{ marginHorizontal: 24, marginBottom: 20, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF1EC', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 13, gap: 10, borderWidth: 1, borderColor: '#F2DFD7' }}
+                >
+                    <Search size={17} color="#8A7269" />
+                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#B0988F', flex: 1 }}>Search kitchens, dishes...</Text>
+                </TouchableOpacity>
+
+                {/* CATEGORY CHIPS */}
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 24, gap: 10, paddingBottom: 4 }}
+                    style={{ marginBottom: 28 }}
+                >
+                    {[
+                        { label: 'All Kitchens', active: true },
+                        { label: 'Traditional Fufu', active: false },
+                        { label: 'Vegan', active: false },
+                        { label: 'Gluten-Free', active: false },
+                        { label: 'Halal', active: false },
+                    ].map((chip) => (
+                        <TouchableOpacity
+                            key={chip.label}
+                            style={{
+                                backgroundColor: chip.active ? '#BF592B' : '#FFF1EC',
+                                paddingHorizontal: 18,
+                                paddingVertical: 9,
+                                borderRadius: 9999,
+                                borderWidth: 1,
+                                borderColor: chip.active ? '#BF592B' : '#DDC1B6',
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={{
+                                fontFamily: chip.active ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium',
+                                fontSize: 13,
+                                color: chip.active ? 'white' : '#56423B',
+                            }}>{chip.label}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                {/* COOK STORIES */}
+                <View style={{ marginBottom: 28 }}>
+                    <View style={{ paddingHorizontal: 24, marginBottom: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#231915' }}>Active Cooks</Text>
+                        <TouchableOpacity onPress={() => router.push('/(tabs)/explore/map')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>See all</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <FlatList
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        data={realCooks.length > 0 ? realCooks : FOOD_STORIES.map(s => ({ id: s.id, name: s.name, avatar_url: s.image }))}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={{ paddingHorizontal: 24, gap: 16 }}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={({ item: cook }) => (
+                            <TouchableOpacity
+                                style={{ alignItems: 'center' }}
+                                activeOpacity={0.75}
+                                onPress={() => router.push('/(tabs)/explore/map')}
+                            >
+                                <View style={{ width: 72, height: 72, borderRadius: 36, padding: 2.5, backgroundColor: '#BF592B' }}>
+                                    <View style={{ width: 67, height: 67, borderRadius: 34, borderWidth: 2, borderColor: 'white', overflow: 'hidden', backgroundColor: '#F2DFD7' }}>
+                                        {cook.avatar_url ? (
+                                            <Image source={{ uri: cook.avatar_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                        ) : (
+                                            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF1EC' }}>
+                                                <ChefHat size={26} color="#BF592B" />
+                                            </View>
+                                        )}
+                                    </View>
+                                </View>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#231915', marginTop: 6, maxWidth: 64 }} numberOfLines={1}>{cook.name}</Text>
+                            </TouchableOpacity>
+                        )}
+                        initialNumToRender={5}
+                        maxToRenderPerBatch={5}
+                        windowSize={3}
+                    />
+                </View>
+
+                {/* FEATURED EDITORIAL CARDS */}
+                <View style={{ paddingHorizontal: 24, marginBottom: 14 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#231915' }}>Featured</Text>
+                </View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
+                    style={{ marginBottom: 32 }}
+                    decelerationRate="fast"
+                >
+                    {/* Main card — Chef's Special with real food image */}
                     <TouchableOpacity
-                        className="p-2 rounded-full"
+                        style={{ width: width * 0.72, height: 204, borderRadius: 24, overflow: 'hidden' }}
+                        activeOpacity={0.9}
                         onPress={() => router.push('/(tabs)/explore/map')}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Map size={20} color="#9CA3AF" />
+                        <Image
+                            source={{ uri: 'https://images.unsplash.com/photo-1512058564366-18510be2db19?w=600&q=80' }}
+                            style={{ position: 'absolute', width: '100%', height: '100%' }}
+                            resizeMode="cover"
+                        />
+                        <LinearGradient
+                            colors={['transparent', 'rgba(35,25,21,0.84)']}
+                            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 130 }}
+                        />
+                        <View style={{ position: 'absolute', top: 14, right: 14, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 9999 }}>
+                            <Text style={{ fontSize: 11 }}>⭐</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#231915' }}>4.9</Text>
+                        </View>
+                        <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 18 }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Chef's Special</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 20, color: 'white', lineHeight: 26, marginBottom: 12 }}>Authentic Waakye{'\n'}Experience</Text>
+                            <View style={{ backgroundColor: '#BF592B', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 9999, alignSelf: 'flex-start' }}>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: 'white' }}>View Menu</Text>
+                            </View>
+                        </View>
                     </TouchableOpacity>
+
+                    {/* Medium card — Trending with green overlay */}
                     <TouchableOpacity
-                        className="p-2 rounded-full"
-                        style={{ backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }}
-                        activeOpacity={1}
+                        style={{ width: width * 0.48, height: 204, borderRadius: 24, overflow: 'hidden' }}
+                        activeOpacity={0.9}
+                        onPress={() => router.push('/(tabs)')}
                     >
-                        <List size={20} color="#D65A31" />
+                        <Image
+                            source={{ uri: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&q=80' }}
+                            style={{ position: 'absolute', width: '100%', height: '100%' }}
+                            resizeMode="cover"
+                        />
+                        <LinearGradient
+                            colors={['rgba(0,106,60,0.55)', 'rgba(0,106,60,0.92)']}
+                            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                        />
+                        <View style={{ flex: 1, padding: 18, justifyContent: 'flex-end' }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Trending</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: 'white', lineHeight: 22, marginBottom: 14 }}>Weekend{'\n'}Feast Boxes</Text>
+                            <View style={{ backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 9999, alignSelf: 'flex-start', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)' }}>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white' }}>View Menu</Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+
+                    {/* Small card — Fresh with brown overlay */}
+                    <TouchableOpacity
+                        style={{ width: width * 0.38, height: 204, borderRadius: 24, overflow: 'hidden' }}
+                        activeOpacity={0.9}
+                        onPress={() => router.push('/(tabs)')}
+                    >
+                        <Image
+                            source={{ uri: 'https://images.unsplash.com/photo-1596797882870-8c33deeac224?w=300&q=80' }}
+                            style={{ position: 'absolute', width: '100%', height: '100%' }}
+                            resizeMode="cover"
+                        />
+                        <LinearGradient
+                            colors={['rgba(132,82,60,0.45)', 'rgba(132,82,60,0.94)']}
+                            style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+                        />
+                        <View style={{ flex: 1, padding: 16, justifyContent: 'flex-end' }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4 }}>Fresh</Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: 'white', lineHeight: 19, marginBottom: 12 }}>100%{'\n'}Home Cooked</Text>
+                            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.38)' }}>
+                                <Text style={{ color: 'white', fontSize: 16, lineHeight: 20 }}>→</Text>
+                            </View>
+                        </View>
+                    </TouchableOpacity>
+                </ScrollView>
+
+                {/* POPULAR DISHES HEADER */}
+                <View style={{ paddingHorizontal: 24, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Flame size={18} color="#BF592B" fill="#BF592B" />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#231915' }}>Popular Dishes</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => router.push('/(tabs)/explore/map')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>See All</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
 
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                {/* Stories Row — Real Cooks */}
-                <View className="bg-white pb-4 pt-4">
-                    {realCooks.length > 0 ? (
-                        <FlatList
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            data={realCooks}
-                            keyExtractor={(item) => item.id}
-                            contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
-                            keyboardShouldPersistTaps="handled"
-                            renderItem={({ item: cook }) => (
-                                <TouchableOpacity
-                                    className="items-center"
-                                    activeOpacity={0.7}
-                                    onPress={() => router.push(`/(tabs)/explore/map`)}
-                                >
-                                    <View style={{ width: 68, height: 68, borderRadius: 34, padding: 2, backgroundColor: '#D65A31' }}>
-                                        <View style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: 'white', overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
-                                            {cook.avatar_url ? (
-                                                <Image source={{ uri: cook.avatar_url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                                            ) : (
-                                                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0EB' }}>
-                                                    <ChefHat size={28} color="#D65A31" />
-                                                </View>
-                                            )}
-                                        </View>
-                                    </View>
-                                    <Text className="text-xs text-text-main mt-2 font-sans-medium" numberOfLines={1} style={{ maxWidth: 64 }}>{cook.name}</Text>
-                                </TouchableOpacity>
-                            )}
-                            initialNumToRender={5}
-                            maxToRenderPerBatch={5}
-                            windowSize={3}
-                        />
-                    ) : (
-                        <FlatList
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            data={FOOD_STORIES}
-                            keyExtractor={(item) => item.id}
-                            contentContainerStyle={{ paddingHorizontal: 20, gap: 16 }}
-                            keyboardShouldPersistTaps="handled"
-                            renderItem={({ item: story }) => (
-                                <TouchableOpacity className="items-center" activeOpacity={0.7} onPress={() => router.push('/(tabs)/explore/map')}>
-                                    <View style={{ width: 68, height: 68, borderRadius: 34, padding: 2, backgroundColor: story.hasNew ? '#D65A31' : '#E5E7EB' }}>
-                                        <View style={{ width: 64, height: 64, borderRadius: 32, borderWidth: 2, borderColor: 'white', overflow: 'hidden' }}>
-                                            <Image source={{ uri: story.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                                        </View>
-                                    </View>
-                                    <Text className="text-xs text-text-main mt-2 font-sans-medium">{story.name}</Text>
-                                </TouchableOpacity>
-                            )}
-                            initialNumToRender={4}
-                            maxToRenderPerBatch={4}
-                            windowSize={3}
-                        />
-                    )}
-                </View>
-
-                {/* Food Reels / Videos */}
-                <View className="mt-4 px-6">
-                    <View className="flex-row justify-between items-center mb-4">
-                        <View className="flex-row items-center gap-2">
-                            <Play size={20} color="#D65A31" fill="#D65A31" />
-                            <Text className="text-lg font-bold text-text-main font-sans-bold">Kitchen Stories</Text>
-                        </View>
-                        <TouchableOpacity onPress={() => router.push('/(tabs)/explore/map')}>
-                            <Text className="text-sm font-semibold text-clay-primary font-sans-semibold">See All</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={FOOD_REELS}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ gap: 12 }}
-                        keyboardShouldPersistTaps="handled"
-                        renderItem={({ item: reel }) => (
-                            <TouchableOpacity className="rounded-3xl overflow-hidden" style={{ width: width * 0.55, height: 280 }} activeOpacity={0.9} onPress={() => router.push('/(tabs)/explore/map')}>
-                                <Image source={{ uri: reel.image }} className="w-full h-full absolute" />
-                                <LinearGradient colors={['transparent', 'rgba(0,0,0,0.8)']} className="absolute bottom-0 left-0 right-0 h-32" pointerEvents="none" />
-
-                                <View className="absolute top-3 right-3 bg-black/60 px-2 py-1 rounded-full flex-row items-center gap-1">
-                                    <Clock size={10} color="white" />
-                                    <Text className="text-white text-xs font-sans-medium">{reel.duration}</Text>
+                {/* POPULAR DISHES GRID — white rounded-3xl cards with delivery badge */}
+                <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                    {TRENDING_NOW.concat([
+                        { id: '4', name: 'Fufu & Light Soup', searches: '~30 min', image: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&q=80' },
+                    ]).map((item) => (
+                        <TouchableOpacity
+                            key={item.id}
+                            style={{
+                                width: (width - 52) / 2,
+                                backgroundColor: 'white',
+                                borderRadius: 24,
+                                overflow: 'hidden',
+                                shadowColor: '#231915',
+                                shadowOffset: { width: 0, height: 3 },
+                                shadowOpacity: 0.07,
+                                shadowRadius: 12,
+                                elevation: 3,
+                            }}
+                            activeOpacity={0.85}
+                            onPress={() => router.push('/(tabs)')}
+                        >
+                            <View style={{ height: 128, backgroundColor: '#F2DFD7', position: 'relative' }}>
+                                <Image source={{ uri: (item.image && item.image.includes(',') ? item.image.split(',')[0].trim() : item.image) }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                                <View style={{ position: 'absolute', bottom: 9, left: 9, backgroundColor: 'rgba(255,255,255,0.92)', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999 }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: '#231915' }}>
+                                        {item.searches.includes('today') ? '~25 min' : item.searches}
+                                    </Text>
                                 </View>
-
-                                <View className="absolute inset-0 items-center justify-center">
-                                    <View className="w-14 h-14 bg-white/30 rounded-full items-center justify-center">
-                                        <Play size={24} color="white" fill="white" />
-                                    </View>
-                                </View>
-
-                                <View className="absolute bottom-0 left-0 right-0 p-4">
-                                    <Text className="text-white font-semibold text-sm font-sans-semibold" numberOfLines={2}>{reel.title}</Text>
-                                    <View className="flex-row items-center gap-2 mt-2">
-                                        <Image source={{ uri: reel.chefImage }} className="w-6 h-6 rounded-full" />
-                                        <Text className="text-white/80 text-xs font-sans">{reel.chef}</Text>
-                                    </View>
-                                </View>
-                            </TouchableOpacity>
-                        )}
-                        initialNumToRender={2}
-                        maxToRenderPerBatch={3}
-                        windowSize={3}
-                    />
-                </View>
-
-                {/* Did You Know */}
-                <View className="mt-8 px-6">
-                    <View className="flex-row items-center gap-2 mb-4">
-                        <Sparkles size={20} color="#FFCD00" />
-                        <Text className="text-lg font-bold text-text-main font-sans-bold">Did You Know?</Text>
-                    </View>
-
-                    <FlatList
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        data={DID_YOU_KNOW}
-                        keyExtractor={(item) => item.id}
-                        contentContainerStyle={{ gap: 12 }}
-                        keyboardShouldPersistTaps="handled"
-                        renderItem={({ item }) => (
-                             <TouchableOpacity className="bg-white p-4 rounded-3xl" style={{ width: width * 0.75, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7}>
-                                <Text className="text-3xl mb-2">{item.emoji}</Text>
-                                <Text className="text-text-main text-sm leading-5 font-sans">{item.fact}</Text>
-                            </TouchableOpacity>
-                        )}
-                        initialNumToRender={2}
-                        maxToRenderPerBatch={3}
-                        windowSize={3}
-                    />
-                </View>
-
-                {/* Trending Now */}
-                <View className="mt-8 px-6">
-                    <View className="flex-row justify-between items-center mb-4">
-                        <View className="flex-row items-center gap-2">
-                            <Flame size={20} color="#C8102E" />
-                            <Text className="text-lg font-bold text-text-main font-sans-bold">Trending Now</Text>
-                        </View>
-                    </View>
-
-                    {TRENDING_NOW.map((item, index) => (
-                        <TouchableOpacity key={item.id} className="flex-row items-center gap-4 mb-3 bg-white p-3 rounded-2xl" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => router.push('/(tabs)')}>
-                            <Text className="text-2xl font-bold text-clay-primary w-8 font-sans-bold">{index + 1}</Text>
-                            <Image source={{ uri: item.image }} className="w-14 h-14 rounded-xl" />
-                            <View className="flex-1">
-                                <Text className="font-semibold text-text-main font-sans-semibold">{item.name}</Text>
-                                <Text className="text-xs text-text-sub mt-0.5 font-sans">{item.searches}</Text>
                             </View>
-                            <ArrowRight size={18} color="#9CA3AF" />
+                            <View style={{ padding: 12 }}>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#231915' }} numberOfLines={1}>{item.name}</Text>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#8A7269', marginTop: 3 }} numberOfLines={1}>
+                                    {item.searches.includes('today') ? 'Trending near you' : 'Home cooked daily'}
+                                </Text>
+                            </View>
                         </TouchableOpacity>
                     ))}
                 </View>
 
-                {/* What's New */}
-                <View className="mt-8 px-6 mb-8">
-                    <View className="flex-row items-center gap-2 mb-4">
-                        <ChefHat size={20} color="#007A33" />
-                        <Text className="text-lg font-bold text-text-main font-sans-bold">What's New</Text>
+                {/* CULTURAL BANNER */}
+                <View style={{ marginHorizontal: 20, marginTop: 28, backgroundColor: '#FFF1EC', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#F2DFD7', flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                    <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: '#BF592B', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <ChefHat size={26} color="white" />
                     </View>
-
-                    {WHATS_NEW.map((item) => (
-                        <TouchableOpacity key={item.id} className="bg-white p-4 rounded-3xl mb-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 }} activeOpacity={0.7} onPress={() => router.push(item.type === 'new_cook' ? '/(tabs)/explore/map' : '/(tabs)')}>
-                            <View className="flex-row justify-between items-start">
-                                <View className="flex-1">
-                                    <Text className="font-semibold text-text-main font-sans-semibold">{item.title}</Text>
-                                    <Text className="text-sm text-text-sub mt-1 font-sans">{item.description}</Text>
-                                </View>
-                            </View>
-                            <Text className="text-xs text-text-sub mt-3 font-sans">{item.time}</Text>
-                        </TouchableOpacity>
-                    ))}
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', marginBottom: 4 }}>Support Local Hearth-Keepers</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#56423B', lineHeight: 18 }}>Every order supports a home cook in your community.</Text>
+                    </View>
                 </View>
 
-                <View className="h-24" />
+                {/* CRAVEABLE COLLECTIONS */}
+                <View style={{ paddingHorizontal: 24, marginTop: 28, marginBottom: 14 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#231915', marginBottom: 2 }}>Craveable Collections</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269' }}>Curated for every craving</Text>
+                </View>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 24, gap: 14 }}
+                    decelerationRate="fast"
+                >
+                    {[
+                        { id: '1', title: 'Sunday Comfort', subtitle: '12 dishes', color: '#BF592B', emoji: '🍲' },
+                        { id: '2', title: 'Under ₵30', subtitle: '8 dishes', color: '#006A3C', emoji: '💚' },
+                        { id: '3', title: 'Vegan Picks', subtitle: '6 dishes', color: '#84523C', emoji: '🌿' },
+                        { id: '4', title: 'Quick & Fresh', subtitle: '10 dishes', color: '#4A3728', emoji: '⚡' },
+                    ].map((col) => (
+                        <TouchableOpacity
+                            key={col.id}
+                            style={{ width: width * 0.38, backgroundColor: col.color, borderRadius: 20, padding: 18, height: 112, justifyContent: 'space-between' }}
+                            activeOpacity={0.85}
+                            onPress={() => router.push('/(tabs)')}
+                        >
+                            <Text style={{ fontSize: 26 }}>{col.emoji}</Text>
+                            <View>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: 'white', lineHeight: 18, marginBottom: 2 }}>{col.title}</Text>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{col.subtitle}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 }

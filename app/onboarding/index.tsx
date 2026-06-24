@@ -1,79 +1,95 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, Image, StatusBar } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Link, useRouter } from 'expo-router';
-import { Home, ArrowRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ChefHat, Utensils, Heart } from 'lucide-react-native';
+import { OnboardingHeader } from '@/components/ui/OnboardingHeader';
+import { Button } from '@/components/ui/Button';
 
 export default function OnboardingIntro() {
-    const router = useRouter();
+  const router = useRouter();
 
-    return (
-        <View className="flex-1 bg-warm-cream">
-            <StatusBar barStyle="dark-content" />
+  return (
+    <SafeAreaView className="flex-1 bg-surface-lowest" edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" />
 
-            {/* Kente Strip - Header Accent */}
-            <View className="flex-row h-1.5 w-full">
-                <View className="bg-kente-red flex-1" />
-                <View className="bg-kente-yellow flex-1" />
-                <View className="bg-kente-green flex-1" />
-                <View className="bg-text-main flex-1" />
-            </View>
+      <OnboardingHeader currentStep={1} totalSteps={3} />
 
-            {/* Main Image Container */}
-            <View className="relative w-full flex-1 rounded-b-[40px] overflow-hidden shadow-sm">
-                <Image
-                    source={require('@/assets/images/dishes/jollof_rice_chicken.jpg')}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                />
-                {/* Overlay Gradient */}
-                <LinearGradient
-                    colors={['transparent', 'rgba(45, 36, 30, 0.6)']}
-                    className="absolute inset-0"
-                    start={{ x: 0.5, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
-                />
-            </View>
+      {/* Hero Image */}
+      <View className="mx-5 mt-3 rounded-2xl overflow-hidden" style={{ height: 360 }}>
+        <Image
+          source={require('@/assets/images/dishes/jollof_rice_chicken.jpg')}
+          className="w-full h-full"
+          resizeMode="cover"
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(35, 25, 21, 0.72)']}
+          start={{ x: 0.5, y: 0.3 }}
+          end={{ x: 0.5, y: 1 }}
+          className="absolute inset-0"
+        />
 
-            {/* Content Area */}
-            <View className="px-8 pt-10 pb-12 items-center">
-                {/* Badge */}
-                <View className="flex-row items-center bg-kente-yellow/20 px-3 py-1 rounded-full mb-6 gap-2">
-                    <Home size={14} color="#4E342E" />
-                    <Text className="text-earth-brown text-xs font-bold uppercase tracking-wide font-sans-bold">
-                        Authentic Taste
-                    </Text>
-                </View>
-
-                {/* Headline */}
-                <Text className="text-3xl text-center text-text-main mb-4 leading-tight font-sans-bold">
-                    Miss the Taste of{'\n'}
-                    <Text className="text-clay-primary font-sans-bold">Home Cooking?</Text>
-                </Text>
-
-                {/* Subheadline */}
-                <Text className="text-text-sub text-base text-center leading-relaxed mb-8 font-sans">
-                    Tired of generic takeout? Connect with local home cooks preparing authentic Ghanaian meals in your neighborhood.
-                </Text>
-
-                {/* Indicators */}
-                <View className="flex-row gap-2 mb-10">
-                    <View className="w-6 h-1.5 rounded-full bg-clay-primary" />
-                    <View className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                </View>
-
-                {/* Next Button */}
-                <TouchableOpacity
-                    className="w-full h-14 bg-clay-primary rounded-2xl flex-row items-center justify-center gap-2 active:scale-95"
-                    onPress={() => router.push('/onboarding/community')}
-                    activeOpacity={0.9}
-                    style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
-                >
-                    <Text className="text-white text-base font-bold font-sans-bold">Find Food Nearby</Text>
-                    <ArrowRight size={18} color="white" />
-                </TouchableOpacity>
-            </View>
+        {/* Label badge on image */}
+        <View
+          className="absolute top-4 left-4 flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
+          style={{ backgroundColor: 'rgba(255,255,255,0.18)' }}
+        >
+          <ChefHat size={12} color="white" />
+          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', letterSpacing: 0.4 }}>
+            Home Cooks Near You
+          </Text>
         </View>
-    );
+
+        {/* Headline on image */}
+        <View className="absolute bottom-5 left-5 right-5">
+          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: 'white', lineHeight: 33, letterSpacing: -0.4 }}>
+            Miss the Taste of{'\n'}
+            <Text style={{ color: '#FFB598' }}>Home Cooking?</Text>
+          </Text>
+        </View>
+      </View>
+
+      {/* Content */}
+      <View className="flex-1 px-5 pt-6 justify-between">
+        <View>
+          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', lineHeight: 22, textAlign: 'center' }}>
+            Tired of generic takeout? Connect with local home cooks preparing authentic Ghanaian meals in your neighbourhood.
+          </Text>
+        </View>
+
+        <View className="gap-4 pb-2">
+          <Button
+            label="Find Food Nearby"
+            onPress={() => router.push('/onboarding/community')}
+            showArrow
+          />
+
+          {/* Adinkra-style step footer */}
+          <View className="items-center gap-3">
+            <View className="flex-row items-center gap-4">
+              {[ChefHat, Utensils, Heart].map((Icon, i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    backgroundColor: i === 0 ? '#FFF1EC' : '#F2DFD7',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon size={16} color={i === 0 ? '#BF592B' : '#8A7269'} />
+                </View>
+              ))}
+            </View>
+            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', letterSpacing: 0.2 }}>
+              Step 1 of 3 · Your Culinary Journey Begins
+            </Text>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
 }

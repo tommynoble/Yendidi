@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Bike, Check, X, CookingPot, User } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import { getDishImage } from '@/constants/Images';
+import ProcessLoader from '@/components/ProcessLoader';
 
 // Types for our order structure
 type Order = {
@@ -546,6 +547,11 @@ export default function OrdersScreen() {
                 />
             )}
             </View>
+
+            <ProcessLoader 
+                visible={refreshing} 
+                message="Updating Orders..."
+            />
         </SafeAreaView>
     );
 }

@@ -1,107 +1,116 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { View, Text, Image, StatusBar } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Star } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { OnboardingHeader } from '@/components/ui/OnboardingHeader';
+import { Button } from '@/components/ui/Button';
 
 export default function OnboardingCommunity() {
-    const router = useRouter();
+  const router = useRouter();
 
-    return (
-        <View className="flex-1 bg-warm-cream">
-            {/* Kente Strip */}
-            <View className="flex-row h-1.5 w-full">
-                <View className="bg-kente-red flex-1" />
-                <View className="bg-kente-yellow flex-1" />
-                <View className="bg-kente-green flex-1" />
-                <View className="bg-text-main flex-1" />
-            </View>
+  return (
+    <SafeAreaView className="flex-1 bg-surface-lowest" edges={['top', 'bottom']}>
+      <StatusBar barStyle="dark-content" />
 
-            {/* Main Image Wrapper */}
-            <View className="flex-1 relative overflow-hidden">
-                <Image
-                    source={require('@/assets/images/dishes/waakye_special.jpg')}
-                    className="w-full h-full"
-                    resizeMode="cover"
-                />
+      <OnboardingHeader currentStep={2} totalSteps={3} />
 
-                {/* Floating Review Card */}
-                <View className="absolute top-12 right-6 bg-white/95 backdrop-blur-sm p-3 rounded-2xl shadow-lg max-w-[180px]" style={{ transform: [{ rotate: '3deg' }] }}>
-                    <View className="flex-row items-center gap-1 mb-1">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                            <Star key={i} size={12} color="#FFCD00" fill="#FFCD00" />
-                        ))}
-                    </View>
-                    <Text className="text-[10px] text-text-main italic leading-tight font-sans">
-                        "Felt just like eating at my grandmother's house!"
-                    </Text>
-                </View>
+      {/* Hero Image */}
+      <View className="mx-5 mt-3 rounded-2xl overflow-hidden" style={{ height: 340 }}>
+        <Image
+          source={require('@/assets/images/dishes/waakye_special.jpg')}
+          className="w-full h-full"
+          resizeMode="cover"
+        />
+        <LinearGradient
+          colors={['transparent', 'rgba(35, 25, 21, 0.55)']}
+          start={{ x: 0.5, y: 0.4 }}
+          end={{ x: 0.5, y: 1 }}
+          className="absolute inset-0"
+        />
 
-                {/* Gradient Mask */}
-                <LinearGradient
-                    colors={['#FAF9F6', 'transparent', 'transparent']}
-                    start={{ x: 0.5, y: 1 }}
-                    end={{ x: 0.5, y: 0.5 }} // Adjusting to replicate "from warm-cream via-transparent to-transparent" but upwards? 
-                    // The HTML says `bg-gradient-to-t from-[var(--warm-cream)] via-transparent to-transparent`. 
-                    // So bottom is warm-cream.
-                    locations={[0, 0.5, 1]}
-                    className="absolute inset-0"
-                />
-                {/* Wait, the HTML gradient usually masks the bottom to blend with content area. */}
-                <LinearGradient
-                    colors={['transparent', '#FAF9F6']}
-                    start={{ x: 0.5, y: 0.5 }}
-                    end={{ x: 0.5, y: 1 }}
-                    className="absolute inset-0"
-                />
-            </View>
-
-            {/* Content Area */}
-            <View className="px-8 pb-12 pt-4 items-center relative z-10 bg-warm-cream">
-                {/* Icon Group */}
-                <View className="flex-row items-center justify-center -space-x-3 mb-6">
-                    <Image source={{ uri: 'https://media.screensdesign.com/gasset/78511591-ac38-4b2d-89cc-5bcb9626ebcb.png' }} className="w-10 h-10 rounded-full border-2 border-warm-cream" />
-                    <Image source={{ uri: 'https://media.screensdesign.com/gasset/b28757d3-7a87-4a0e-8552-349fa8083b45.png' }} className="w-10 h-10 rounded-full border-2 border-warm-cream" />
-                    <Image source={{ uri: 'https://media.screensdesign.com/gasset/3e479937-8f02-40fc-93ec-0c6ca8c63a20.png' }} className="w-10 h-10 rounded-full border-2 border-warm-cream" />
-                    <View className="w-10 h-10 rounded-full border-2 border-warm-cream bg-text-main items-center justify-center">
-                        <Text className="text-white text-xs font-bold font-sans-bold">+2K</Text>
-                    </View>
-                </View>
-
-                {/* Headline */}
-                <Text className="text-2xl font-bold text-text-main mb-4 leading-tight text-center font-sans-bold">
-                    More Than Just{'\n'}a Plate of Food
-                </Text>
-
-                {/* Subheadline */}
-                <Text className="text-text-sub text-base leading-relaxed mb-8 text-center font-sans">
-                    Join a table, meet new friends, and experience the true warmth of Ghanaian hospitality.
-                </Text>
-
-                {/* Indicators */}
-                <View className="flex-row gap-2 mb-10">
-                    <View className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                    <View className="w-6 h-1.5 rounded-full bg-clay-primary" />
-                </View>
-
-                {/* Next Button */}
-                <View className="flex-col gap-3 w-full">
-                    <TouchableOpacity
-                        className="w-full h-14 bg-clay-primary rounded-2xl items-center justify-center active:scale-95"
-                        onPress={() => router.push('/login')}
-                        style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
-                    >
-                        <Text className="text-white font-bold text-base font-sans-bold">Sign Up</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        className="w-full h-14 items-center justify-center active:opacity-70"
-                        onPress={() => router.push('/login')}
-                    >
-                        <Text className="text-text-main font-semibold text-base font-sans-semibold">Log In</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+        {/* Floating review card */}
+        <View
+          className="absolute top-5 right-4 p-3 rounded-2xl max-w-[170px]"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.96)',
+            transform: [{ rotate: '3deg' }],
+            shadowColor: '#231915',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.08,
+            shadowRadius: 10,
+            elevation: 4,
+          }}
+        >
+          <View className="flex-row items-center gap-0.5 mb-1">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star key={i} size={11} color="#BF592B" fill="#BF592B" />
+            ))}
+          </View>
+          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#231915', fontStyle: 'italic', lineHeight: 14 }}>
+            "Felt just like eating at my grandmother's house!"
+          </Text>
         </View>
-    );
+      </View>
+
+      {/* Content */}
+      <View className="flex-1 px-5 pt-5 justify-between">
+        <View className="items-center gap-3">
+          {/* Cook avatar stack */}
+          <View className="flex-row items-center" style={{ gap: -10 }}>
+            {['#BF592B', '#84523C', '#006A3C', '#231915'].map((bg, i) => (
+              <View
+                key={i}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: bg,
+                  borderWidth: 2,
+                  borderColor: '#FFFFFF',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginLeft: i === 0 ? 0 : -10,
+                  zIndex: 4 - i,
+                }}
+              >
+                {i === 3 && (
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 9, color: 'white' }}>+2K</Text>
+                )}
+              </View>
+            ))}
+          </View>
+
+          <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 24, color: '#231915', lineHeight: 31, textAlign: 'center', letterSpacing: -0.3 }}>
+            More Than Just{'\n'}a Plate of Food
+          </Text>
+
+          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', lineHeight: 22, textAlign: 'center' }}>
+            Join a table, meet new friends, and experience the true warmth of Ghanaian hospitality.
+          </Text>
+        </View>
+
+        <View className="gap-3 pb-2">
+          <Button
+            label="Sign Up"
+            onPress={() => router.push('/login')}
+            showArrow
+          />
+          <Button
+            label="Log In"
+            onPress={() => router.push('/login')}
+            variant="ghost"
+          />
+
+          {/* Step footer */}
+          <View className="items-center">
+            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', letterSpacing: 0.2 }}>
+              Step 2 of 3 · Join the Community
+            </Text>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
 }

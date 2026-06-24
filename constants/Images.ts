@@ -25,13 +25,18 @@ export const DISH_IMAGES: Record<string, any> = {
 };
 
 export const getDishImage = (name: string, fallbackUrl?: string | null) => {
+    // Extract first URL if fallbackUrl contains commas
+    const firstUrl = fallbackUrl && fallbackUrl.includes(',')
+        ? fallbackUrl.split(',')[0].trim()
+        : fallbackUrl;
+
     // Filter out Unsplash or placeholder URLs
-    const isUnsplashOrPlaceholder = fallbackUrl && (
-        fallbackUrl.includes('unsplash.com') || 
-        fallbackUrl.includes('placeholder') || 
-        fallbackUrl.includes('via.placeholder')
+    const isUnsplashOrPlaceholder = firstUrl && (
+        firstUrl.includes('unsplash.com') || 
+        firstUrl.includes('placeholder') || 
+        firstUrl.includes('via.placeholder')
     );
-    const safeUrl = isUnsplashOrPlaceholder ? null : fallbackUrl;
+    const safeUrl = isUnsplashOrPlaceholder ? null : firstUrl;
 
     if (name) {
         const lowerName = name.toLowerCase().trim();
