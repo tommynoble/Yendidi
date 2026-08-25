@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Share, Heart, Clock, ChevronRight, MapPin, Navigation, Star, Plus, Minus, Flame, Users, ShoppingCart } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { format } from 'date-fns';
 import { getDishImage } from '@/constants/Images';
+import CartToast from '@/components/CartToast';
 
 const { width } = Dimensions.get('window');
 
@@ -86,6 +87,7 @@ export default function MealDetailScreen() {
 
     // State for local quantities for each cook listing
     const [quantities, setQuantities] = useState<Record<string, number>>({});
+    const [cartToast, setCartToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
 
     const updateLocalQuantity = (id: string, delta: number) => {
         setQuantities(prev => ({
@@ -128,14 +130,7 @@ export default function MealDetailScreen() {
             cookName: cookItem.profiles?.full_name || 'Chef',
         }, qty);
 
-        Alert.alert(
-            "Added to Cart! 🛒",
-            `${qty}x ${cookItem.title} added to your cart.`,
-            [
-                { text: "Keep Browsing", style: "cancel" },
-                { text: "View Cart", onPress: () => router.push('/cart') },
-            ]
-        );
+        setCartToast({ visible: true, message: `${qty}x ${cookItem.title} added to your cart.` });
     };
 
     return (
@@ -447,6 +442,14 @@ export default function MealDetailScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+
+            <CartToast
+                visible={cartToast.visible}
+                message={cartToast.message}
+                bottomOffset={getCartCount() > 0 ? 110 : 24}
+                onPress={() => router.push('/cart')}
+                onHide={() => setCartToast((prev) => ({ ...prev, visible: false }))}
+            />
         </View>
     );
 }

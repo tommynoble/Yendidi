@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Dimensions, Share, StyleSheet } from 'react-native';
-const { width } = Dimensions.get('window');
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Share, StyleSheet, Modal, FlatList } from 'react-native';
+const { width, height } = Dimensions.get('window');
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { 
-    ArrowLeft, Heart, Clock, Star, Plus, Minus, ChefHat, Flame, 
+import {
+    ArrowLeft, Heart, Clock, Star, Plus, Minus, ChefHat, Flame,
     ShoppingCart, MapPin, Utensils, Navigation, Share2, Upload, Pencil,
-    Sparkles, Shield, Check, Wifi, Music, Car, Droplet, MessageSquare, 
+    Sparkles, Shield, Check, Wifi, Music, Car, Droplet, MessageSquare,
     Info, ChevronRight, CheckCircle2, Coffee, Users as UsersIcon, Leaf,
-    Wheat, Soup, Apple, Fish, Cake, Sprout
+    Wheat, Soup, Apple, Fish, Cake, Sprout, Images, X
 } from 'lucide-react-native';
 
 const CATEGORY_TAG_STYLES: { 
@@ -40,10 +40,17 @@ import { getDishImage } from '@/constants/Images';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
+import CartToast from '@/components/CartToast';
 
 const DINE_IN_1 = require('@/assets/images/dine_in_1.jpg');
 const DINE_IN_2 = require('@/assets/images/dine_in_2.jpg');
 const DINE_IN_3 = require('@/assets/images/dine_in_3.jpg');
+
+const DINE_IN_PHOTOS = [
+    { image: DINE_IN_3, caption: 'True local flavors' },
+    { image: DINE_IN_2, caption: 'Authentic dining seating' },
+    { image: DINE_IN_1, caption: 'Traditional food preparation' },
+];
 
 // Haversine formula → distance in km
 function getDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -62,13 +69,19 @@ export default function ListingDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
-    const { addToCart, isCookMode } = useAppStore();
+    const { addToCart, isCookMode, getCartCount } = useAppStore();
     const [quantity, setQuantity] = useState(1);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [saved, setSaved] = useState(false);
     const [eaterLocation, setEaterLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [selectedOption, setSelectedOption] = useState<'standard' | 'vip' | 'takeaway'>('standard');
     const [mapVisible, setMapVisible] = useState(false);
+    const [cartToast, setCartToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+    const [photoTourVisible, setPhotoTourVisible] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+    const photoTourScrollRef = useRef<ScrollView>(null);
+    const lightboxRef = useRef<FlatList>(null);
+    const sectionOffsets = useRef<Record<string, number>>({});
     const FAVORITES_KEY = 'yendidii_favorites';
 
     // Load saved state from AsyncStorage
@@ -168,6 +181,12 @@ export default function ListingDetailScreen() {
         ];
     }, [listing]);
 
+    // Flat, swipeable sequence for the photo tour lightbox — dish photos first, then the dine-in gallery
+    const allPhotos = useMemo(() => [
+        ...sliderImages.map((img: any) => ({ image: img, caption: null as string | null, section: 'The Dish' })),
+        ...DINE_IN_PHOTOS.map((p) => ({ image: p.image, caption: p.caption as string | null, section: 'Dining Experience' })),
+    ], [sliderImages]);
+
     // Compute distance between eater and cook
     const distanceKm = useMemo(() => {
         if (eaterLocation && listing?.latitude && listing?.longitude) {
@@ -226,14 +245,7 @@ export default function ListingDetailScreen() {
             cookName: listing.profiles?.full_name || 'Chef',
         }, quantity);
 
-        Alert.alert(
-            '🛒 Added to Cart!',
-            `${quantity}x ${listing.title} (${optionName}) added to your cart.`,
-            [
-                { text: 'Keep Browsing', style: 'cancel' },
-                { text: 'View Cart', onPress: () => router.push('/cart') },
-            ]
-        );
+        setCartToast({ visible: true, message: `${quantity}x ${listing.title} (${optionName}) added to your cart.` });
     };
 
     const handleShare = async () => {
@@ -245,6 +257,13 @@ export default function ListingDetailScreen() {
             });
         } catch (error) {
             console.log('Error sharing:', error);
+        }
+    };
+
+    const scrollToSection = (key: string) => {
+        const y = sectionOffsets.current[key];
+        if (y !== undefined) {
+            photoTourScrollRef.current?.scrollTo({ y: y - 12, animated: true });
         }
     };
 
@@ -349,7 +368,7 @@ export default function ListingDetailScreen() {
                 contentContainerStyle={{ paddingBottom: 130 }}
             >
                 {/* Hero Image Slider — curved bottom layout */}
-                <View style={{ height: 340, width: '100%', position: 'relative' }}>
+                <View style={{ height: 490, width: '100%', position: 'relative' }}>
                     <ScrollView
                         horizontal
                         pagingEnabled
@@ -363,14 +382,38 @@ export default function ListingDetailScreen() {
                         style={{ width: '100%', height: '100%' }}
                     >
                         {sliderImages.map((img: any, index: number) => (
-                            <Image
-                                key={index}
-                                source={img}
-                                style={{ width, height: '100%' }}
-                                resizeMode="cover"
-                            />
+                            <TouchableOpacity key={index} activeOpacity={0.9} onPress={() => setPhotoTourVisible(true)}>
+                                <Image
+                                    source={img}
+                                    style={{ width, height: '100%' }}
+                                    resizeMode="cover"
+                                />
+                            </TouchableOpacity>
                         ))}
                     </ScrollView>
+
+                    {/* See all photos */}
+                    <TouchableOpacity
+                        onPress={() => setPhotoTourVisible(true)}
+                        style={{
+                            position: 'absolute',
+                            bottom: 48,
+                            left: 24,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 6,
+                            backgroundColor: 'rgba(0,0,0,0.5)',
+                            paddingHorizontal: 14,
+                            paddingVertical: 10,
+                            borderRadius: 9999,
+                            zIndex: 10
+                        }}
+                    >
+                        <Images size={14} color="white" />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: 'white' }}>
+                            See all photos
+                        </Text>
+                    </TouchableOpacity>
 
                     {/* Pagination dots indicator */}
                     {sliderImages.length > 1 && (
@@ -875,9 +918,203 @@ export default function ListingDetailScreen() {
                                 Total: GHS {(currentPrice * quantity).toFixed(2)}
                             </Text>
                         </TouchableOpacity>
+
+                        {/* Cart shortcut */}
+                        <TouchableOpacity
+                            onPress={() => router.push('/cart')}
+                            style={{
+                                width: 52,
+                                height: 52,
+                                borderRadius: 26,
+                                backgroundColor: '#BF592B',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                shadowColor: '#BF592B',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.25,
+                                shadowRadius: 10,
+                                elevation: 5
+                            }}
+                        >
+                            <ShoppingCart size={20} color="white" />
+                            {getCartCount() > 0 && (
+                                <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#231915', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Text style={{ color: 'white', fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold' }}>{getCartCount()}</Text>
+                                </View>
+                            )}
+                        </TouchableOpacity>
                     </>
                 )}
             </View>
+
+            <CartToast
+                visible={cartToast.visible}
+                message={cartToast.message}
+                bottomOffset={insets.bottom + 92}
+                onPress={() => router.push('/cart')}
+                onHide={() => setCartToast((prev) => ({ ...prev, visible: false }))}
+            />
+
+            {/* Photo tour */}
+            <Modal visible={photoTourVisible} animationType="slide" onRequestClose={() => setPhotoTourVisible(false)}>
+                <View style={{ flex: 1, backgroundColor: 'white', paddingTop: insets.top }}>
+                    {/* Header */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 }}>
+                        <TouchableOpacity onPress={() => setPhotoTourVisible(false)} style={{ padding: 8 }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <ArrowLeft size={22} color="#231915" />
+                        </TouchableOpacity>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#231915' }}>Photo tour</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
+                            <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Share2 size={19} color="#231915" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={toggleSaved} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                <Heart size={19} color={saved ? '#BA1A1A' : '#231915'} fill={saved ? '#BA1A1A' : 'transparent'} />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* Section thumbnail nav */}
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        style={{ flexGrow: 0, flexShrink: 0, height: 204 }}
+                        contentContainerStyle={{ paddingHorizontal: 16, gap: 14, paddingTop: 4, paddingBottom: 16 }}
+                    >
+                        <TouchableOpacity onPress={() => scrollToSection('dish')} activeOpacity={0.85} style={{ alignItems: 'center', width: 96 }}>
+                            <Image source={sliderImages[0]} style={{ width: 96, height: 124, borderRadius: 16 }} resizeMode="cover" />
+                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, lineHeight: 16, color: '#231915', marginTop: 8, textAlign: 'center' }}>
+                                The Dish
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => scrollToSection('dining')} activeOpacity={0.85} style={{ alignItems: 'center', width: 96 }}>
+                            <Image source={DINE_IN_PHOTOS[0].image} style={{ width: 96, height: 124, borderRadius: 16 }} resizeMode="cover" />
+                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, lineHeight: 16, color: '#231915', marginTop: 8, textAlign: 'center' }}>
+                                Dining{'\n'}Experience
+                            </Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+
+                    {/* Full photo list */}
+                    <ScrollView ref={photoTourScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: insets.bottom + 32 }}>
+                        <View onLayout={(e) => { sectionOffsets.current.dish = e.nativeEvent.layout.y; }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, color: '#231915', paddingHorizontal: 20, marginBottom: 16 }}>
+                                The Dish
+                            </Text>
+                            {sliderImages.map((img: any, index: number) => (
+                                <TouchableOpacity key={index} activeOpacity={0.9} onPress={() => setLightboxIndex(index)} style={{ paddingHorizontal: 20, marginBottom: 20 }}>
+                                    <Image
+                                        source={img}
+                                        style={{ width: '100%', height: 300, borderRadius: 24 }}
+                                        resizeMode="cover"
+                                    />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View onLayout={(e) => { sectionOffsets.current.dining = e.nativeEvent.layout.y; }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, color: '#231915', paddingHorizontal: 20, marginBottom: 4 }}>
+                                Dining Experience
+                            </Text>
+                            {DINE_IN_PHOTOS.map((photo, index) => (
+                                <View key={index} style={{ marginTop: 16 }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B', paddingHorizontal: 20, marginBottom: 12 }}>
+                                        {photo.caption}
+                                    </Text>
+                                    <TouchableOpacity activeOpacity={0.9} onPress={() => setLightboxIndex(sliderImages.length + index)} style={{ paddingHorizontal: 20 }}>
+                                        <Image
+                                            source={photo.image}
+                                            style={{ width: '100%', height: 300, borderRadius: 24 }}
+                                            resizeMode="cover"
+                                        />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+
+                    {/* Swipeable lightbox */}
+                    {lightboxIndex !== null && (
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFF8F6', zIndex: 100 }}>
+                            <FlatList
+                                ref={lightboxRef}
+                                data={allPhotos}
+                                keyExtractor={(_, i) => String(i)}
+                                horizontal
+                                pagingEnabled
+                                showsHorizontalScrollIndicator={false}
+                                initialScrollIndex={lightboxIndex}
+                                getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+                                onMomentumScrollEnd={(e) => {
+                                    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+                                    setLightboxIndex(idx);
+                                }}
+                                renderItem={({ item }) => (
+                                    <View style={{ width, height, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 }}>
+                                        <Image
+                                            source={item.image}
+                                            style={{ width: width - 32, height: height * 0.7, borderRadius: 24 }}
+                                            resizeMode="contain"
+                                        />
+                                    </View>
+                                )}
+                            />
+
+                            {/* Top controls */}
+                            <View style={{ position: 'absolute', top: insets.top + 12, left: 16, right: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <TouchableOpacity
+                                    onPress={() => setLightboxIndex(null)}
+                                    style={{
+                                        width: 40,
+                                        height: 40,
+                                        borderRadius: 20,
+                                        backgroundColor: 'white',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        shadowColor: '#231915',
+                                        shadowOffset: { width: 0, height: 3 },
+                                        shadowOpacity: 0.1,
+                                        shadowRadius: 6,
+                                        elevation: 4
+                                    }}
+                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                >
+                                    <X size={20} color="#231915" />
+                                </TouchableOpacity>
+                                <View
+                                    style={{
+                                        backgroundColor: 'white',
+                                        paddingHorizontal: 12,
+                                        paddingVertical: 8,
+                                        borderRadius: 9999,
+                                        shadowColor: '#231915',
+                                        shadowOffset: { width: 0, height: 3 },
+                                        shadowOpacity: 0.1,
+                                        shadowRadius: 6,
+                                        elevation: 4
+                                    }}
+                                >
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915' }}>
+                                        {lightboxIndex + 1} / {allPhotos.length}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Bottom caption */}
+                            <View style={{ position: 'absolute', bottom: insets.bottom + 24, left: 20, right: 20, alignItems: 'center' }}>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#BF592B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                                    {allPhotos[lightboxIndex]?.section}
+                                </Text>
+                                {allPhotos[lightboxIndex]?.caption && (
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 15, color: '#231915' }}>
+                                        {allPhotos[lightboxIndex]?.caption}
+                                    </Text>
+                                )}
+                            </View>
+                        </View>
+                    )}
+                </View>
+            </Modal>
         </View>
     );
 }

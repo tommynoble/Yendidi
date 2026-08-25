@@ -78,6 +78,7 @@ export default function OrderDetailScreen() {
 
     const getPaymentLabel = (method: string | null) => {
         switch (method) {
+            case 'momo': return 'Mobile Money';
             case 'momo_mtn': return 'MTN MoMo';
             case 'momo_voda': return 'Vodafone Cash';
             case 'momo_airtel': return 'AirtelTigo';

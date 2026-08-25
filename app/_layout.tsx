@@ -72,7 +72,7 @@ export default function RootLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PaystackProvider publicKey={paystackKey}>
+      <PaystackProvider publicKey={paystackKey} currency="GHS" defaultChannels={['card', 'mobile_money']}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFF8F6', paddingHorizontal: 6 } }}>
@@ -84,6 +84,7 @@ export default function RootLayout() {
             <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="cook/[id]" />
             <Stack.Screen name="meal/[id]" />
+            <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: '#FFF8F6', paddingHorizontal: 0 } }} />
             <Stack.Screen name="cart" options={{ presentation: 'card' }} />
           </Stack>
         </ThemeProvider>

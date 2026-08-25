@@ -8,42 +8,42 @@ export default function TabLayout() {
   const isCookMode = useAppStore(state => state.isCookMode);
 
   const HomeIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
-    <View className="items-center justify-center" style={{ width: 60 }}>
-      {isCookMode ? <LayoutDashboard size={24} color={color} strokeWidth={focused ? 2.5 : 2} /> : <Home size={24} color={color} strokeWidth={focused ? 2.5 : 2} />}
+    <View className="items-center justify-center" style={{ width: 64 }}>
+      {isCookMode ? <LayoutDashboard size={26} color={color} strokeWidth={focused ? 2 : 1.5} /> : <Home size={26} color={color} strokeWidth={focused ? 2 : 1.5} />}
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Dashboard' : 'Home'}</Text>
     </View>
   ), [isCookMode]);
 
   const ExploreIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
-    <View className="items-center justify-center" style={{ width: 60 }}>
-      {isCookMode ? <BookOpen size={24} color={color} strokeWidth={focused ? 2.5 : 2} /> : <Compass size={24} color={color} strokeWidth={focused ? 2.5 : 2} />}
+    <View className="items-center justify-center" style={{ width: 64 }}>
+      {isCookMode ? <BookOpen size={26} color={color} strokeWidth={focused ? 2 : 1.5} /> : <Compass size={26} color={color} strokeWidth={focused ? 2 : 1.5} />}
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Menu' : 'Explore'}</Text>
     </View>
   ), [isCookMode]);
 
   const CookIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
-    <View className="items-center justify-center" style={{ width: 60, marginTop: isCookMode ? -20 : 0 }}>
+    <View className="items-center justify-center" style={{ width: 64, marginTop: isCookMode ? -20 : 0 }}>
       {isCookMode ? (
         <View className="w-14 h-14 bg-text-main rounded-full shadow-lg items-center justify-center border-4 border-white">
-          <Plus size={24} color="white" strokeWidth={3} />
+          <Plus size={26} color="white" strokeWidth={2.5} />
         </View>
       ) : (
-        <Heart size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+        <Heart size={26} color={color} strokeWidth={focused ? 2 : 1.5} />
       )}
       <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isCookMode ? '500' : focused ? '600' : '500', color: isCookMode ? '#6B7280' : color, marginTop: 4 }}>{isCookMode ? 'Post' : 'Saved'}</Text>
     </View>
   ), [isCookMode]);
 
   const OrdersIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
-    <View className="items-center justify-center" style={{ width: 60 }}>
-      <Receipt size={24} color={color} strokeWidth={focused ? 2.5 : 2} />
+    <View className="items-center justify-center" style={{ width: 64 }}>
+      <Receipt size={26} color={color} strokeWidth={focused ? 2 : 1.5} />
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Requests' : 'Orders'}</Text>
     </View>
   ), [isCookMode]);
 
   const ProfileIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
-    <View className="items-center justify-center" style={{ width: 60 }}>
-      {isCookMode ? <ChefHat size={24} color={color} strokeWidth={focused ? 2.5 : 2} /> : <User size={24} color={color} strokeWidth={focused ? 2.5 : 2} />}
+    <View className="items-center justify-center" style={{ width: 64 }}>
+      {isCookMode ? <ChefHat size={26} color={color} strokeWidth={focused ? 2 : 1.5} /> : <User size={26} color={color} strokeWidth={focused ? 2 : 1.5} />}
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Kitchen' : 'Profile'}</Text>
     </View>
   ), [isCookMode]);
@@ -56,8 +56,8 @@ export default function TabLayout() {
           backgroundColor: '#FFF1EC',
           borderTopColor: '#DDC1B6',
           borderTopWidth: 1,
-          height: 100,
-          paddingTop: 12,
+          height: 108,
+          paddingTop: 14,
           zIndex: 9999,
           elevation: 24,
           position: 'absolute',

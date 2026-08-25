@@ -1,12 +1,31 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView, ActivityIndicator, TextInput, Animated, PanResponder, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Map, List, Star, ChevronRight, Navigation, MapPin, ChefHat, Search, X } from 'lucide-react-native';
+import { Star, ChevronRight, Navigation, MapPin, ChefHat, Search, X, Utensils, Wheat, Soup, Flame, Apple, Fish, Cake, Leaf, Sprout } from 'lucide-react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import * as Location from 'expo-location';
+
+// Same curated category list used on Home, so search stays consistent across the app
+const CATEGORIES = [
+    { id: '1', name: 'All', icon: 'Utensils' },
+    { id: '2', name: 'Rice Dishes', icon: 'Wheat' },
+    { id: '4', name: 'Soups & Stews', icon: 'Soup' },
+    { id: '5', name: 'Grills & Kebabs', icon: 'Flame' },
+    { id: '6', name: 'Traditional Snacks', icon: 'Apple' },
+    { id: '7', name: 'Seafood', icon: 'Fish' },
+    { id: '8', name: 'Pastries', icon: 'Cake' },
+    { id: '9', name: 'Vegan', icon: 'Leaf' },
+    { id: '10', name: 'Vegetarian', icon: 'Sprout' },
+];
+
+const ICON_MAP: { [key: string]: React.ComponentType<any> } = {
+    Utensils, Wheat, Soup, Flame, Apple, Fish, Cake, Leaf, Sprout,
+};
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Default region (Accra, Ghana)
 const ACCRA_REGION: Region = {
@@ -45,6 +64,53 @@ export default function ExploreMapScreen() {
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [searchQuery, setSearchQuery] = useState('');
     const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+
+    // Bottom sheet — peek (collapsed) and expanded snap points
+    const HEADER_SPACE = insets.top + 150;
+    const PEEK_HEIGHT = 130;
+    const EXPANDED_HEIGHT = SCREEN_HEIGHT - HEADER_SPACE;
+    const sheetY = useRef(new Animated.Value(EXPANDED_HEIGHT - PEEK_HEIGHT)).current;
+    const sheetYValue = useRef(EXPANDED_HEIGHT - PEEK_HEIGHT);
+    const [sheetExpanded, setSheetExpanded] = useState(false);
+
+    useEffect(() => {
+        const id = sheetY.addListener(({ value }) => { sheetYValue.current = value; });
+        return () => sheetY.removeListener(id);
+    }, [sheetY]);
+
+    const snapSheet = (expanded: boolean) => {
+        setSheetExpanded(expanded);
+        Animated.spring(sheetY, {
+            toValue: expanded ? 0 : EXPANDED_HEIGHT - PEEK_HEIGHT,
+            useNativeDriver: true,
+            bounciness: 4,
+        }).start();
+    };
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4,
+            onPanResponderGrant: () => {
+                sheetY.setOffset(sheetYValue.current);
+                sheetY.setValue(0);
+            },
+            onPanResponderMove: (_, gesture) => {
+                const next = gesture.dy;
+                const min = -(EXPANDED_HEIGHT - PEEK_HEIGHT);
+                const max = EXPANDED_HEIGHT - PEEK_HEIGHT;
+                sheetY.setValue(Math.max(min, Math.min(max, next)));
+            },
+            onPanResponderRelease: (_, gesture) => {
+                sheetY.flattenOffset();
+                const shouldExpand = gesture.dy < -60 || (gesture.vy < -0.5);
+                const shouldCollapse = gesture.dy > 60 || (gesture.vy > 0.5);
+                if (shouldExpand) snapSheet(true);
+                else if (shouldCollapse) snapSheet(false);
+                else snapSheet(sheetExpanded);
+            },
+        })
+    ).current;
 
     // Get user's current location
     useEffect(() => {
@@ -116,22 +182,12 @@ export default function ExploreMapScreen() {
         staleTime: 60 * 1000, // 1 minute
     });
 
-    // Derive categories from actual listings
-    const categories = useMemo(() => {
-        const cats = new Set<string>();
-        cooks.forEach(cook => {
-            cook.listings.forEach(l => {
-                if (l.category) cats.add(l.category);
-            });
-        });
-        return ['All', ...Array.from(cats)];
-    }, [cooks]);
-
     // Filter cooks by category AND food/cook name search
     const filteredCooks = useMemo(() => {
         let result = cooks;
         if (selectedCategory !== 'All') {
-            result = result.filter(cook => cook.listings.some(l => l.category === selectedCategory));
+            const q = selectedCategory.toLowerCase();
+            result = result.filter(cook => cook.listings.some(l => (l.category || '').toLowerCase().includes(q)));
         }
         if (searchQuery.trim()) {
             const q = searchQuery.trim().toLowerCase();
@@ -178,11 +234,23 @@ export default function ExploreMapScreen() {
         return ACCRA_REGION;
     }, [userLocation]);
 
+    const selectCook = (cook: CookMarker, fly = true) => {
+        setSelectedCook(cook);
+        snapSheet(true);
+        if (fly) {
+            mapRef.current?.animateToRegion({
+                latitude: cook.latitude,
+                longitude: cook.longitude,
+                latitudeDelta: 0.02,
+                longitudeDelta: 0.02,
+            }, 500);
+        }
+    };
+
     // Render markers
     const markers = useMemo(() => {
         return filteredCooks.map((cook) => {
             const isSelected = selectedCook?.id === cook.id;
-            const hasListings = cook.listing_count > 0;
 
             return (
                 <Marker
@@ -191,7 +259,7 @@ export default function ExploreMapScreen() {
                         latitude: cook.latitude,
                         longitude: cook.longitude,
                     }}
-                    onPress={() => setSelectedCook(cook)}
+                    onPress={() => selectCook(cook, false)}
                     style={{ zIndex: isSelected ? 100 : 1 }}
                 >
                     <View style={{ alignItems: 'center' }}>
@@ -201,7 +269,7 @@ export default function ExploreMapScreen() {
                             height: isSelected ? 62 : 54,
                             borderRadius: 31,
                             borderWidth: isSelected ? 3 : 2.5,
-                            borderColor: isSelected ? '#D65A31' : '#fff',
+                            borderColor: isSelected ? '#BF592B' : '#fff',
                             overflow: 'hidden',
                             backgroundColor: '#F3F4F6',
                             shadowColor: '#000',
@@ -218,8 +286,8 @@ export default function ExploreMapScreen() {
                                     resizeMode="cover"
                                 />
                             ) : (
-                                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF0EB' }}>
-                                    <ChefHat size={22} color="#D65A31" />
+                                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF1EC' }}>
+                                    <ChefHat size={22} color="#BF592B" />
                                 </View>
                             )}
                         </View>
@@ -227,7 +295,7 @@ export default function ExploreMapScreen() {
                         {cook.listings[0]?.price !== undefined && (
                             <View style={{
                                 marginTop: 4,
-                                backgroundColor: isSelected ? '#D65A31' : '#1F2937',
+                                backgroundColor: isSelected ? '#BF592B' : '#231915',
                                 paddingHorizontal: 8,
                                 paddingVertical: 3,
                                 borderRadius: 20,
@@ -244,14 +312,15 @@ export default function ExploreMapScreen() {
                 </Marker>
             );
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filteredCooks, selectedCook]);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#FAF9F6' }}>
+        <View style={{ flex: 1, backgroundColor: '#FFF8F6' }}>
             {/* MAP LAYER */}
             <MapView
                 ref={mapRef}
-                style={[StyleSheet.absoluteFillObject, { marginBottom: 90 }]}
+                style={StyleSheet.absoluteFillObject}
                 provider={PROVIDER_DEFAULT}
                 initialRegion={initialRegion}
                 showsUserLocation
@@ -264,60 +333,51 @@ export default function ExploreMapScreen() {
             {/* HEADER OVERLAY */}
             <View
                 style={{
-                    paddingTop: insets.top + 48,
-                    paddingBottom: 16,
-                    backgroundColor: '#FFFFFF',
+                    paddingTop: insets.top + 12,
+                    paddingBottom: 14,
                     position: 'absolute',
                     top: 0,
                     left: 0,
                     right: 0,
                     zIndex: 50,
-                    elevation: 10,
-                    shadowColor: '#2D241E',
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.12,
-                    shadowRadius: 20,
                 }}
             >
-                {/* Top Row: Title + Toggle */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 12 }}>
-                    <View>
-                        <Text className="text-2xl font-bold text-text-main font-sans-bold">Map View</Text>
-                        <Text className="text-sm text-text-sub font-sans">
-                            {isLoading ? 'Loading cooks...' : `${filteredCooks.length} cook${filteredCooks.length !== 1 ? 's' : ''} near you`}
+                {/* Search pill */}
+                <View
+                    style={{
+                        marginHorizontal: 20,
+                        marginBottom: 12,
+                        backgroundColor: 'white',
+                        borderRadius: 9999,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 18,
+                        height: 56,
+                        gap: 10,
+                        shadowColor: '#231915',
+                        shadowOffset: { width: 0, height: 6 },
+                        shadowOpacity: 0.12,
+                        shadowRadius: 16,
+                        elevation: 6,
+                    }}
+                >
+                    <Search size={18} color="#BF592B" />
+                    <View style={{ flex: 1 }}>
+                        <TextInput
+                            value={searchQuery}
+                            onChangeText={(t) => { setSearchQuery(t); setSelectedCook(null); }}
+                            placeholder="Search dishes or cooks"
+                            placeholderTextColor="#8A7269"
+                            style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', padding: 0 }}
+                            returnKeyType="search"
+                        />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#8A7269', marginTop: 1 }}>
+                            {isLoading ? 'Loading cooks…' : `${filteredCooks.length} cook${filteredCooks.length !== 1 ? 's' : ''} near you`}
                         </Text>
                     </View>
-                    <View style={{ flexDirection: 'row', backgroundColor: '#F3F4F6', padding: 4, borderRadius: 999 }}>
-                        <TouchableOpacity
-                            style={{ padding: 8, borderRadius: 999, backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }}
-                            activeOpacity={1}
-                        >
-                            <Map size={20} color="#D65A31" />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={{ padding: 8, borderRadius: 999 }}
-                            onPress={() => router.push('/(tabs)/explore/list')}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        >
-                            <List size={20} color="#9CA3AF" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Search bar */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 24, marginBottom: 12, backgroundColor: '#F3F4F6', borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
-                    <Search size={16} color="#9CA3AF" />
-                    <TextInput
-                        value={searchQuery}
-                        onChangeText={(t) => { setSearchQuery(t); setSelectedCook(null); }}
-                        placeholder="Search food or cook..."
-                        placeholderTextColor="#9CA3AF"
-                        style={{ flex: 1, fontSize: 15, color: '#1F2937' }}
-                        returnKeyType="search"
-                    />
                     {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => { setSearchQuery(''); setSelectedCook(null); }}>
-                            <X size={16} color="#9CA3AF" />
+                        <TouchableOpacity onPress={() => { setSearchQuery(''); setSelectedCook(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                            <X size={18} color="#8A7269" />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -326,223 +386,314 @@ export default function ExploreMapScreen() {
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 4, gap: 12 }}
+                    contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 4, gap: 10 }}
                 >
-                    {categories.map(category => (
+                    {CATEGORIES.map(category => {
+                        const isActive = selectedCategory === category.name;
+                        const IconComponent = ICON_MAP[category.icon];
+                        return (
                         <TouchableOpacity
-                            key={category}
+                            key={category.id}
                             onPress={() => {
-                                setSelectedCategory(category);
+                                setSelectedCategory(category.name);
                                 setSelectedCook(null);
                             }}
+                            activeOpacity={0.75}
                             style={{
-                                paddingHorizontal: 16,
-                                paddingVertical: 8,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 6,
+                                paddingHorizontal: 14,
+                                paddingVertical: 9,
                                 borderRadius: 999,
-                                backgroundColor: selectedCategory === category ? '#2D241E' : '#fff',
-                                borderColor: selectedCategory === category ? '#2D241E' : '#E5E7EB',
-                                borderWidth: 1,
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 1 },
-                                shadowOpacity: selectedCategory === category ? 0.2 : 0.05,
-                                shadowRadius: 2,
-                                elevation: selectedCategory === category ? 4 : 1,
+                                backgroundColor: isActive ? '#BF592B' : '#FFF1EC',
+                                borderColor: isActive ? '#BF592B' : '#DDC1B6',
+                                borderWidth: 1.5,
+                                shadowColor: '#BF592B',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: isActive ? 0.2 : 0,
+                                shadowRadius: 6,
+                                elevation: isActive ? 3 : 0,
                             }}
                         >
+                            {IconComponent && <IconComponent size={14} color={isActive ? 'white' : '#BF592B'} />}
                             <Text
-                                className={`font-semibold font-sans-semibold ${selectedCategory === category ? 'text-white' : 'text-text-sub'}`}
+                                style={{
+                                    fontFamily: isActive ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium',
+                                    fontSize: 13,
+                                    color: isActive ? 'white' : '#56423B',
+                                }}
                             >
-                                {category}
+                                {category.name}
                             </Text>
                         </TouchableOpacity>
-                    ))}
+                        );
+                    })}
                 </ScrollView>
             </View>
 
             {/* LOADING STATE */}
             {isLoading && (
                 <View style={{
-                    position: 'absolute', top: '50%', alignSelf: 'center',
+                    position: 'absolute', top: '45%', alignSelf: 'center',
                     backgroundColor: '#fff', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20,
                     flexDirection: 'row', alignItems: 'center', gap: 12,
                     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
                     zIndex: 60,
                 }}>
-                    <ActivityIndicator size="small" color="#D65A31" />
-                    <Text className="font-bold text-text-main font-sans-bold">Finding cooks...</Text>
+                    <ActivityIndicator size="small" color="#BF592B" />
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Finding cooks...</Text>
                 </View>
             )}
 
-            {/* FLOATING CARD - DYNAMIC */}
-            {selectedCook ? (
-                /* Selected Cook Callout */
-                <View
-                    style={{
-                        position: 'absolute', bottom: 110, left: 16, right: 16,
-                        backgroundColor: '#fff', borderRadius: 24,
-                        padding: 16,
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-                        shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
-                        zIndex: 60,
-                    }}
-                >
-                    <View style={{ flexDirection: 'row', gap: 16 }}>
-                        {/* Cook Avatar or First Listing Image */}
-                        {selectedCook.listings.length > 0 && selectedCook.listings[0].image ? (
-                            <Image
-                                source={{ uri: (selectedCook.listings[0].image.includes(',') ? selectedCook.listings[0].image.split(',')[0].trim() : selectedCook.listings[0].image) }}
-                                style={{ width: 80, height: 80, borderRadius: 16, backgroundColor: '#F3F4F6' }}
-                            />
-                        ) : (
-                            <View style={{ width: 80, height: 80, borderRadius: 16, backgroundColor: '#FFF0EB', alignItems: 'center', justifyContent: 'center' }}>
-                                <ChefHat size={36} color="#D65A31" />
-                            </View>
-                        )}
-                        <View style={{ flex: 1, justifyContent: 'space-between', paddingVertical: 2 }}>
-                            <View>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937', flex: 1 }} numberOfLines={1}>
-                                        {selectedCook.name}
-                                    </Text>
-                                    {selectedCook.rating && (
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFBEB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8 }}>
-                                            <Star size={14} color="#D97706" fill="#D97706" />
-                                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#B45309' }}>{selectedCook.rating}</Text>
-                                        </View>
-                                    )}
-                                </View>
-                                <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }} numberOfLines={1}>
-                                    {selectedCook.listings.length > 0
-                                        ? selectedCook.listings.map(l => l.title).slice(0, 2).join(', ')
-                                        : 'New cook — menu coming soon'}
-                                </Text>
-                            </View>
-
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
-                                {userLocation && (
-                                    <>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                            <Navigation size={14} color="#9CA3AF" />
-                                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#4B5563' }}>
-                                                {getDistance(userLocation.latitude, userLocation.longitude, selectedCook.latitude, selectedCook.longitude)}
-                                            </Text>
-                                        </View>
-                                        <Text style={{ fontSize: 13, color: '#D1D5DB' }}>•</Text>
-                                    </>
-                                )}
-                                <Text style={{ fontSize: 13, fontWeight: '600', color: '#4B5563' }}>{getPriceRange(selectedCook)}</Text>
-                                <Text style={{ fontSize: 13, color: '#D1D5DB' }}>•</Text>
-                                <Text style={{ fontSize: 13, color: '#6B7280' }}>{selectedCook.listing_count} dish{selectedCook.listing_count !== 1 ? 'es' : ''}</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: selectedCook.listing_count > 0 ? '#007A33' : '#FF9500' }} />
-                            <Text style={{ fontSize: 14, fontWeight: '600', color: '#4B5563' }}>
-                                {selectedCook.listing_count > 0 ? 'Cooking Now' : 'Setting up kitchen'}
-                            </Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={{ backgroundColor: '#D65A31', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                            onPress={() => {
-                                if (selectedCook.listings.length > 0) {
-                                    router.push(`/listing/${selectedCook.listings[0].id}`);
-                                }
-                            }}
-                            disabled={selectedCook.listings.length === 0}
-                        >
-                            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>View Menu</Text>
-                            <ChevronRight size={18} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            ) : !isLoading ? (
-                /* Tappable Cook Count Pill — tapping flies to nearest cook */
-                <TouchableOpacity
-                    onPress={() => {
-                        if (filteredCooks.length === 0) return;
-                        // Find the nearest cook to user, or just use first
-                        let target = filteredCooks[0];
-                        if (userLocation) {
-                            let minDist = Infinity;
-                            filteredCooks.forEach(cook => {
-                                const dLat = cook.latitude - userLocation.latitude;
-                                const dLon = cook.longitude - userLocation.longitude;
-                                const d = Math.sqrt(dLat * dLat + dLon * dLon);
-                                if (d < minDist) { minDist = d; target = cook; }
-                            });
-                        }
-                        setSelectedCook(target);
-                        mapRef.current?.animateToRegion({
-                            latitude: target.latitude,
-                            longitude: target.longitude,
-                            latitudeDelta: 0.02,
-                            longitudeDelta: 0.02,
-                        }, 600);
-                    }}
-                    style={{
-                        position: 'absolute', bottom: 110, alignSelf: 'center',
-                        backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
-                        flexDirection: 'row', alignItems: 'center', gap: 8,
-                        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
-                        zIndex: 60,
-                    }}
-                    activeOpacity={0.8}
-                >
-                    {filteredCooks.length > 0 ? (
-                        <>
-                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#007A33' }} />
-                            <Text className="font-bold text-base text-text-main font-sans-bold">
-                                {filteredCooks.length} Cook{filteredCooks.length !== 1 ? 's' : ''} Near You
-                            </Text>
-                            <ChevronRight size={16} color="#D65A31" />
-                        </>
-                    ) : (
-                        <>
-                            <MapPin size={16} color="#D65A31" />
-                            <Text className="font-bold text-base text-text-main font-sans-bold">
-                                No cooks in this area yet
-                            </Text>
-                        </>
-                    )}
-                </TouchableOpacity>
-            ) : null}
-
             {/* Recenter Button */}
             {userLocation && (
-                <TouchableOpacity
+                <View
                     style={{
                         position: 'absolute',
-                        bottom: selectedCook ? 280 : 170,
                         right: 16,
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: '#fff',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 2 },
-                        shadowOpacity: 0.15,
-                        shadowRadius: 4,
-                        elevation: 4,
                         zIndex: 60,
-                    }}
-                    onPress={() => {
-                        mapRef.current?.animateToRegion({
-                            ...userLocation,
-                            latitudeDelta: 0.06,
-                            longitudeDelta: 0.06,
-                        }, 500);
+                        bottom: (sheetExpanded ? EXPANDED_HEIGHT : PEEK_HEIGHT) + 16,
                     }}
                 >
-                    <Navigation size={20} color="#D65A31" />
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 22,
+                            backgroundColor: '#fff',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.15,
+                            shadowRadius: 4,
+                            elevation: 4,
+                        }}
+                        onPress={() => {
+                            mapRef.current?.animateToRegion({
+                                ...userLocation,
+                                latitudeDelta: 0.06,
+                                longitudeDelta: 0.06,
+                            }, 500);
+                        }}
+                    >
+                        <Navigation size={20} color="#BF592B" />
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* BOTTOM SHEET — drag up to browse all cooks like a list, drag down to see the map */}
+            {!isLoading && (
+                <Animated.View
+                    style={{
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: EXPANDED_HEIGHT + 40,
+                        backgroundColor: 'white',
+                        borderTopLeftRadius: 28,
+                        borderTopRightRadius: 28,
+                        shadowColor: '#231915',
+                        shadowOffset: { width: 0, height: -6 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 20,
+                        elevation: 12,
+                        zIndex: 55,
+                        transform: [{ translateY: sheetY }],
+                    }}
+                >
+                    {/* Drag handle + count — the draggable area */}
+                    <View {...panResponder.panHandlers} style={{ paddingTop: 10, paddingBottom: 4 }}>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => selectedCook ? setSelectedCook(null) : snapSheet(!sheetExpanded)}
+                            style={{ alignItems: 'center' }}
+                        >
+                            <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#E5D9D3', marginBottom: 12 }} />
+                            {selectedCook ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
+                                        {selectedCook.name}
+                                    </Text>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#BF592B' }}>
+                                        · back to all cooks
+                                    </Text>
+                                </View>
+                            ) : filteredCooks.length > 0 ? (
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
+                                    {filteredCooks.length} cook{filteredCooks.length !== 1 ? 's' : ''} near you
+                                </Text>
+                            ) : (
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
+                                    No cooks in this area yet
+                                </Text>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Selected food — replaces the list until dismissed */}
+                    {selectedCook ? (
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            scrollEnabled={sheetExpanded}
+                            contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
+                        >
+                            <TouchableOpacity
+                                activeOpacity={0.9}
+                                onPress={() => {
+                                    if (selectedCook.listings.length > 0) router.push(`/listing/${selectedCook.listings[0].id}`);
+                                }}
+                                disabled={selectedCook.listings.length === 0}
+                            >
+                                {selectedCook.listings[0]?.image ? (
+                                    <Image
+                                        source={{ uri: (selectedCook.listings[0].image.includes(',') ? selectedCook.listings[0].image.split(',')[0].trim() : selectedCook.listings[0].image) }}
+                                        style={{ width: '100%', height: 200, borderRadius: 20, backgroundColor: '#F2DFD7' }}
+                                    />
+                                ) : (
+                                    <View style={{ width: '100%', height: 200, borderRadius: 20, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
+                                        <ChefHat size={40} color="#BF592B" />
+                                    </View>
+                                )}
+
+                                <View style={{ marginTop: 14 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, color: '#231915', flex: 1 }} numberOfLines={1}>
+                                            {selectedCook.listings[0]?.title || selectedCook.name}
+                                        </Text>
+                                        {selectedCook.rating && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF1EC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
+                                                <Star size={13} color="#BF592B" fill="#BF592B" />
+                                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#BF592B' }}>{selectedCook.rating}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#56423B', marginTop: 4 }}>
+                                        by {selectedCook.name}
+                                    </Text>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                                        {userLocation && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                <Navigation size={13} color="#8A7269" />
+                                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B' }}>
+                                                    {getDistance(userLocation.latitude, userLocation.longitude, selectedCook.latitude, selectedCook.longitude)}
+                                                </Text>
+                                            </View>
+                                        )}
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>{getPriceRange(selectedCook)}</Text>
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269' }}>
+                                            {selectedCook.listing_count} dish{selectedCook.listing_count !== 1 ? 'es' : ''}
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                <View
+                                    style={{
+                                        marginTop: 16,
+                                        backgroundColor: '#BF592B',
+                                        borderRadius: 9999,
+                                        height: 52,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: 6,
+                                        opacity: selectedCook.listings.length === 0 ? 0.5 : 1,
+                                    }}
+                                >
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: 'white' }}>View Food Listing</Text>
+                                    <ChevronRight size={18} color="white" />
+                                </View>
+                            </TouchableOpacity>
+                        </ScrollView>
+                    ) : (
+                    /* Scrollable cook cards */
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        scrollEnabled={sheetExpanded}
+                        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
+                    >
+                        {filteredCooks.map((cook) => {
+                            return (
+                                <TouchableOpacity
+                                    key={cook.id}
+                                    activeOpacity={0.85}
+                                    onPress={() => selectCook(cook)}
+                                    style={{
+                                        flexDirection: 'row',
+                                        gap: 14,
+                                        padding: 12,
+                                        marginBottom: 12,
+                                        borderRadius: 20,
+                                        backgroundColor: '#FCFBFA',
+                                        borderWidth: 1.5,
+                                        borderColor: '#F2DFD7',
+                                    }}
+                                >
+                                    {cook.listings[0]?.image ? (
+                                        <Image
+                                            source={{ uri: (cook.listings[0].image.includes(',') ? cook.listings[0].image.split(',')[0].trim() : cook.listings[0].image) }}
+                                            style={{ width: 78, height: 78, borderRadius: 16, backgroundColor: '#F2DFD7' }}
+                                        />
+                                    ) : (
+                                        <View style={{ width: 78, height: 78, borderRadius: 16, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
+                                            <ChefHat size={30} color="#BF592B" />
+                                        </View>
+                                    )}
+                                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', flex: 1 }} numberOfLines={1}>
+                                                {cook.name}
+                                            </Text>
+                                            {cook.rating && (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                                    <Star size={12} color="#BF592B" fill="#BF592B" />
+                                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915' }}>{cook.rating}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#56423B', marginTop: 2 }} numberOfLines={1}>
+                                            {cook.listings.length > 0 ? cook.listings.map(l => l.title).slice(0, 2).join(', ') : 'New cook — menu coming soon'}
+                                        </Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                                            {userLocation && (
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                                    <Navigation size={11} color="#8A7269" />
+                                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#56423B' }}>
+                                                        {getDistance(userLocation.latitude, userLocation.longitude, cook.latitude, cook.longitude)}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#BF592B' }}>{getPriceRange(cook)}</Text>
+                                        </View>
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            if (cook.listings.length > 0) router.push(`/listing/${cook.listings[0].id}`);
+                                        }}
+                                        disabled={cook.listings.length === 0}
+                                        style={{ alignSelf: 'center' }}
+                                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                    >
+                                        <ChevronRight size={20} color="#BF592B" />
+                                    </TouchableOpacity>
+                                </TouchableOpacity>
+                            );
+                        })}
+                        {filteredCooks.length === 0 && (
+                            <View style={{ alignItems: 'center', paddingVertical: 24 }}>
+                                <MapPin size={28} color="#BF592B" />
+                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B', marginTop: 8 }}>
+                                    Try a different search or category
+                                </Text>
+                            </View>
+                        )}
+                    </ScrollView>
+                    )}
+                </Animated.View>
             )}
         </View>
     );
