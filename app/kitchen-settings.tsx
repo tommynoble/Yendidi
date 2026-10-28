@@ -157,10 +157,10 @@ export default function KitchenSettingsScreen() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
             <View className="flex-1 bg-warm-cream">
                 {/* Header */}
-                <View className="px-6 py-4 flex-row items-center justify-between bg-white border-b border-gray-100">
+                <View className="px-6 py-4 flex-row items-center justify-between bg-surface border-b border-gray-100">
                     <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2">
                         <ArrowLeft size={24} color="#2D241E" />
                     </TouchableOpacity>
@@ -176,7 +176,7 @@ export default function KitchenSettingsScreen() {
 
                 <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
                     {/* Kitchen Photo */}
-                    <View className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
+                    <View className="bg-surface p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
                         <View className="flex-row items-center gap-2 mb-4">
                             <Camera size={20} color="#D65A31" />
                             <Text className="text-xs font-bold text-text-main uppercase tracking-widest font-sans-bold">Kitchen Photo</Text>
@@ -204,7 +204,7 @@ export default function KitchenSettingsScreen() {
                     </View>
 
                     {/* Kitchen Name */}
-                    <View className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
+                    <View className="bg-surface p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
                         <View className="flex-row items-center gap-2 mb-4">
                             <ChefHat size={20} color="#D65A31" />
                             <Text className="text-xs font-bold text-text-main uppercase tracking-widest font-sans-bold">Kitchen Name</Text>
@@ -219,7 +219,7 @@ export default function KitchenSettingsScreen() {
                     </View>
 
                     {/* About Kitchen */}
-                    <View className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
+                    <View className="bg-surface p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
                         <Text className="text-xs font-bold text-text-main mb-3 uppercase tracking-widest font-sans-bold">About Your Kitchen</Text>
                         <TextInput
                             placeholder="Tell eaters about your cooking style..."
@@ -232,7 +232,7 @@ export default function KitchenSettingsScreen() {
                         />
                     </View>
 
-                    <View className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
+                    <View className="bg-surface p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
                         <View className="flex-row items-center gap-2 mb-4">
                             <Sparkles size={20} color="#D65A31" />
                             <Text className="text-xs font-bold text-text-main uppercase tracking-widest font-sans-bold">Specialties</Text>
@@ -244,7 +244,7 @@ export default function KitchenSettingsScreen() {
                                     <TouchableOpacity
                                         key={specialty}
                                         onPress={() => toggleSpecialty(specialty)}
-                                        className={`px-4 py-2.5 rounded-full border-2 ${isSelected ? 'bg-orange-50 border-clay-primary' : 'bg-white border-gray-200'} active:scale-95`}
+                                        className={`px-4 py-2.5 rounded-full border-2 ${isSelected ? 'bg-orange-50 border-clay-primary' : 'bg-surface border-gray-200'} active:scale-95`}
                                     >
                                         <Text className={`font-sans-bold text-xs ${isSelected ? 'text-clay-primary' : 'text-text-main'}`}>
                                             {specialty}
@@ -256,7 +256,7 @@ export default function KitchenSettingsScreen() {
                     </View>
 
                     {/* Location Info */}
-                    <View className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
+                    <View className="bg-surface p-6 rounded-3xl border border-gray-100 shadow-sm mb-6">
                         <View className="flex-row items-center gap-2 mb-4">
                             <MapPin size={20} color="#D65A31" />
                             <Text className="text-xs font-bold text-text-main uppercase tracking-widest font-sans-bold">Location</Text>

@@ -69,8 +69,8 @@ export default function CartToast({ visible, message, onPress, onHide, bottomOff
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={handlePress}
-                className="bg-white rounded-2xl flex-row items-center gap-3 p-3 pr-4"
-                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 8 }}
+                className="bg-surface rounded-2xl flex-row items-center gap-3 p-3 pr-4"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 8 }}
             >
                 <View className="w-10 h-10 rounded-full bg-clay-primary/10 items-center justify-center">
                     <ShoppingCart size={18} color="#BF592B" />

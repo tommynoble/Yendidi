@@ -16,6 +16,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/lib/supabase';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import './global.css';
 
 export { ErrorBoundary };
@@ -42,9 +43,12 @@ export default function RootLayout() {
   // both explicit sign-out and background token refresh failures where
   // autoRefreshToken exhausts its retries and clears the session.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        setTimeout(() => router.replace('/onboarding'), 0);
+        setTimeout(() => router.replace('/onboarding/community'), 0);
+      }
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        registerForPushNotificationsAsync().catch((e) => console.warn('Push registration error:', e));
       }
     });
     return () => subscription.unsubscribe();
@@ -75,16 +79,17 @@ export default function RootLayout() {
       <PaystackProvider publicKey={paystackKey} currency="GHS" defaultChannels={['card', 'mobile_money']}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFF8F6', paddingHorizontal: 6 } }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 6 } }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="onboarding" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
+            <Stack.Screen name="messages" options={{ presentation: 'card' }} />
             <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="cook/[id]" />
             <Stack.Screen name="meal/[id]" />
-            <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: '#FFF8F6', paddingHorizontal: 0 } }} />
+            <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 0 } }} />
             <Stack.Screen name="cart" options={{ presentation: 'card' }} />
           </Stack>
         </ThemeProvider>

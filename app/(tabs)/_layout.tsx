@@ -9,15 +9,15 @@ export default function TabLayout() {
 
   const HomeIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      {isCookMode ? <LayoutDashboard size={26} color={color} strokeWidth={focused ? 2 : 1.5} /> : <Home size={26} color={color} strokeWidth={focused ? 2 : 1.5} />}
-      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Dashboard' : 'Home'}</Text>
+      {isCookMode ? <LayoutDashboard size={22} color={color} strokeWidth={focused ? 2 : 1.5} /> : <Home size={22} color={color} strokeWidth={focused ? 2 : 1.5} />}
+      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Dashboard' : 'Home'}</Text>
     </View>
   ), [isCookMode]);
 
   const ExploreIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      {isCookMode ? <BookOpen size={26} color={color} strokeWidth={focused ? 2 : 1.5} /> : <Compass size={26} color={color} strokeWidth={focused ? 2 : 1.5} />}
-      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Menu' : 'Explore'}</Text>
+      {isCookMode ? <BookOpen size={22} color={color} strokeWidth={focused ? 2 : 1.5} /> : <Compass size={22} color={color} strokeWidth={focused ? 2 : 1.5} />}
+      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Menu' : 'Explore'}</Text>
     </View>
   ), [isCookMode]);
 
@@ -25,26 +25,26 @@ export default function TabLayout() {
     <View className="items-center justify-center" style={{ width: 64, marginTop: isCookMode ? -20 : 0 }}>
       {isCookMode ? (
         <View className="w-14 h-14 bg-text-main rounded-full shadow-lg items-center justify-center border-4 border-white">
-          <Plus size={26} color="white" strokeWidth={2.5} />
+          <Plus size={22} color="white" strokeWidth={2.5} />
         </View>
       ) : (
-        <Heart size={26} color={color} strokeWidth={focused ? 2 : 1.5} />
+        <Heart size={22} color={color} strokeWidth={focused ? 2 : 1.5} />
       )}
-      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isCookMode ? '500' : focused ? '600' : '500', color: isCookMode ? '#6B7280' : color, marginTop: 4 }}>{isCookMode ? 'Post' : 'Saved'}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isCookMode ? '500' : focused ? '600' : '500', color: isCookMode ? '#6B7280' : color, marginTop: 2 }}>{isCookMode ? 'Post' : 'Watchlist'}</Text>
     </View>
   ), [isCookMode]);
 
   const OrdersIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      <Receipt size={26} color={color} strokeWidth={focused ? 2 : 1.5} />
-      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Requests' : 'Orders'}</Text>
+      <Receipt size={22} color={color} strokeWidth={focused ? 2 : 1.5} />
+      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Requests' : 'Orders'}</Text>
     </View>
   ), [isCookMode]);
 
   const ProfileIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      {isCookMode ? <ChefHat size={26} color={color} strokeWidth={focused ? 2 : 1.5} /> : <User size={26} color={color} strokeWidth={focused ? 2 : 1.5} />}
-      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 4 }}>{isCookMode ? 'Kitchen' : 'Profile'}</Text>
+      {isCookMode ? <ChefHat size={22} color={color} strokeWidth={focused ? 2 : 1.5} /> : <User size={22} color={color} strokeWidth={focused ? 2 : 1.5} />}
+      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Kitchen' : 'Profile'}</Text>
     </View>
   ), [isCookMode]);
 
@@ -53,11 +53,11 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#FFF1EC',
+          backgroundColor: '#F8E4DD',
           borderTopColor: '#DDC1B6',
           borderTopWidth: 1,
-          height: 108,
-          paddingTop: 14,
+          height: 88,
+          paddingTop: 10,
           zIndex: 9999,
           elevation: 24,
           position: 'absolute',
@@ -66,7 +66,7 @@ export default function TabLayout() {
           bottom: 0,
           shadowColor: '#231915',
           shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.06,
+          shadowOpacity: 0.11,
           shadowRadius: 12,
         },
         tabBarShowLabel: false,

@@ -1,16 +1,42 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, RefreshControl, TextInput, Modal, Switch, Animated } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, RefreshControl, TextInput, Modal, Switch, Animated, Linking, AppState } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, LogOut, ChevronRight, User, Phone, ShieldCheck, ChefHat, RefreshCw, MapPin, Clock, Utensils, Calendar, Navigation, X, Check, Camera, Menu, Search, Star, Gem, Crown, CreditCard, Bell, Soup, Fish, Flame } from 'lucide-react-native';
+import { Settings, LogOut, ChevronRight, User, Phone, ShieldCheck, ChefHat, RefreshCw, MapPin, Clock, Utensils, Calendar, Navigation, X, Check, Camera, Menu, Search, Star, Gem, Crown, CreditCard, Bell, Soup, Fish, Flame, Wallet } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '@/lib/store';
 import ProcessLoader from '@/components/ProcessLoader';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as Notifications from 'expo-notifications';
 import { decode } from 'base64-arraybuffer';
 import { getDishImage } from '@/constants/Images';
 import Svg, { Path, Circle } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { registerForPushNotificationsAsync } from '@/lib/notifications';
+
+const FAVORITES_KEY = 'yendidii_favorites';
+
+// 1 point per ₵1 spent on a Completed order (awarded server-side via a
+// trigger on `orders` — see supabase/migrations/20261027140000_add_loyalty_points.sql).
+const LOYALTY_TIERS = [
+    { key: 'root', label: 'Root', min: 0 },
+    { key: 'sankofa', label: 'Sankofa', min: 500 },
+    { key: 'nyame', label: 'Nyame', min: 1500 },
+    { key: 'ohene', label: 'Ohene', min: 3000 },
+];
+
+const getTierInfo = (points: number) => {
+    let currentIndex = 0;
+    for (let i = LOYALTY_TIERS.length - 1; i >= 0; i--) {
+        if (points >= LOYALTY_TIERS[i].min) { currentIndex = i; break; }
+    }
+    const current = LOYALTY_TIERS[currentIndex];
+    const next = LOYALTY_TIERS[currentIndex + 1] || null;
+    const progress = next ? Math.min(100, Math.round(((points - current.min) / (next.min - current.min)) * 100)) : 100;
+    const pointsToNext = next ? next.min - points : 0;
+    return { current, next, progress, pointsToNext, currentIndex };
+};
 
 export default function ProfileScreen() {
     const router = useRouter();
@@ -24,11 +50,12 @@ export default function ProfileScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [locationEdit, setLocationEdit] = useState(false);
     const [locationDraft, setLocationDraft] = useState('');
+    const [locationCoords, setLocationCoords] = useState<{ latitude: number; longitude: number } | null>(null);
     const [locationFetching, setLocationFetching] = useState(false);
     const [locationSaving, setLocationSaving] = useState(false);
     const [avatarUploading, setAvatarUploading] = useState(false);
 
-    const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [isFlipped, setIsFlipped] = useState(false);
     const [copied, setCopied] = useState(false);
     const flipAnimation = React.useRef(new Animated.Value(0)).current;
@@ -217,6 +244,42 @@ export default function ProfileScreen() {
         getProfile();
     }, []);
 
+    // Reflect the real OS permission, not a fake toggle — check on mount and
+    // whenever the app comes back to the foreground (e.g. after the user
+    // flips it in iOS Settings, since apps can't revoke permission directly).
+    useEffect(() => {
+        const syncPermission = () => {
+            Notifications.getPermissionsAsync().then(({ status }) => {
+                setNotificationsEnabled(status === 'granted');
+            });
+        };
+        syncPermission();
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') syncPermission();
+        });
+        return () => sub.remove();
+    }, []);
+
+    const handleToggleNotifications = async (value: boolean) => {
+        if (value) {
+            await registerForPushNotificationsAsync();
+            const { status } = await Notifications.getPermissionsAsync();
+            if (status === 'granted') {
+                setNotificationsEnabled(true);
+            } else {
+                // Permission was denied previously — iOS won't re-prompt, so
+                // the only way back in is the system Settings app.
+                Alert.alert(
+                    'Notifications Disabled',
+                    'Enable notifications for Yendidii in your phone Settings to get order and kitchen alerts.',
+                    [{ text: 'Open Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel', style: 'cancel' }]
+                );
+            }
+        } else {
+            Linking.openSettings();
+        }
+    };
+
     async function getProfile() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
@@ -225,28 +288,29 @@ export default function ProfileScreen() {
                 return;
             }
 
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', user.id)
-                .single();
+            // These four are all independent of each other — fire them together
+            // instead of awaiting one at a time, which was the main reason this
+            // screen felt slow to load (4-5 sequential round-trips back to back).
+            const [profileResult, ordersResult, reviewsResult, savedRaw] = await Promise.all([
+                supabase.from('profiles').select('*').eq('id', user.id).single(),
+                supabase.from('orders').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+                supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+                AsyncStorage.getItem(FAVORITES_KEY),
+            ]);
 
-            if (error) throw error;
+            if (profileResult.error) throw profileResult.error;
+            const data = profileResult.data;
             setProfile(data);
 
-            // Fetch stats
-            const { count, error: countError } = await supabase
-                .from('orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id);
+            const savedIds: string[] = savedRaw ? JSON.parse(savedRaw) : [];
+            setStats({
+                orders: ordersResult.error ? 0 : (ordersResult.count || 0),
+                reviews: reviewsResult.error ? 0 : (reviewsResult.count || 0),
+                saved: savedIds.length,
+            });
 
-            if (!countError) {
-                setStats(prev => ({ ...prev, orders: count || 0 }));
-            }
-
-
-
-            // Fetch pending application if status is pending
+            // This one genuinely depends on the profile result above, so it has
+            // to stay sequential — but it's now the only extra round-trip.
             if (data.cook_application_status === 'pending') {
                 const { data: appData, error: appError } = await supabase
                     .from('cook_applications')
@@ -254,14 +318,14 @@ export default function ProfileScreen() {
                     .eq('user_id', user.id)
                     .eq('status', 'pending')
                     .single();
-                
+
                 if (!appError) {
                     setPendingApp(appData);
                 }
             }
 
         } catch (error: any) {
-            console.log('Error fetching profile:', error.message);
+            console.error('Error fetching profile:', error.message);
         } finally {
             setLoading(false);
         }
@@ -270,7 +334,7 @@ export default function ProfileScreen() {
     async function handleSignOut() {
         const { error } = await supabase.auth.signOut();
         if (error) Alert.alert('Error', error.message);
-        router.replace('/onboarding');
+        router.replace('/onboarding/community');
     }
 
     const useCurrentLocation = async () => {
@@ -283,6 +347,7 @@ export default function ProfileScreen() {
                 return;
             }
             const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            setLocationCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
             const [geo] = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
             if (geo) {
                 const parts = [geo.district || geo.subregion, geo.city || geo.region].filter(Boolean);
@@ -299,7 +364,10 @@ export default function ProfileScreen() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-            const { error } = await supabase.from('profiles').update({ location: locationDraft }).eq('id', user.id);
+            const { error } = await supabase.from('profiles').update({
+                location: locationDraft,
+                ...(locationCoords ? { latitude: locationCoords.latitude, longitude: locationCoords.longitude } : {}),
+            }).eq('id', user.id);
             if (error) throw error;
             setProfile((p: any) => ({ ...p, location: locationDraft }));
             setLocationEdit(false);
@@ -394,12 +462,12 @@ export default function ProfileScreen() {
 
     if (!profile) {
         return (
-            <SafeAreaView className="flex-1 bg-white items-center justify-center p-6" edges={['top']}>
+            <SafeAreaView className="flex-1 bg-surface items-center justify-center p-6" edges={['top']}>
                 <View className="flex-1 bg-warm-cream items-center justify-center w-full">
                 <Text className="text-xl font-bold text-text-main mb-4 font-sans-bold">Not Logged In</Text>
                 <TouchableOpacity
                     className="bg-clay-primary px-8 py-3 rounded-xl"
-                    onPress={() => router.replace('/onboarding')}
+                    onPress={() => router.replace('/onboarding/community')}
                 >
                     <Text className="text-white font-bold font-sans-bold">Sign In</Text>
                 </TouchableOpacity>
@@ -415,7 +483,7 @@ export default function ProfileScreen() {
             id: 'personal',
             title: 'Personal Information',
             icon: User,
-            action: () => Alert.alert('Personal Information', 'Profile editing will be available soon.')
+            action: () => router.push('/personal-information')
         },
         ...(profile.role === 'COOK' && profile.cook_application_status === 'approved' && isCookMode ? [{
             id: 'kitchen-settings',
@@ -431,9 +499,9 @@ export default function ProfileScreen() {
         },
         {
             id: 'payment',
-            title: 'Payment Methods',
-            icon: CreditCard,
-            action: () => Alert.alert('Payment Methods', 'Payment settings will be available soon.')
+            title: isCookMode ? 'Earnings & Payouts' : 'Payment Methods',
+            icon: isCookMode ? Wallet : CreditCard,
+            action: () => router.push('/payment-methods')
         },
         {
             id: 'notifications',
@@ -445,7 +513,7 @@ export default function ProfileScreen() {
             id: 'privacy',
             title: 'Privacy & Security',
             icon: ShieldCheck,
-            action: () => Alert.alert('Privacy & Security', 'Security settings will be available soon.')
+            action: () => router.push('/privacy-security')
         },
         {
             id: 'logout',
@@ -466,7 +534,7 @@ export default function ProfileScreen() {
                         activeOpacity={1}
                         onPress={() => setLocationEdit(false)}
                     />
-                    <View className="bg-white rounded-t-3xl p-6">
+                    <View className="bg-surface rounded-t-3xl p-6">
                         <View className="flex-row justify-between items-center mb-4">
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Set Your Location</Text>
                             <TouchableOpacity onPress={() => setLocationEdit(false)}>
@@ -482,7 +550,7 @@ export default function ProfileScreen() {
                                 placeholderTextColor="#9CA3AF"
                                 className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-text-main font-sans text-base border border-gray-100"
                                 value={locationDraft}
-                                onChangeText={setLocationDraft}
+                                onChangeText={(text) => { setLocationDraft(text); setLocationCoords(null); }}
                                 autoFocus
                             />
                             <TouchableOpacity
@@ -520,7 +588,7 @@ export default function ProfileScreen() {
                     {/* Welcome Row */}
                     <View style={{ paddingTop: insets.top + 16 }} className="px-6 pb-4 flex-row items-center gap-4">
                         <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} className="relative">
-                            <View className="w-20 h-20 bg-white rounded-full overflow-hidden border-2 border-[#F2DFD7] shadow-sm p-1">
+                            <View className="w-20 h-20 bg-surface rounded-full overflow-hidden border-2 border-[#F2DFD7] shadow-sm p-1">
                                 <View className="w-full h-full rounded-full overflow-hidden">
                                     {avatarUploading ? (
                                         <View className="w-full h-full items-center justify-center bg-gray-100">
@@ -547,7 +615,7 @@ export default function ProfileScreen() {
                             
                             <TouchableOpacity
                                 className="flex-row items-center gap-1.5 mt-1"
-                                onPress={() => { setLocationDraft(profile.location || ''); setLocationEdit(true); }}
+                                onPress={() => { setLocationDraft(profile.location || ''); setLocationCoords(null); setLocationEdit(true); }}
                             >
                                 <MapPin size={14} color="#BF592B" />
                                 <Text className="text-xs text-text-sub font-sans" numberOfLines={1}>
@@ -569,7 +637,7 @@ export default function ProfileScreen() {
                         </View>
                         <View className="items-center flex-1">
                             <Text className="text-xl font-bold text-text-main font-sans-bold">{stats.saved}</Text>
-                            <Text className="text-xs text-text-sub font-sans">Saved</Text>
+                            <Text className="text-xs text-text-sub font-sans">Watching</Text>
                         </View>
                     </View>
 
@@ -592,7 +660,7 @@ export default function ProfileScreen() {
                                         <Text className="text-3xl">🎉</Text>
                                         <View className="flex-1">
                                             <Text className="font-bold text-green-800 text-lg font-sans-bold">You're Approved!</Text>
-                                            <Text className="text-green-600 text-xs font-sans">Welcome to the YɛnDidii cook community</Text>
+                                            <Text className="text-green-600 text-xs font-sans">Welcome to the YɛnDidii host community</Text>
                                         </View>
                                     </View>
                                     <Text className="text-green-700 text-sm font-sans leading-5">
@@ -689,7 +757,7 @@ export default function ProfileScreen() {
                             onPress={() => router.push('/onboarding/apply-to-cook')}
                         >
                             <View className="flex-row items-center gap-4 flex-1">
-                                <View className="w-12 h-12 rounded-full bg-white items-center justify-center">
+                                <View className="w-12 h-12 rounded-full bg-surface items-center justify-center">
                                     <Settings size={22} color="#DC2626" />
                                 </View>
                                 <View className="flex-1">
@@ -707,11 +775,11 @@ export default function ProfileScreen() {
                             onPress={() => router.push('/onboarding/apply-to-cook')}
                         >
                             <View className="flex-row items-center gap-4">
-                                <View className="w-12 h-12 rounded-full bg-white/20 items-center justify-center">
+                                <View className="w-12 h-12 rounded-full bg-surface/20 items-center justify-center">
                                     <ChefHat size={24} color="white" />
                                 </View>
                                 <View>
-                                    <Text className="font-bold text-white text-lg font-sans-bold">Apply to Cook</Text>
+                                    <Text className="font-bold text-white text-lg font-sans-bold">Apply to Host</Text>
                                     <Text className="text-white/80 text-xs font-sans">Share your meals & earn from your kitchen</Text>
                                 </View>
                             </View>
@@ -722,7 +790,7 @@ export default function ProfileScreen() {
                     {/* Show Switch to Eating for non-approved users stuck in cook mode */}
                     {isCookMode && !(profile.role === 'COOK' && profile.cook_application_status === 'approved') && (
                         <TouchableOpacity
-                            className="mx-6 mb-6 bg-white rounded-2xl p-4 shadow-sm flex-row items-center justify-between border border-gray-100 active:scale-98"
+                            className="mx-6 mb-6 bg-surface rounded-2xl p-4 shadow-sm flex-row items-center justify-between border border-gray-100 active:scale-98"
                             onPress={handleToggleWithLoader}
                         >
                             <View className="flex-row items-center gap-4">
@@ -743,13 +811,18 @@ export default function ProfileScreen() {
                     )}
 
                     {/* Rewards & Discounts Section */}
-                    {!isCookMode && (
+                    {!isCookMode && (() => {
+                        const tierInfo = getTierInfo(profile.loyalty_points || 0);
+                        return (
                         <View className="mb-6">
                             <View className="flex-row justify-between items-end px-6 mb-3">
                                 <Text className="text-lg font-bold text-text-main font-sans-bold">
                                     Rewards & Discounts
                                 </Text>
-                                <TouchableOpacity onPress={() => Alert.alert('Benefits', 'Rewards program details will be available soon.')}>
+                                <TouchableOpacity onPress={() => Alert.alert(
+                                    'Benefits',
+                                    `Earn 1 point per ₵1 spent. Root (0+), Sankofa (500+), Nyame (1,500+), Ohene (3,000+). Flip your card for a reward code.`
+                                )}>
                                     <Text className="text-sm font-semibold text-clay-primary font-sans-semibold">
                                         View Benefits
                                     </Text>
@@ -782,68 +855,67 @@ export default function ProfileScreen() {
                                                 Current Status
                                             </Text>
                                             <Text className="text-2xl font-bold text-white font-serif mt-0.5" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
-                                                Sankofa Tier
+                                                {tierInfo.current.label} Tier
                                             </Text>
                                         </View>
-                                        <View className="bg-white rounded-full px-3 py-1.5 flex-row items-center gap-1">
+                                        <View className="bg-surface rounded-full px-3 py-1.5 flex-row items-center gap-1">
                                             <Star size={12} color="#BF592B" fill="#BF592B" />
                                             <Text className="text-clay-primary text-xs font-bold font-sans-bold">
-                                                1,240 pts
+                                                {(profile.loyalty_points || 0).toLocaleString()} pts
                                             </Text>
                                         </View>
                                     </View>
-                                    
+
                                     <View className="mt-2">
-                                        <View className="h-2 bg-white/20 rounded-full overflow-hidden">
-                                            <View className="w-[75%] h-full bg-green-400 rounded-full" />
+                                        <View className="h-2 bg-surface/20 rounded-full overflow-hidden">
+                                            <View style={{ width: `${tierInfo.progress}%` }} className="h-full bg-green-400 rounded-full" />
                                         </View>
                                         <View className="flex-row justify-between items-center mt-2">
                                             <Text className="text-[10px] text-white/80 font-sans">
-                                                260 pts to Next Tier
+                                                {tierInfo.next ? `${tierInfo.pointsToNext} pts to Next Tier` : 'Highest Tier Reached'}
                                             </Text>
                                             <Text className="text-[10px] text-white/80 font-sans">
-                                                Gold Tier Milestone
+                                                {tierInfo.next ? `${tierInfo.next.label} Tier Milestone` : '🎉'}
                                             </Text>
                                         </View>
                                     </View>
-                                    
+
                                     <View className="flex-row justify-between items-center relative px-1 mt-4">
-                                        <View className="absolute left-6 right-6 top-[20px] h-[1px] bg-white/20" />
-                                        <View className="absolute left-6 w-[33%] top-[20px] h-[1px] bg-green-400" />
-                                        
-                                        {[
-                                            { label: 'Root', key: 'root', done: true },
-                                            { label: 'Sankofa', key: 'sankofa', active: true },
-                                            { label: 'Nyame', key: 'nyame' },
-                                            { label: 'Ohene', key: 'ohene' }
-                                        ].map((tier) => (
+                                        <View className="absolute left-6 right-6 top-[20px] h-[1px] bg-surface/20" />
+                                        <View style={{ position: 'absolute', left: 24, width: `${(tierInfo.currentIndex / (LOYALTY_TIERS.length - 1)) * 100}%`, top: 20, height: 1 }} className="bg-green-400" />
+
+                                        {LOYALTY_TIERS.map((tier, index) => {
+                                            const done = index < tierInfo.currentIndex;
+                                            const active = index === tierInfo.currentIndex;
+                                            return (
                                             <View key={tier.label} className="items-center z-10 flex-1">
-                                                <View 
+                                                <View
                                                     className={`w-10 h-10 rounded-full border-2 items-center justify-center ${
-                                                        tier.active 
-                                                            ? 'bg-green-400 border-green-400' 
-                                                            : tier.done
+                                                        active
+                                                            ? 'bg-green-400 border-green-400'
+                                                            : done
                                                                 ? 'bg-clay-primary border-white'
                                                                 : 'bg-clay-primary border-white/40'
                                                     }`}
                                                 >
-                                                    {tier.active ? (
+                                                    {active ? (
                                                         <View className="w-3.5 h-3.5 rounded-full bg-green-400 items-center justify-center">
                                                             <Check size={10} color="white" strokeWidth={4} />
                                                         </View>
                                                     ) : tier.label === 'Nyame' ? (
-                                                        <Gem size={14} color={tier.done ? 'white' : 'rgba(255,255,255,0.4)'} />
+                                                        <Gem size={14} color={done ? 'white' : 'rgba(255,255,255,0.4)'} />
                                                     ) : tier.label === 'Ohene' ? (
-                                                        <Crown size={14} color={tier.done ? 'white' : 'rgba(255,255,255,0.4)'} />
+                                                        <Crown size={14} color={done ? 'white' : 'rgba(255,255,255,0.4)'} />
                                                     ) : (
-                                                        <View className="w-2.5 h-2.5 rounded-full bg-white" />
+                                                        <View className="w-2.5 h-2.5 rounded-full bg-surface" />
                                                     )}
                                                 </View>
-                                                <Text className={`text-[10px] mt-1.5 font-sans-medium ${tier.active ? 'text-white font-bold' : 'text-white/60'}`}>
+                                                <Text className={`text-[10px] mt-1.5 font-sans-medium ${active ? 'text-white font-bold' : 'text-white/60'}`}>
                                                     {tier.label}
                                                 </Text>
                                             </View>
-                                        ))}
+                                            );
+                                        })}
                                     </View>
                                 </Animated.View>
 
@@ -903,7 +975,8 @@ export default function ProfileScreen() {
                                 </Animated.View>
                             </TouchableOpacity>
                         </View>
-                    )}
+                        );
+                    })()}
 
 
 
@@ -934,7 +1007,7 @@ export default function ProfileScreen() {
                                         {item.isSwitch ? (
                                             <Switch
                                                 value={notificationsEnabled}
-                                                onValueChange={setNotificationsEnabled}
+                                                onValueChange={handleToggleNotifications}
                                                 trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
                                                 thumbColor={notificationsEnabled ? '#BF592B' : '#83746E'}
                                                 ios_backgroundColor="#F2DFD7"
@@ -1019,7 +1092,7 @@ export default function ProfileScreen() {
                             />
                             {/* Pulsing Inner Circle */}
                             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                                <View className="bg-white rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12 }}>
+                                <View className="bg-surface rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12 }}>
                                     {(function() {
                                         const IconComponent = LOADER_ICONS[loaderIconIndex] || Utensils;
                                         return <IconComponent size={32} color="#BF592B" />;

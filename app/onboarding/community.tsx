@@ -14,7 +14,7 @@ export default function OnboardingCommunity() {
     <SafeAreaView className="flex-1 bg-surface-lowest" edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      <OnboardingHeader currentStep={2} totalSteps={3} />
+      <OnboardingHeader currentStep={1} totalSteps={1} />
 
       {/* Hero Image */}
       <View className="mx-5 mt-3 rounded-2xl overflow-hidden" style={{ height: 340 }}>
@@ -38,7 +38,7 @@ export default function OnboardingCommunity() {
             transform: [{ rotate: '3deg' }],
             shadowColor: '#231915',
             shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.08,
+            shadowOpacity: 0.14,
             shadowRadius: 10,
             elevation: 4,
           }}
@@ -106,7 +106,7 @@ export default function OnboardingCommunity() {
           {/* Step footer */}
           <View className="items-center">
             <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', letterSpacing: 0.2 }}>
-              Step 2 of 3 · Join the Community
+              Join the Community
             </Text>
           </View>
         </View>

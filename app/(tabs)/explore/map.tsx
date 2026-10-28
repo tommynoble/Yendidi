@@ -125,7 +125,7 @@ export default function ExploreMapScreen() {
                     longitude: loc.coords.longitude,
                 });
             } catch (e) {
-                console.log('Location error:', e);
+                console.error('Location error:', e);
             }
         })();
     }, []);
@@ -316,7 +316,7 @@ export default function ExploreMapScreen() {
     }, [filteredCooks, selectedCook]);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#FFF8F6' }}>
+        <View style={{ flex: 1, backgroundColor: '#F8E4DD' }}>
             {/* MAP LAYER */}
             <MapView
                 ref={mapRef}
@@ -347,7 +347,7 @@ export default function ExploreMapScreen() {
                     style={{
                         marginHorizontal: 20,
                         marginBottom: 12,
-                        backgroundColor: 'white',
+                        backgroundColor: '#F7EEE7',
                         borderRadius: 9999,
                         flexDirection: 'row',
                         alignItems: 'center',
@@ -356,7 +356,7 @@ export default function ExploreMapScreen() {
                         gap: 10,
                         shadowColor: '#231915',
                         shadowOffset: { width: 0, height: 6 },
-                        shadowOpacity: 0.12,
+                        shadowOpacity: 0.22,
                         shadowRadius: 16,
                         elevation: 6,
                     }}
@@ -366,7 +366,7 @@ export default function ExploreMapScreen() {
                         <TextInput
                             value={searchQuery}
                             onChangeText={(t) => { setSearchQuery(t); setSelectedCook(null); }}
-                            placeholder="Search dishes or cooks"
+                            placeholder="Search dishes or hosts"
                             placeholderTextColor="#8A7269"
                             style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', padding: 0 }}
                             returnKeyType="search"
@@ -436,14 +436,14 @@ export default function ExploreMapScreen() {
             {isLoading && (
                 <View style={{
                     position: 'absolute', top: '45%', alignSelf: 'center',
-                    backgroundColor: '#fff', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20,
+                    backgroundColor: '#F7EEE7', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20,
                     flexDirection: 'row', alignItems: 'center', gap: 12,
                     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-                    shadowOpacity: 0.15, shadowRadius: 8, elevation: 6,
+                    shadowOpacity: 0.22, shadowRadius: 8, elevation: 6,
                     zIndex: 60,
                 }}>
                     <ActivityIndicator size="small" color="#BF592B" />
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Finding cooks...</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Finding hosts...</Text>
                 </View>
             )}
 
@@ -462,12 +462,12 @@ export default function ExploreMapScreen() {
                             width: 44,
                             height: 44,
                             borderRadius: 22,
-                            backgroundColor: '#fff',
+                            backgroundColor: '#F7EEE7',
                             alignItems: 'center',
                             justifyContent: 'center',
                             shadowColor: '#000',
                             shadowOffset: { width: 0, height: 2 },
-                            shadowOpacity: 0.15,
+                            shadowOpacity: 0.22,
                             shadowRadius: 4,
                             elevation: 4,
                         }}
@@ -493,12 +493,12 @@ export default function ExploreMapScreen() {
                         right: 0,
                         bottom: 0,
                         height: EXPANDED_HEIGHT + 40,
-                        backgroundColor: 'white',
+                        backgroundColor: '#F7EEE7',
                         borderTopLeftRadius: 28,
                         borderTopRightRadius: 28,
                         shadowColor: '#231915',
                         shadowOffset: { width: 0, height: -6 },
-                        shadowOpacity: 0.1,
+                        shadowOpacity: 0.18,
                         shadowRadius: 20,
                         elevation: 12,
                         zIndex: 55,

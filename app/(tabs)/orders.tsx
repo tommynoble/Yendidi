@@ -243,8 +243,8 @@ export default function OrdersScreen() {
 
         return (
             <View
-                className="bg-white mx-6 mb-4 rounded-3xl p-4"
-                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+                className="bg-surface mx-6 mb-4 rounded-3xl p-4"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 8, elevation: 2 }}
             >
                 {/* Header: Eater Info & Status */}
                 <View className="flex-row justify-between items-start mb-3">
@@ -362,8 +362,8 @@ export default function OrdersScreen() {
 
         return (
             <TouchableOpacity
-                className="bg-white mx-6 mb-4 rounded-3xl p-4 active:scale-[0.98]"
-                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 }}
+                className="bg-surface mx-6 mb-4 rounded-3xl p-4 active:scale-[0.98]"
+                style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 8, elevation: 2 }}
                 activeOpacity={0.9}
                 onPress={() => router.push(`/order/${item.id}`)}
             >
@@ -380,7 +380,7 @@ export default function OrdersScreen() {
                             )}
                         </View>
                         <View>
-                            <Text className="font-bold text-text-main font-sans-bold text-base">{cook?.full_name || 'Unknown Cook'}</Text>
+                            <Text className="font-bold text-text-main font-sans-bold text-base">{cook?.full_name || 'Unknown Host'}</Text>
                             <Text className="text-xs text-text-sub font-sans">{formatDate(item.created_at)}</Text>
                         </View>
                     </View>
@@ -470,7 +470,7 @@ export default function OrdersScreen() {
         <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
             <View className="flex-1 bg-warm-cream">
             {/* Header */}
-            <View className="px-6 pb-4 bg-white border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
+            <View className="px-6 pb-4 bg-surface border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
                 <View className="mb-4">
                     <Text className="text-2xl font-bold text-text-main font-sans-bold">
                         {isCookMode ? 'Incoming Orders' : 'Your Orders'}
@@ -483,8 +483,8 @@ export default function OrdersScreen() {
                 {/* Tabs */}
                 <View className="flex-row bg-gray-100 p-1 rounded-xl">
                     <TouchableOpacity
-                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'active' ? 'bg-white' : ''}`}
-                        style={activeTab === 'active' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 1.5, elevation: 1 } : {}}
+                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'active' ? 'bg-surface' : ''}`}
+                        style={activeTab === 'active' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.22, shadowRadius: 1.5, elevation: 1 } : {}}
                         onPress={() => setActiveTab('active')}
                     >
                         <Text className={`font-bold font-sans-bold ${activeTab === 'active' ? 'text-text-main' : 'text-gray-400'}`}>
@@ -492,8 +492,8 @@ export default function OrdersScreen() {
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'history' ? 'bg-white' : ''}`}
-                        style={activeTab === 'history' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 1.5, elevation: 1 } : {}}
+                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'history' ? 'bg-surface' : ''}`}
+                        style={activeTab === 'history' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.22, shadowRadius: 1.5, elevation: 1 } : {}}
                         onPress={() => setActiveTab('history')}
                     >
                         <Text className={`font-bold font-sans-bold ${activeTab === 'history' ? 'text-text-main' : 'text-gray-400'}`}>History</Text>
@@ -531,7 +531,7 @@ export default function OrdersScreen() {
                                 {isCookMode
                                     ? (activeTab === 'active' ? 'New orders from customers will appear here.' : 'Completed and cancelled orders will show here.')
                                     : (activeTab === 'active'
-                                        ? "Hungry? Explore local cooks and place your first order!"
+                                        ? "Hungry? Explore local hosts and place your first order!"
                                         : "You haven't completed any orders yet.")}
                             </Text>
                             {!isCookMode && activeTab === 'active' && (

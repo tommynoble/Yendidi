@@ -7,8 +7,8 @@ export default function OnboardingLayout() {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="index" />
       <Stack.Screen name="community" />
+      <Stack.Screen name="permissions" />
     </Stack>
   );
 }

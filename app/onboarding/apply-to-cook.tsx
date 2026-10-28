@@ -150,7 +150,7 @@ export default function ApplyToCookScreen() {
                 );
             }
         } catch (e) {
-            console.log('Error checking application status:', e);
+            console.error('Error checking application status:', e);
         }
     };
 
@@ -225,13 +225,10 @@ export default function ApplyToCookScreen() {
                     example_dishes: dishTags.join(', ') || null,
                     status: 'pending'
             };
-            console.log('INSERT PAYLOAD:', JSON.stringify(insertPayload));
-
             const { error: appError } = await supabase
                 .from('cook_applications')
                 .insert(insertPayload);
 
-            console.log('INSERT RESULT:', JSON.stringify(appError));
             if (appError) throw appError;
 
             // Upload kitchen image if provided
@@ -256,7 +253,6 @@ export default function ApplyToCookScreen() {
                 .update(profileUpdate)
                 .eq('id', user.id);
 
-            console.log('PROFILE UPDATE RESULT:', JSON.stringify(profileError));
             if (profileError) throw profileError;
 
             Alert.alert(
@@ -275,11 +271,11 @@ export default function ApplyToCookScreen() {
     return (
         <SafeAreaView className="flex-1 bg-warm-cream" edges={['top']}>
             {/* Header */}
-            <View className="px-6 py-4 flex-row items-center justify-between bg-white border-b border-gray-100">
+            <View className="px-6 py-4 flex-row items-center justify-between bg-surface border-b border-gray-100">
                 <TouchableOpacity onPress={() => router.back()} className="w-10 h-10 items-center justify-center -ml-2 rounded-full active:bg-gray-100">
                     <ArrowLeft size={24} color="#2D241E" />
                 </TouchableOpacity>
-                <Text className="text-lg font-bold text-text-main font-sans-bold">Become a Cook</Text>
+                <Text className="text-lg font-bold text-text-main font-sans-bold">Become a Host</Text>
                 <View className="w-10" />
             </View>
 
@@ -310,7 +306,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Photo Upload Card */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-5 shadow-sm">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-5 shadow-sm">
                             <Text className="text-xs font-bold text-text-main mb-3 uppercase tracking-widest font-sans-bold">Kitchen Cover Photo</Text>
                             <TouchableOpacity onPress={pickKitchenImage} activeOpacity={0.9}>
                                 {kitchenImageUri ? (
@@ -334,13 +330,13 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Profile Info Cards */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-5 shadow-sm gap-5">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-5 shadow-sm gap-5">
                             <View>
                                 <Text className="text-xs font-bold text-text-main mb-2 uppercase tracking-widest font-sans-bold">Kitchen Name</Text>
                                 <TextInput
                                     placeholder="e.g. Auntie Ama's Kitchen"
                                     placeholderTextColor="#9CA3AF"
-                                    className="h-14 bg-gray-50 rounded-xl px-4 font-sans text-text-main border border-gray-200 text-base focus:border-clay-primary focus:bg-white"
+                                    className="h-14 bg-gray-50 rounded-xl px-4 font-sans text-text-main border border-gray-200 text-base focus:border-clay-primary focus:bg-surface"
                                     value={kitchenName}
                                     onChangeText={setKitchenName}
                                 />
@@ -351,7 +347,7 @@ export default function ApplyToCookScreen() {
                                 <TextInput
                                     placeholder="Tell eaters about your cooking style and background..."
                                     placeholderTextColor="#9CA3AF"
-                                    className="bg-gray-50 rounded-xl px-4 py-3 font-sans text-text-main min-h-[100px] border border-gray-200 text-base focus:border-clay-primary focus:bg-white"
+                                    className="bg-gray-50 rounded-xl px-4 py-3 font-sans text-text-main min-h-[100px] border border-gray-200 text-base focus:border-clay-primary focus:bg-surface"
                                     multiline
                                     textAlignVertical="top"
                                     value={bio}
@@ -361,7 +357,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Location Verification Card */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
                             <Text className="text-xs font-bold text-text-main mb-1.5 uppercase tracking-widest font-sans-bold">Kitchen Address</Text>
                             <Text className="text-xs text-text-sub font-sans mb-4 leading-relaxed">For verification, we lock in your GPS location. Eaters only see this when pickup is ready.</Text>
 
@@ -374,7 +370,7 @@ export default function ApplyToCookScreen() {
                                         <Text className="text-kente-green font-bold font-sans-bold text-sm">GPS Location Verified</Text>
                                         <Text className="text-text-main text-xs font-sans mt-0.5" numberOfLines={1}>{location}</Text>
                                     </View>
-                                    <TouchableOpacity onPress={captureKitchenLocation} className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg">
+                                    <TouchableOpacity onPress={captureKitchenLocation} className="px-3 py-1.5 bg-surface border border-gray-200 rounded-lg">
                                         <Text className="text-xs text-text-main font-bold font-sans-bold">Re-sync</Text>
                                     </TouchableOpacity>
                                 </View>
@@ -400,7 +396,7 @@ export default function ApplyToCookScreen() {
                                 <TextInput
                                     placeholder="e.g. Next to the big mango tree, opposite Shell..."
                                     placeholderTextColor="#9CA3AF"
-                                    className="bg-gray-50 rounded-xl px-4 py-3 font-sans text-text-main min-h-[70px] border border-gray-200 text-base focus:border-clay-primary focus:bg-white"
+                                    className="bg-gray-50 rounded-xl px-4 py-3 font-sans text-text-main min-h-[70px] border border-gray-200 text-base focus:border-clay-primary focus:bg-surface"
                                     multiline
                                     textAlignVertical="top"
                                     value={locationDescription}
@@ -430,7 +426,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Specialties Section */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-5 shadow-sm">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-5 shadow-sm">
                             <Text className="text-xs font-bold text-text-main mb-3.5 uppercase tracking-widest font-sans-bold">Your Specialties</Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingVertical: 4 }}>
                                 {SPECIALTIES.map(specialty => {
@@ -439,7 +435,7 @@ export default function ApplyToCookScreen() {
                                         <TouchableOpacity
                                             key={specialty}
                                             onPress={() => toggleSpecialty(specialty)}
-                                            className={`px-4 py-2.5 rounded-full border-2 ${isSelected ? 'bg-orange-50 border-clay-primary' : 'bg-white border-gray-200'} active:scale-95`}
+                                            className={`px-4 py-2.5 rounded-full border-2 ${isSelected ? 'bg-orange-50 border-clay-primary' : 'bg-surface border-gray-200'} active:scale-95`}
                                         >
                                             <Text className={`font-sans-bold text-xs ${isSelected ? 'text-clay-primary' : 'text-text-main'}`}>{specialty}</Text>
                                         </TouchableOpacity>
@@ -449,7 +445,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Frequency Selection */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
                             <Text className="text-xs font-bold text-text-main mb-4 uppercase tracking-widest font-sans-bold">Cooking Frequency</Text>
                             {FREQUENCIES.map(freq => {
                                 const isSelected = frequency === freq.id;
@@ -463,8 +459,8 @@ export default function ApplyToCookScreen() {
                                             <Text className={`font-bold font-sans-bold text-base ${isSelected ? 'text-clay-primary' : 'text-text-main'}`}>{freq.label}</Text>
                                             <Text className="text-xs text-text-sub font-sans mt-0.5">{freq.desc}</Text>
                                         </View>
-                                        <View className={`w-5 h-5 rounded-full border items-center justify-center ${isSelected ? 'bg-clay-primary border-clay-primary' : 'border-gray-300 bg-white'}`}>
-                                            {isSelected && <View className="w-2 h-2 rounded-full bg-white" />}
+                                        <View className={`w-5 h-5 rounded-full border items-center justify-center ${isSelected ? 'bg-clay-primary border-clay-primary' : 'border-gray-300 bg-surface'}`}>
+                                            {isSelected && <View className="w-2 h-2 rounded-full bg-surface" />}
                                         </View>
                                     </TouchableOpacity>
                                 );
@@ -473,7 +469,7 @@ export default function ApplyToCookScreen() {
 
                         {/* Buttons */}
                         <View className="flex-row gap-4 mb-10">
-                            <TouchableOpacity className="flex-1 h-14 rounded-2xl bg-white border border-gray-200 items-center justify-center active:scale-98" onPress={() => setStep(1)}>
+                            <TouchableOpacity className="flex-1 h-14 rounded-2xl bg-surface border border-gray-200 items-center justify-center active:scale-98" onPress={() => setStep(1)}>
                                 <Text className="font-bold text-text-sub font-sans-bold text-base">Back</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -497,7 +493,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Capacity Selection */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
                             <Text className="text-xs font-bold text-text-main mb-4 uppercase tracking-widest font-sans-bold">Session Size</Text>
                             {CAPACITIES.map(cap => {
                                 const isSelected = capacity === cap.id;
@@ -511,8 +507,8 @@ export default function ApplyToCookScreen() {
                                             <Text className={`font-bold font-sans-bold text-base ${isSelected ? 'text-kente-green' : 'text-text-main'}`}>{cap.label} Servings</Text>
                                             <Text className="text-xs text-text-sub font-sans mt-0.5">{cap.desc}</Text>
                                         </View>
-                                        <View className={`w-5 h-5 rounded-full border items-center justify-center ${isSelected ? 'bg-kente-green border-kente-green' : 'border-gray-300 bg-white'}`}>
-                                            {isSelected && <View className="w-2 h-2 rounded-full bg-white" />}
+                                        <View className={`w-5 h-5 rounded-full border items-center justify-center ${isSelected ? 'bg-kente-green border-kente-green' : 'border-gray-300 bg-surface'}`}>
+                                            {isSelected && <View className="w-2 h-2 rounded-full bg-surface" />}
                                         </View>
                                     </TouchableOpacity>
                                 );
@@ -521,7 +517,7 @@ export default function ApplyToCookScreen() {
 
                         {/* Buttons */}
                         <View className="flex-row gap-4 mb-10">
-                            <TouchableOpacity className="flex-1 h-14 rounded-2xl bg-white border border-gray-200 items-center justify-center active:scale-98" onPress={() => setStep(2)}>
+                            <TouchableOpacity className="flex-1 h-14 rounded-2xl bg-surface border border-gray-200 items-center justify-center active:scale-98" onPress={() => setStep(2)}>
                                 <Text className="font-bold text-text-sub font-sans-bold text-base">Back</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -544,7 +540,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Dish Examples Tag Input */}
-                        <View className="bg-white p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
+                        <View className="bg-surface p-5 rounded-3xl border border-gray-100 mb-6 shadow-sm">
                             <Text className="text-xs font-bold text-text-main mb-1 uppercase tracking-widest font-sans-bold">Menu Dishes</Text>
                             <Text className="text-xs text-text-sub font-sans mb-3 leading-relaxed">Type a dish to get suggestions — tap one to add it as a tag. These help eaters find your kitchen.</Text>
 
@@ -606,7 +602,7 @@ export default function ApplyToCookScreen() {
 
                         {/* Buttons */}
                         <View className="flex-row gap-4 mb-10">
-                            <TouchableOpacity className="flex-1 h-14 rounded-2xl bg-white border border-gray-200 items-center justify-center active:scale-98" onPress={() => setStep(3)}>
+                            <TouchableOpacity className="flex-1 h-14 rounded-2xl bg-surface border border-gray-200 items-center justify-center active:scale-98" onPress={() => setStep(3)}>
                                 <Text className="font-bold text-text-sub font-sans-bold text-base">Back</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
@@ -630,7 +626,7 @@ export default function ApplyToCookScreen() {
                         </View>
 
                         {/* Safety Guidelines Card */}
-                        <View className="bg-white p-6 rounded-3xl border border-gray-100 mb-6 shadow-sm">
+                        <View className="bg-surface p-6 rounded-3xl border border-gray-100 mb-6 shadow-sm">
                             <Text className="text-sm font-bold text-text-main mb-4 font-sans-bold">Quality Commitments:</Text>
                             <View className="gap-4">
                                 <View className="flex-row items-start gap-3">
@@ -671,7 +667,7 @@ export default function ApplyToCookScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            className="h-14 items-center justify-center mb-10 rounded-2xl border border-gray-200 bg-white active:scale-98"
+                            className="h-14 items-center justify-center mb-10 rounded-2xl border border-gray-200 bg-surface active:scale-98"
                             onPress={() => setStep(4)}
                             disabled={loading}
                         >

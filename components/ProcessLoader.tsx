@@ -102,7 +102,7 @@ export default function ProcessLoader({ visible, message = 'Processing...' }: Pr
           />
           {/* Pulsing Inner Circle */}
           <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-            <View className="bg-white rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 12 }}>
+            <View className="bg-surface rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12 }}>
               {(() => {
                 const IconComponent = LOADER_ICONS[loaderIconIndex] || Utensils;
                 return <IconComponent size={32} color="#BF592B" />;

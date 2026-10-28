@@ -71,7 +71,7 @@ const NotificationRow = React.memo(({ item, readIds, onPress }: { item: any; rea
         onPress(item.id);
         item.onPress?.();
       }}
-      className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${isRead ? 'bg-white' : ''}`}
+      className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${isRead ? 'bg-surface' : ''}`}
       style={!isRead ? { backgroundColor: 'rgba(214, 90, 49, 0.05)' } : {}}
       activeOpacity={0.7}
     >
@@ -224,11 +224,11 @@ export default function NotificationsScreen() {
   }, []);
 
   return (
-    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+    <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
       <View className="flex-1 bg-warm-cream">
 
         {/* Header */}
-        <View className="bg-white px-6 py-4 flex-row items-center gap-4 border-b border-gray-100">
+        <View className="bg-surface px-6 py-4 flex-row items-center gap-4 border-b border-gray-100">
           <TouchableOpacity onPress={() => router.back()} className="p-1">
             <ArrowLeft size={24} color="#2D241E" />
           </TouchableOpacity>

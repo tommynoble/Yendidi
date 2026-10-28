@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, MoreHorizontal, BadgeCheck, MapPin, Star, Plus, ChefHat, Clock, Users, Navigation } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { formatDistanceToNow } from 'date-fns';
 
 
 export default function CookProfileScreen() {
@@ -54,6 +55,20 @@ export default function CookProfileScreen() {
         enabled: !!id,
     });
 
+    const { data: reviews, isLoading: isReviewsLoading } = useQuery({
+        queryKey: ['cook-reviews', id],
+        queryFn: async () => {
+            const { data, error } = await supabase
+                .from('reviews')
+                .select('*, profiles:user_id (full_name, avatar_url)')
+                .eq('cook_id', id)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!id,
+    });
+
     const isLoading = isCookLoading || isMealsLoading;
 
     if (isLoading) {
@@ -67,7 +82,7 @@ export default function CookProfileScreen() {
     if (!cook) {
         return (
             <View className="flex-1 items-center justify-center bg-warm-cream px-6">
-                <Text className="text-lg text-text-sub font-sans text-center">Cook not found.</Text>
+                <Text className="text-lg text-text-sub font-sans text-center">Host not found.</Text>
                 <TouchableOpacity onPress={() => router.back()} className="mt-4">
                     <Text className="text-clay-primary font-bold font-sans-bold">Go Back</Text>
                 </TouchableOpacity>
@@ -123,7 +138,7 @@ export default function CookProfileScreen() {
                         {cook.verified && (
                             <View className="flex-row items-center gap-1.5 px-3 py-1.5 bg-green-100 rounded-full border border-green-200 mb-1">
                                 <BadgeCheck size={12} color="#007A33" />
-                                <Text className="text-xs font-bold text-kente-green font-sans-bold">Verified Cook</Text>
+                                <Text className="text-xs font-bold text-kente-green font-sans-bold">Verified Host</Text>
                             </View>
                         )}
                         <Text className="text-xs text-text-sub font-sans">Joined {new Date(cook.created_at || cook.updated_at).toLocaleDateString()}</Text>
@@ -161,7 +176,7 @@ export default function CookProfileScreen() {
                     )}
 
                     {/* Stats Row */}
-                    <View className="flex-row justify-between bg-white p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
+                    <View className="flex-row justify-between bg-surface p-4 rounded-2xl shadow-sm mb-6 border border-gray-100">
                         <View className="flex-1 items-center border-r border-gray-100">
                             <Text className="text-lg font-bold text-text-main font-sans-bold">{cook.rating || 'New'}</Text>
                             <Text className="text-[10px] text-text-sub uppercase tracking-wide font-sans">Rating</Text>
@@ -256,18 +271,68 @@ export default function CookProfileScreen() {
                     )}
 
                     {activeTab === 'Reviews' && (
-                        <View className="py-6 items-center justify-center bg-gray-50 rounded-3xl border border-gray-100">
-                            <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">Reviews</Text>
-                            <Text className="text-text-sub text-center font-sans">User reviews will appear here.</Text>
-                        </View>
+                        isReviewsLoading ? (
+                            <View className="py-10 items-center justify-center">
+                                <ActivityIndicator size="small" color="#D65A31" />
+                            </View>
+                        ) : reviews && reviews.length > 0 ? (
+                            <View className="gap-3">
+                                {reviews.map((review: any) => (
+                                    <View key={review.id} className="bg-surface p-4 rounded-2xl border border-gray-100">
+                                        <View className="flex-row items-center gap-3 mb-2">
+                                            {review.profiles?.avatar_url ? (
+                                                <Image source={{ uri: review.profiles.avatar_url }} className="w-9 h-9 rounded-full bg-gray-100" />
+                                            ) : (
+                                                <View className="w-9 h-9 rounded-full bg-clay-primary/10 items-center justify-center">
+                                                    <Text className="text-clay-primary font-bold font-sans-bold text-xs">
+                                                        {(review.profiles?.full_name || 'E')[0]}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            <View className="flex-1">
+                                                <Text className="font-bold text-text-main font-sans-bold text-sm">{review.profiles?.full_name || 'Eater'}</Text>
+                                                <View className="flex-row items-center gap-0.5 mt-0.5">
+                                                    {[1, 2, 3, 4, 5].map((n) => (
+                                                        <Star key={n} size={12} color="#FFCD00" fill={n <= review.rating ? '#FFCD00' : 'transparent'} />
+                                                    ))}
+                                                </View>
+                                            </View>
+                                            <Text className="text-xs text-text-sub font-sans">
+                                                {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
+                                            </Text>
+                                        </View>
+                                        {review.comment && (
+                                            <Text className="text-sm text-text-sub font-sans leading-relaxed">{review.comment}</Text>
+                                        )}
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <View className="py-6 items-center justify-center bg-gray-50 rounded-3xl border border-gray-100">
+                                <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">No reviews yet</Text>
+                                <Text className="text-text-sub text-center font-sans">Be the first to order and leave a review.</Text>
+                            </View>
+                        )
                     )}
 
-                    {activeTab === 'Photos' && (
-                        <View className="py-6 items-center justify-center bg-gray-50 rounded-3xl border border-gray-100">
-                            <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">Photos</Text>
-                            <Text className="text-text-sub text-center font-sans">Gallery coming soon.</Text>
-                        </View>
-                    )}
+                    {activeTab === 'Photos' && (() => {
+                        const photos = Array.from(new Set(
+                            [cook.kitchen_image_url, ...((meals || []).flatMap((m: any) => (m.image ? m.image.split(',').map((s: string) => s.trim()) : [])))]
+                                .filter(Boolean)
+                        ));
+                        return photos.length > 0 ? (
+                            <View className="flex-row flex-wrap gap-2">
+                                {photos.map((uri, i) => (
+                                    <Image key={i} source={{ uri }} style={{ width: '32%', aspectRatio: 1, borderRadius: 12 }} className="bg-gray-100" />
+                                ))}
+                            </View>
+                        ) : (
+                            <View className="py-6 items-center justify-center bg-gray-50 rounded-3xl border border-gray-100">
+                                <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">No photos yet</Text>
+                                <Text className="text-text-sub text-center font-sans">Photos from the kitchen and menu will show up here.</Text>
+                            </View>
+                        );
+                    })()}
                 </View>
             </ScrollView>
         </View>

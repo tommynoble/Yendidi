@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator, Share as RNShare } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ArrowLeft, Share, Heart, Clock, ChevronRight, MapPin, Navigation, Star, Plus, Minus, Flame, Users, ShoppingCart } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,8 +7,12 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { format } from 'date-fns';
+import { formatPotCountdown } from '@/lib/countdown';
 import { getDishImage } from '@/constants/Images';
 import CartToast from '@/components/CartToast';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const FAVORITES_KEY = 'yendidii_favorites';
 
 const { width } = Dimensions.get('window');
 
@@ -62,32 +66,57 @@ export default function MealDetailScreen() {
     const { data: mainDish, isLoading: isLoadingDish } = useMainDish(id as string);
     const { data: listings = [], isLoading: isLoadingListings, error } = useListings(mainDish?.name || '');
 
-    const { data: activeSessions = [], isLoading: isLoadingSessions } = useQuery({
-        queryKey: ['meal-sessions', id],
+    // "Join the Pot" — how many seats are already booked for each scheduled listing here,
+    // so eaters can see remaining capacity (portions_available already live-decrements it).
+    const listingIds = listings.map((l: any) => l.id);
+    const { data: potOrderCounts = {} } = useQuery({
+        queryKey: ['listing-order-counts', listingIds],
         queryFn: async () => {
             const { data, error } = await supabase
-                .from('meal_sessions')
-                .select(`
-                    *,
-                    profiles:cook_id (full_name, avatar_url, rating),
-                    listings:listing_id (title, price, image)
-                `)
-                .eq('status', 'open')
-                .gte('session_date', new Date().toISOString().split('T')[0])
-                .order('session_date', { ascending: true });
+                .from('order_items')
+                .select('listing_id, quantity, orders!inner(status)')
+                .in('listing_id', listingIds)
+                .neq('orders.status', 'Cancelled');
 
             if (error) {
-                console.error('Error fetching sessions:', error);
-                return [];
+                console.error('Error fetching pot order counts:', error);
+                return {};
             }
-            return data || [];
+            const counts: Record<string, number> = {};
+            (data || []).forEach((item: any) => {
+                counts[item.listing_id] = (counts[item.listing_id] || 0) + item.quantity;
+            });
+            return counts;
         },
-        enabled: !!id
+        enabled: listingIds.length > 0,
     });
 
     // State for local quantities for each cook listing
     const [quantities, setQuantities] = useState<Record<string, number>>({});
     const [cartToast, setCartToast] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
+    const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        AsyncStorage.getItem(FAVORITES_KEY).then(raw => {
+            if (raw) {
+                const ids: string[] = JSON.parse(raw);
+                setSaved(ids.includes(id as string));
+            }
+        });
+    }, [id]);
+
+    const toggleSaved = async () => {
+        try {
+            const raw = await AsyncStorage.getItem(FAVORITES_KEY);
+            const ids: string[] = raw ? JSON.parse(raw) : [];
+            const isCurrentlySaved = ids.includes(id as string);
+            const updated = isCurrentlySaved
+                ? ids.filter(i => i !== id)
+                : [...ids, id as string];
+            await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
+            setSaved(!isCurrentlySaved);
+        } catch (_) {}
+    };
 
     const updateLocalQuantity = (id: string, delta: number) => {
         setQuantities(prev => ({
@@ -100,7 +129,7 @@ export default function MealDetailScreen() {
 
     if (isLoading) {
         return (
-            <View className="flex-1 items-center justify-center bg-white">
+            <View className="flex-1 items-center justify-center bg-warm-cream">
                 <ActivityIndicator size="large" color="#D65A31" />
             </View>
         );
@@ -108,7 +137,7 @@ export default function MealDetailScreen() {
 
     if (error || !mainDish) {
         return (
-            <View className="flex-1 items-center justify-center bg-white px-6">
+            <View className="flex-1 items-center justify-center bg-warm-cream px-6">
                 <Text className="text-lg text-text-sub font-sans text-center">Sorry, we couldn't find that dish.</Text>
                 <TouchableOpacity onPress={() => router.back()} className="mt-4">
                     <Text className="text-clay-primary font-bold font-sans-bold">Go Back</Text>
@@ -118,6 +147,11 @@ export default function MealDetailScreen() {
     }
 
     const minPrice = listings.length > 0 ? Math.min(...listings.map((l: any) => Number(l.price))) : 0;
+    const ratedListings = listings.filter((l: any) => l.profiles?.rating);
+    const avgRating = ratedListings.length > 0
+        ? (ratedListings.reduce((sum: number, l: any) => sum + Number(l.profiles.rating), 0) / ratedListings.length).toFixed(1)
+        : null;
+    const totalServed = listings.reduce((sum: number, l: any) => sum + (l.profiles?.served_count || 0), 0);
 
     const handleQuickAdd = (cookItem: any) => {
         const qty = quantities[cookItem.id] || 1;
@@ -133,22 +167,33 @@ export default function MealDetailScreen() {
         setCartToast({ visible: true, message: `${qty}x ${cookItem.title} added to your cart.` });
     };
 
+    const handleShare = async () => {
+        try {
+            await RNShare.share({
+                title: `${mainDish.name} on YɛnDidii`,
+                message: `Check out ${mainDish.name} on YɛnDidii! 🤤\n\nOpen this link:\nyendidii://meal/${mainDish.id}`,
+            });
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+    };
+
     return (
-        <View className="flex-1 bg-white">
+        <View className="flex-1 bg-warm-cream">
             {/* Top Nav (Absolute) */}
             <View className="absolute top-0 left-0 right-0 z-20 flex-row justify-between items-center p-6 pt-12">
                 <TouchableOpacity
-                    className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95"
+                    className="w-10 h-10 bg-surface/90 rounded-full items-center justify-center shadow-sm active:scale-95"
                     onPress={() => router.back()}
                 >
                     <ArrowLeft size={20} color="#2D241E" />
                 </TouchableOpacity>
                 <View className="flex-row gap-3">
-                    <TouchableOpacity className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95" onPress={() => {}}>
+                    <TouchableOpacity className="w-10 h-10 bg-surface/90 rounded-full items-center justify-center shadow-sm active:scale-95" onPress={handleShare}>
                         <Share size={20} color="#2D241E" />
                     </TouchableOpacity>
-                    <TouchableOpacity className="w-10 h-10 bg-white/90 rounded-full items-center justify-center shadow-sm active:scale-95" onPress={() => {}}>
-                        <Heart size={20} color="#2D241E" />
+                    <TouchableOpacity className="w-10 h-10 bg-surface/90 rounded-full items-center justify-center shadow-sm active:scale-95" onPress={toggleSaved}>
+                        <Heart size={20} color={saved ? '#EF4444' : '#2D241E'} fill={saved ? '#EF4444' : 'transparent'} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -167,20 +212,22 @@ export default function MealDetailScreen() {
 
                     {/* Image Overlays */}
                     <View className="absolute bottom-12 left-6 flex-row items-center gap-2">
-                        <View className="bg-white/90 px-3 py-1.5 rounded-full shadow-sm flex-row items-center gap-1">
-                            <Star size={12} color="#D97706" fill="#D97706" />
-                            <Text className="text-sm font-bold text-text-main">4.8</Text>
-                        </View>
-                        <View className="bg-white/90 px-3 py-1.5 rounded-full shadow-sm flex-row items-center gap-1">
-                            <Heart size={12} color="#EF4444" fill="#EF4444" />
-                            <Text className="text-sm font-bold text-text-main">Save</Text>
-                        </View>
+                        {avgRating && (
+                            <View className="bg-surface/90 px-3 py-1.5 rounded-full shadow-sm flex-row items-center gap-1">
+                                <Star size={12} color="#D97706" fill="#D97706" />
+                                <Text className="text-sm font-bold text-text-main">{avgRating}</Text>
+                            </View>
+                        )}
+                        <TouchableOpacity className="bg-surface/90 px-3 py-1.5 rounded-full shadow-sm flex-row items-center gap-1" onPress={toggleSaved}>
+                            <Heart size={12} color="#EF4444" fill={saved ? '#EF4444' : 'transparent'} />
+                            <Text className="text-sm font-bold text-text-main">{saved ? 'Watching' : 'Watch'}</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
                 {/* Content Body */}
                 <View className="px-6 -mt-8 relative z-10">
-                    <View className="bg-white rounded-3xl p-6 shadow-lg overflow-hidden">
+                    <View className="bg-surface rounded-3xl p-6 shadow-lg overflow-hidden">
                         {/* Kente Border Top */}
                         <View className="flex-row h-1 absolute top-0 left-0 right-0">
                             <View className="flex-1 bg-kente-red" />
@@ -198,19 +245,25 @@ export default function MealDetailScreen() {
 
                                 {/* Quick Dish Info */}
                                 <View className="flex-row items-center gap-1.5 mt-1">
-                                    <View className="bg-orange-50 px-2 py-0.5 rounded flex-row items-center gap-1">
-                                        <Star size={12} color="#D97706" fill="#D97706" />
-                                        <Text className="text-xs font-bold text-amber-700 font-sans-bold">4.8</Text>
-                                    </View>
+                                    {avgRating && (
+                                        <View className="bg-orange-50 px-2 py-0.5 rounded flex-row items-center gap-1">
+                                            <Star size={12} color="#D97706" fill="#D97706" />
+                                            <Text className="text-xs font-bold text-amber-700 font-sans-bold">{avgRating}</Text>
+                                        </View>
+                                    )}
                                     <View className="flex-row items-center gap-1">
                                         <Users size={12} color="#6B7280" />
-                                        <Text className="text-xs text-text-sub font-sans">{listings.length} {listings.length === 1 ? 'cook' : 'cooks'}</Text>
+                                        <Text className="text-xs text-text-sub font-sans">{listings.length} {listings.length === 1 ? 'host' : 'hosts'}</Text>
                                     </View>
-                                    <Text className="text-gray-300 text-[10px]">•</Text>
-                                    <View className="flex-row items-center gap-1">
-                                        <Clock size={12} color="#6B7280" />
-                                        <Text className="text-xs text-text-sub font-sans">120 orders today</Text>
-                                    </View>
+                                    {totalServed > 0 && (
+                                        <>
+                                            <Text className="text-gray-300 text-[10px]">•</Text>
+                                            <View className="flex-row items-center gap-1">
+                                                <Clock size={12} color="#6B7280" />
+                                                <Text className="text-xs text-text-sub font-sans">{totalServed}+ served</Text>
+                                            </View>
+                                        </>
+                                    )}
                                 </View>
                             </View>
                             <View className="items-end">
@@ -242,70 +295,10 @@ export default function MealDetailScreen() {
 
                         <View className="h-[1px] bg-gray-100 w-full mb-6 mt-2" />
 
-                        {/* Join the Pot: Active Sessions */}
-                        {activeSessions.length > 0 && (
-                            <View className="mb-8 p-5 bg-clay-primary/5 rounded-3xl border border-clay-primary/10">
-                                <View className="flex-row items-center justify-between mb-4">
-                                    <View className="flex-row items-center gap-2">
-                                        <Flame size={20} color="#D65A31" fill="#D65A31" />
-                                        <Text className="font-bold text-text-main text-lg font-sans-bold">Join the Pot</Text>
-                                    </View>
-                                    <View className="bg-clay-primary px-2 py-0.5 rounded-full">
-                                        <Text className="text-white font-bold text-[10px] uppercase">Active</Text>
-                                    </View>
-                                </View>
-
-                                <View className="flex-col gap-3">
-                                    {activeSessions.map((session: any) => {
-                                        const dishName = session.listings?.title || session.title || 'Local Dish';
-                                        const sessionTitle = session.listings?.title || session.title;
-                                        return (
-                                            <TouchableOpacity
-                                                key={session.id}
-                                                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm"
-                                                onPress={() => router.push(`/session/${session.id}`)}
-                                            >
-                                                <View className="flex-row justify-between items-start mb-2">
-                                                    <View className="flex-1">
-                                                        <Text className="font-bold text-text-main font-sans-bold text-base" numberOfLines={1}>
-                                                            {sessionTitle}
-                                                        </Text>
-                                                        <Text className="text-xs text-text-sub font-sans mt-0.5">
-                                                            {session.session_date ? format(new Date(session.session_date), 'EEEE, MMM d') : 'Soon'} • {session.start_time?.slice(0, 5) ?? ''}
-                                                        </Text>
-                                                    </View>
-                                                    <Text className="text-clay-primary font-bold text-lg font-sans-bold">₵{session.price_per_plate}</Text>
-                                                </View>
-
-                                                <View className="flex-row items-center justify-between mt-2 pt-3 border-t border-gray-50">
-                                                    <View className="flex-row items-center gap-2">
-                                                        <Image
-                                                            source={{ uri: session.profiles?.avatar_url || 'https://via.placeholder.com/30' }}
-                                                            className="w-4 h-4 rounded-full"
-                                                        />
-                                                        <Text className="text-[10px] text-text-sub font-sans">by {session.profiles?.full_name}</Text>
-                                                    </View>
-                                                    <View className="flex-row items-center gap-1.5">
-                                                        <View className="h-1 w-16 bg-gray-100 rounded-full overflow-hidden">
-                                                            <View
-                                                                className="h-full bg-clay-primary"
-                                                                style={{ width: `${(session.filled_slots / session.total_slots) * 100}%` }}
-                                                            />
-                                                        </View>
-                                                        <Text className="text-[10px] text-text-sub font-sans">{session.filled_slots}/{session.total_slots}</Text>
-                                                    </View>
-                                                </View>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
-                                </View>
-                            </View>
-                        )}
-
                         {/* Marketplace View: Cooks making this dish */}
                         <View className="mb-4">
                             <View className="flex-row items-center gap-2">
-                                <Text className="font-bold text-text-main text-lg font-sans-bold">Cooks making this dish</Text>
+                                <Text className="font-bold text-text-main text-lg font-sans-bold">Hosts making this dish</Text>
                                 <View className="bg-clay-primary/10 px-2 py-0.5 rounded-full">
                                     <Text className="text-clay-primary font-bold text-xs">{listings.length}</Text>
                                 </View>
@@ -315,13 +308,13 @@ export default function MealDetailScreen() {
 
                         <View className="flex-col gap-3">
                             {listings.length === 0 && !isLoading && (
-                                <Text className="text-text-sub text-center py-4 font-sans">No cooks are currently making this dish.</Text>
+                                <Text className="text-text-sub text-center py-4 font-sans">No hosts are currently making this dish.</Text>
                             )}
 
                             {listings.map((cookItem: any, idx: number) => (
                                 <View
                                     key={cookItem.id}
-                                    className="flex-col p-4 rounded-3xl border border-gray-100 bg-white shadow-sm"
+                                    className="flex-col p-4 rounded-3xl border border-gray-100 bg-surface shadow-sm"
                                 >
                                     <View className="flex-row items-start mb-4">
                                         <View className="relative">
@@ -335,7 +328,7 @@ export default function MealDetailScreen() {
                                             <View className="flex-row justify-between items-start mb-1">
                                                 <View className="bg-orange-50 self-start px-2 py-0.5 rounded flex-row items-center gap-1">
                                                     <Star size={10} color="#D97706" fill="#D97706" />
-                                                    <Text className="text-[10px] font-bold text-amber-700 font-sans-bold uppercase">Top Rated Cook</Text>
+                                                    <Text className="text-[10px] font-bold text-amber-700 font-sans-bold uppercase">Top Rated Host</Text>
                                                 </View>
                                                 <Text className="font-bold text-text-main text-lg font-sans-bold">₵{cookItem.price}</Text>
                                             </View>
@@ -354,23 +347,43 @@ export default function MealDetailScreen() {
                                                 <Text className="text-gray-300 text-xs">•</Text>
                                                 <View className="flex-row items-center gap-0.5">
                                                     <Star size={10} color="#D97706" fill="#D97706" />
-                                                    <Text className="text-xs font-bold text-amber-700 font-sans-bold">5</Text>
+                                                    <Text className="text-xs font-bold text-amber-700 font-sans-bold">
+                                                        {cookItem.profiles?.rating ? Number(cookItem.profiles.rating).toFixed(1) : 'New'}
+                                                    </Text>
                                                 </View>
                                             </TouchableOpacity>
 
-                                            <View className="flex-row items-center gap-1 mt-1">
-                                                <Clock size={12} color="#6B7280" />
-                                                <Text className="text-xs text-text-sub font-sans">{cookItem.prep_time_minutes || 30} min</Text>
-                                            </View>
+                                            {!cookItem.order_deadline && (
+                                                <>
+                                                    <View className="flex-row items-center gap-1 mt-1">
+                                                        <Clock size={12} color="#6B7280" />
+                                                        <Text className="text-xs text-text-sub font-sans">{cookItem.prep_time_minutes || 30} min</Text>
+                                                    </View>
 
-                                            <View className="flex-row items-center gap-1 mt-1">
-                                                <View className="w-4 h-4 rounded-full bg-green-100 items-center justify-center">
-                                                    <Text className="text-green-700 text-[8px] font-bold">✓</Text>
-                                                </View>
-                                                <Text className="text-xs font-bold text-green-700 font-sans-bold">{cookItem.status === 'available' ? 'Ready Now' : 'Cooking'}</Text>
-                                            </View>
+                                                    <View className="flex-row items-center gap-1 mt-1">
+                                                        <View className="w-4 h-4 rounded-full bg-green-100 items-center justify-center">
+                                                            <Text className="text-green-700 text-[8px] font-bold">✓</Text>
+                                                        </View>
+                                                        <Text className="text-xs font-bold text-green-700 font-sans-bold">{cookItem.available ? 'Ready Now' : 'Cooking'}</Text>
+                                                    </View>
+                                                </>
+                                            )}
                                         </View>
                                     </View>
+
+                                    {cookItem.order_deadline && (() => {
+                                        const booked = potOrderCounts[cookItem.id] || 0;
+                                        const totalSeats = (cookItem.portions_available || 0) + booked;
+                                        return (
+                                            <View className="bg-clay-primary/5 rounded-2xl p-3 mb-3 flex-row items-center gap-2">
+                                                <Flame size={14} color="#D65A31" />
+                                                <Text className="text-xs text-text-main font-sans flex-1">
+                                                    <Text className="font-bold">{formatPotCountdown(cookItem.order_deadline)}</Text>
+                                                    {` · ${cookItem.portions_available} of ${totalSeats} seats remaining`}
+                                                </Text>
+                                            </View>
+                                        );
+                                    })()}
 
                                     <View className="flex-row items-center justify-between border-t border-gray-50 pt-4">
                                         <Text className="text-text-main font-bold text-xl font-sans-bold">₵{cookItem.price}</Text>
@@ -425,7 +438,7 @@ export default function MealDetailScreen() {
                             className="flex-row items-center justify-between p-4 rounded-2xl"
                         >
                             <View className="flex-row items-center gap-3">
-                                <View className="bg-white/20 p-2 rounded-xl">
+                                <View className="bg-surface/20 p-2 rounded-xl">
                                     <ShoppingCart size={20} color="white" />
                                 </View>
                                 <View>

@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-    View, Text, Image, TouchableOpacity, TextInput,
-    KeyboardAvoidingView, Platform, ScrollView, Alert,
+    View, Text, TouchableOpacity, TextInput,
+    KeyboardAvoidingView, Platform, Alert,
     ActivityIndicator, Pressable, Modal, FlatList, Animated, Keyboard,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Phone, ArrowRight, ChevronLeft, Shield, Users, MapPin, Search, X, ChefHat } from 'lucide-react-native';
+import { Phone, ArrowRight, ChevronLeft, Search, X } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { OnboardingHeader } from '@/components/ui/OnboardingHeader';
 import { Button } from '@/components/ui/Button';
 import ProcessLoader from '@/components/ProcessLoader';
+import { hasPrimedPermissions } from '@/lib/permissionsOnboarding';
 
 const COUNTRIES = [
     { code: '+233', flag: '🇬🇭', name: 'Ghana' },
@@ -47,13 +46,18 @@ const COUNTRIES = [
     { code: '+52', flag: '🇲🇽', name: 'Mexico' },
 ];
 
-type AuthMode = 'welcome' | 'phone' | 'otp' | 'name' | 'splash';
+type AuthMode = 'phone' | 'otp' | 'name' | 'splash';
+type AuthMethod = 'phone' | 'email';
+
+const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
 export default function AuthScreen() {
     const router = useRouter();
     const { setCookMode, setUserName: setStoreName } = useAppStore();
-    const [mode, setMode] = useState<AuthMode>('welcome');
+    const [mode, setMode] = useState<AuthMode>('phone');
+    const [authMethod, setAuthMethod] = useState<AuthMethod>('phone');
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [email, setEmail] = useState('');
     const [otp, setOtp] = useState(['', '', '', '', '', '']);
     const [loading, setLoading] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
@@ -61,6 +65,7 @@ export default function AuthScreen() {
     const [countrySearch, setCountrySearch] = useState('');
     const [resendCooldown, setResendCooldown] = useState(0);
     const [lastSentPhone, setLastSentPhone] = useState<string | null>(null);
+    const [lastSentEmail, setLastSentEmail] = useState<string | null>(null);
     const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const autoVerifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [userName, setUserName] = useState('');
@@ -70,6 +75,9 @@ export default function AuthScreen() {
     useEffect(() => {
         AsyncStorage.getItem('lastPhoneNumber').then(saved => {
             if (saved) setPhoneNumber(saved);
+        });
+        AsyncStorage.getItem('lastEmail').then(saved => {
+            if (saved) setEmail(saved);
         });
     }, []);
 
@@ -140,14 +148,25 @@ export default function AuthScreen() {
     };
 
     const handleSendCode = async () => {
-        if (phoneNumber.length < 9 || resendCooldown > 0) return;
+        if (authMethod === 'phone') {
+            if (phoneNumber.length < 9 || resendCooldown > 0) return;
+        } else {
+            if (!isValidEmail(email) || resendCooldown > 0) return;
+        }
         setLoading(true);
         try {
-            const fullPhone = getFullPhoneNumber();
-            const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
-            if (error) throw error;
-            AsyncStorage.setItem('lastPhoneNumber', phoneNumber);
-            setLastSentPhone(fullPhone);
+            if (authMethod === 'phone') {
+                const fullPhone = getFullPhoneNumber();
+                const { error } = await supabase.auth.signInWithOtp({ phone: fullPhone });
+                if (error) throw error;
+                AsyncStorage.setItem('lastPhoneNumber', phoneNumber);
+                setLastSentPhone(fullPhone);
+            } else {
+                const { error } = await supabase.auth.signInWithOtp({ email });
+                if (error) throw error;
+                AsyncStorage.setItem('lastEmail', email);
+                setLastSentEmail(email);
+            }
             setMode('otp');
             startCooldown();
         } catch (error: any) {
@@ -162,8 +181,9 @@ export default function AuthScreen() {
         setLoading(true);
         try {
             const token = otp.join('');
-            const fullPhone = lastSentPhone || getFullPhoneNumber();
-            const { data, error } = await supabase.auth.verifyOtp({ phone: fullPhone, token, type: 'sms' });
+            const { data, error } = authMethod === 'phone'
+                ? await supabase.auth.verifyOtp({ phone: lastSentPhone || getFullPhoneNumber(), token, type: 'sms' })
+                : await supabase.auth.verifyOtp({ email: lastSentEmail || email, token, type: 'email' });
             if (error) throw error;
             if (data.session?.user) {
                 const { data: profile, error: profileError } = await supabase
@@ -175,13 +195,14 @@ export default function AuthScreen() {
                 if (profile?.full_name) {
                     setStoreName(profile.full_name);
                     setCookMode(false);
-                    setTimeout(() => { router.replace('/(tabs)'); }, 100);
+                    const primed = await hasPrimedPermissions();
+                    setTimeout(() => { router.replace(primed ? '/(tabs)' : '/onboarding/permissions'); }, 100);
                 } else {
                     setMode('name');
                 }
             }
         } catch (error: any) {
-            Alert.alert('Incorrect Code', "That code didn't work. Check your messages and try again.", [
+            Alert.alert('Incorrect Code', `That code didn't work. Check your ${authMethod === 'phone' ? 'messages' : 'inbox'} and try again.`, [
                 { text: 'Clear & Retry', onPress: () => { setOtp(['', '', '', '', '', '']); setTimeout(() => otpRefs.current[0]?.focus(), 100); } },
                 { text: 'OK', style: 'cancel' }
             ]);
@@ -199,7 +220,7 @@ export default function AuthScreen() {
             setUserName(fullName);
             setStoreName(fullName);
             const { error } = await supabase.from('profiles').upsert({
-                id: user.id, full_name: fullName, phone: getFullPhoneNumber(), role: 'EATER', updated_at: new Date(),
+                id: user.id, full_name: fullName, phone: authMethod === 'phone' ? getFullPhoneNumber() : null, role: 'EATER', updated_at: new Date(),
             });
             if (error) throw error;
             setCookMode(false);
@@ -208,117 +229,94 @@ export default function AuthScreen() {
                 Animated.timing(splashOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
                 Animated.spring(splashScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
             ]).start();
-            setTimeout(() => { router.replace('/(tabs)'); }, 2500);
+            const primed = await hasPrimedPermissions();
+            setTimeout(() => { router.replace(primed ? '/(tabs)' : '/onboarding/permissions'); }, 2500);
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to save profile');
         } finally {
             setLoading(false);
         }
-    }, [phoneNumber]);
+    }, [phoneNumber, authMethod]);
 
     const handleBackToOtp = useCallback(() => setMode('otp'), []);
 
     return (
         <>
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#FFF8F6' }} edges={['top', 'bottom']}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#F8E4DD' }} edges={['top', 'bottom']}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
 
-                        {mode === 'welcome' ? (
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                                <OnboardingHeader currentStep={3} totalSteps={3} />
-
-                                {/* Hero Image */}
-                                <View style={{ marginHorizontal: 20, marginTop: 12, height: 300, borderRadius: 20, overflow: 'hidden' }}>
-                                    <Image
-                                        source={require('@/assets/images/dishes/jollof_rice_chicken.jpg')}
-                                        style={{ width: '100%', height: '100%' }}
-                                        resizeMode="cover"
-                                    />
-                                    <LinearGradient
-                                        colors={['transparent', 'rgba(35,25,21,0.68)']}
-                                        start={{ x: 0.5, y: 0.3 }}
-                                        end={{ x: 0.5, y: 1 }}
-                                        style={{ position: 'absolute', inset: 0 }}
-                                    />
-                                    <View style={{ position: 'absolute', top: 14, left: 14, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999 }}>
-                                        <ChefHat size={12} color="white" />
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', letterSpacing: 0.3 }}>Verified Home Cooks</Text>
-                                    </View>
-                                    <View style={{ position: 'absolute', bottom: 18, left: 18, right: 18 }}>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: 'white', lineHeight: 29, letterSpacing: -0.3 }}>
-                                            Authentic Ghanaian meals,{'\n'}
-                                            <Text style={{ color: '#FFB598' }}>made with love.</Text>
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                <View style={{ paddingHorizontal: 20, paddingTop: 24, gap: 16 }}>
-                                    {/* Benefit cards */}
-                                    {[
-                                        { icon: MapPin, color: '#BF592B', bg: '#FFF1EC', title: 'Find Home Cooks Nearby', sub: 'Authentic Ghanaian meals in your area' },
-                                        { icon: Users, color: '#006A3C', bg: '#F0FFF8', title: 'Join the Community', sub: '2,000+ cooks & food lovers' },
-                                        { icon: Shield, color: '#84523C', bg: '#FFF8F6', title: 'Safe & Secure', sub: 'Verified cooks, secure payments' },
-                                    ].map(({ icon: Icon, color, bg, title, sub }) => (
-                                        <View key={title} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: 'white', padding: 16, borderRadius: 16, shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 }}>
-                                            <View style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
-                                                <Icon size={20} color={color} />
-                                            </View>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#231915' }}>{title}</Text>
-                                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#56423B', marginTop: 2 }}>{sub}</Text>
-                                            </View>
-                                        </View>
-                                    ))}
-
-                                    <View style={{ marginTop: 8 }}>
-                                        <Button
-                                            label="Continue with Phone"
-                                            onPress={() => setMode('phone')}
-                                            showArrow
-                                        />
-                                    </View>
-
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#8A7269', textAlign: 'center', paddingBottom: 24, lineHeight: 18 }}>
-                                        By continuing, you agree to our Terms of Service and Privacy Policy
-                                    </Text>
-                                </View>
-                            </ScrollView>
-
-                        ) : mode === 'phone' ? (
+                        {mode === 'phone' ? (
                             <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}>
-                                <TouchableOpacity style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }} onPress={() => setMode('welcome')}>
+                                <TouchableOpacity style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }} onPress={() => router.back()}>
                                     <ChevronLeft size={22} color="#231915" />
                                 </TouchableOpacity>
 
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>Enter your number</Text>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 32 }}>We'll send you a verification code</Text>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>
+                                    {authMethod === 'phone' ? 'Enter your number' : 'Enter your email'}
+                                </Text>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 20 }}>We'll send you a verification code</Text>
 
-                                <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-                                    <TouchableOpacity
-                                        style={{ height: 54, paddingHorizontal: 14, backgroundColor: 'white', borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#DDC1B6' }}
-                                        onPress={() => setShowCountryPicker(true)}
-                                    >
-                                        <Text style={{ fontSize: 18 }}>{selectedCountry.flag}</Text>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: '#231915' }}>{selectedCountry.code}</Text>
-                                        <Text style={{ color: '#8A7269', fontSize: 11 }}>▼</Text>
-                                    </TouchableOpacity>
+                                <View style={{ flexDirection: 'row', backgroundColor: '#F2DFD7', borderRadius: 14, padding: 4, marginBottom: 20 }}>
+                                    {(['phone', 'email'] as const).map((methodOption) => (
+                                        <TouchableOpacity
+                                            key={methodOption}
+                                            onPress={() => setAuthMethod(methodOption)}
+                                            style={{
+                                                flex: 1, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+                                                backgroundColor: authMethod === methodOption ? '#F7EEE7' : 'transparent',
+                                            }}
+                                        >
+                                            <Text style={{
+                                                fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14,
+                                                color: authMethod === methodOption ? '#231915' : '#8A7269',
+                                            }}>
+                                                {methodOption === 'phone' ? 'Phone' : 'Email'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
 
-                                    <View style={{ flex: 1, height: 54, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center' }}>
+                                {authMethod === 'phone' ? (
+                                    <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+                                        <TouchableOpacity
+                                            style={{ height: 54, paddingHorizontal: 14, backgroundColor: '#F7EEE7', borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#DDC1B6' }}
+                                            onPress={() => setShowCountryPicker(true)}
+                                        >
+                                            <Text style={{ fontSize: 18 }}>{selectedCountry.flag}</Text>
+                                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: '#231915' }}>{selectedCountry.code}</Text>
+                                            <Text style={{ color: '#8A7269', fontSize: 11 }}>▼</Text>
+                                        </TouchableOpacity>
+
+                                        <View style={{ flex: 1, height: 54, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center' }}>
+                                            <TextInput
+                                                placeholder="24 123 4567"
+                                                placeholderTextColor="#8A7269"
+                                                keyboardType="phone-pad"
+                                                value={formatPhoneDisplay(phoneNumber)}
+                                                onChangeText={(text) => setPhoneNumber(text.replace(/\s/g, ''))}
+                                                maxLength={15}
+                                                style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, color: '#231915' }}
+                                            />
+                                        </View>
+                                    </View>
+                                ) : (
+                                    <View style={{ height: 54, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                                         <TextInput
-                                            placeholder="24 123 4567"
+                                            placeholder="you@example.com"
                                             placeholderTextColor="#8A7269"
-                                            keyboardType="phone-pad"
-                                            value={formatPhoneDisplay(phoneNumber)}
-                                            onChangeText={(text) => setPhoneNumber(text.replace(/\s/g, ''))}
-                                            maxLength={15}
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            value={email}
+                                            onChangeText={setEmail}
                                             style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, color: '#231915' }}
                                         />
                                     </View>
-                                </View>
+                                )}
 
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269', marginBottom: 32 }}>
-                                    Standard SMS rates may apply
+                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269', marginBottom: 20 }}>
+                                    {authMethod === 'phone' ? 'Standard SMS rates may apply' : "We'll email you a 6-digit code"}
                                 </Text>
 
                                 <View style={{ flex: 1 }} />
@@ -328,7 +326,7 @@ export default function AuthScreen() {
                                     onPress={handleSendCode}
                                     showArrow
                                     loading={loading}
-                                    disabled={phoneNumber.length < 7}
+                                    disabled={authMethod === 'phone' ? phoneNumber.length < 7 : !isValidEmail(email)}
                                 />
                             </View>
 
@@ -338,16 +336,20 @@ export default function AuthScreen() {
                                     <ChevronLeft size={22} color="#231915" />
                                 </TouchableOpacity>
 
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>Verify your number</Text>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>
+                                    {authMethod === 'phone' ? 'Verify your number' : 'Verify your email'}
+                                </Text>
                                 <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 32, lineHeight: 22 }}>
                                     Enter the 6-digit code sent to{'\n'}
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', color: '#231915' }}>{selectedCountry.code} {formatPhoneDisplay(phoneNumber)}</Text>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', color: '#231915' }}>
+                                        {authMethod === 'phone' ? `${selectedCountry.code} ${formatPhoneDisplay(phoneNumber)}` : email}
+                                    </Text>
                                 </Text>
 
                                 {/* OTP Grid */}
                                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 28 }}>
                                     {otp.map((digit, index) => (
-                                        <View key={index} style={{ flex: 1, height: 56, backgroundColor: digit ? '#FFF1EC' : 'white', borderRadius: 14, borderWidth: 1.5, borderColor: digit ? '#BF592B' : '#DDC1B6', alignItems: 'center', justifyContent: 'center' }}>
+                                        <View key={index} style={{ flex: 1, height: 56, backgroundColor: digit ? '#FFF1EC' : '#F7EEE7', borderRadius: 14, borderWidth: 1.5, borderColor: digit ? '#BF592B' : '#DDC1B6', alignItems: 'center', justifyContent: 'center' }}>
                                             <TextInput
                                                 ref={ref => { otpRefs.current[index] = ref; }}
                                                 value={digit}
@@ -415,7 +417,7 @@ export default function AuthScreen() {
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={{ marginHorizontal: 20, marginBottom: 12, height: 48, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: '#DDC1B6' }}>
+                            <View style={{ marginHorizontal: 20, marginBottom: 12, height: 48, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: '#DDC1B6' }}>
                                 <Search size={16} color="#8A7269" />
                                 <TextInput
                                     placeholder="Search country..."
@@ -472,14 +474,14 @@ const UserProfileForm = React.memo(({ onBack, onSubmit, loading }: { onBack: () 
             </TouchableOpacity>
 
             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>What's your name?</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 32 }}>So cooks know who's ordering</Text>
+            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 32 }}>So hosts know who's ordering</Text>
 
             <View style={{ gap: 12, marginBottom: 32 }}>
                 {[
                     { value: firstName, setter: setFirstName, placeholder: 'First name' },
                     { value: lastName, setter: setLastName, placeholder: 'Last name' },
                 ].map(({ value, setter, placeholder }) => (
-                    <View key={placeholder} style={{ height: 54, backgroundColor: 'white', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: value ? '#BF592B' : '#DDC1B6', justifyContent: 'center' }}>
+                    <View key={placeholder} style={{ height: 54, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: value ? '#BF592B' : '#DDC1B6', justifyContent: 'center' }}>
                         <TextInput
                             placeholder={placeholder}
                             placeholderTextColor="#8A7269"

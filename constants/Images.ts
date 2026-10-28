@@ -38,6 +38,12 @@ export const getDishImage = (name: string, fallbackUrl?: string | null) => {
     );
     const safeUrl = isUnsplashOrPlaceholder ? null : firstUrl;
 
+    // A cook's own uploaded photo always wins — the name-matched stock photo
+    // is only a fallback for listings with no real image at all.
+    if (safeUrl) {
+        return { uri: safeUrl };
+    }
+
     if (name) {
         const lowerName = name.toLowerCase().trim();
         // Try exact match or partial match
@@ -46,10 +52,6 @@ export const getDishImage = (name: string, fallbackUrl?: string | null) => {
                 return asset;
             }
         }
-    }
-
-    if (safeUrl) {
-        return { uri: safeUrl };
     }
 
     // Default to a premium local asset (Ghanaian Jollof Rice) if no custom user upload and no match

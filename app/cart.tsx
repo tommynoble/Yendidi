@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, ShoppingCart, CheckCircle, Home, Receipt, ShieldCheck, Minus, Plus, Trash2, Smartphone, CreditCard } from 'lucide-react-native';
+import { ChevronLeft, ShoppingCart, CheckCircle, Home, Receipt, ShieldCheck, Minus, Plus, Trash2, Smartphone, CreditCard, Tag, X, Check, MessageSquare } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +20,15 @@ const splitItemName = (name: string): { title: string; option: string | null } =
 };
 
 type PaymentMethod = 'momo' | 'card';
+
+const describePromoError = (reason: 'not_found' | 'inactive' | 'expired' | 'exhausted' | 'already_used') => {
+    switch (reason) {
+        case 'expired': return 'This code has expired';
+        case 'exhausted': return 'This code has reached its usage limit';
+        case 'already_used': return "You've already used this code";
+        default: return 'Invalid or expired code';
+    }
+};
 
 const PAYMENT_OPTIONS = [
     {
@@ -48,6 +57,10 @@ export default function CartScreen() {
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
     const [loading, setLoading] = useState(false);
     const [userEmail, setUserEmail] = useState<string | null>(null);
+    const [promoInput, setPromoInput] = useState('');
+    const [appliedPromo, setAppliedPromo] = useState<{ code: string; percent: number } | null>(null);
+    const [promoError, setPromoError] = useState('');
+    const [orderNotes, setOrderNotes] = useState('');
     const { popup } = usePaystack();
     const insets = useSafeAreaInsets();
 
@@ -59,7 +72,64 @@ export default function CartScreen() {
         }
     };
 
-    const total = getCartTotal();
+    const subtotal = getCartTotal();
+    const discount = appliedPromo ? subtotal * (appliedPromo.percent / 100) : 0;
+    const total = subtotal - discount;
+
+    const [checkingPromo, setCheckingPromo] = useState(false);
+
+    const handleApplyPromo = async () => {
+        const code = promoInput.trim().toUpperCase();
+        if (!code) return;
+        setCheckingPromo(true);
+        setAppliedPromo(null);
+        try {
+            const { data: promo, error } = await supabase
+                .from('promo_codes')
+                .select('*')
+                .eq('code', code)
+                .eq('active', true)
+                .maybeSingle();
+
+            if (error || !promo) {
+                setPromoError(describePromoError('not_found'));
+                return;
+            }
+            if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+                setPromoError(describePromoError('expired'));
+                return;
+            }
+            if (promo.max_redemptions != null && promo.redemption_count >= promo.max_redemptions) {
+                setPromoError(describePromoError('exhausted'));
+                return;
+            }
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: existingRedemption } = await supabase
+                    .from('promo_redemptions')
+                    .select('id')
+                    .eq('code', code)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                if (existingRedemption) {
+                    setPromoError(describePromoError('already_used'));
+                    return;
+                }
+            }
+
+            setAppliedPromo({ code: promo.code, percent: promo.discount_percent });
+            setPromoError('');
+        } finally {
+            setCheckingPromo(false);
+        }
+    };
+
+    const handleRemovePromo = () => {
+        setAppliedPromo(null);
+        setPromoInput('');
+        setPromoError('');
+    };
 
     // Get user info for Paystack
     useEffect(() => {
@@ -81,7 +151,6 @@ export default function CartScreen() {
             Alert.alert('Cart Empty', 'Add some meals to your cart first!');
             return;
         }
-
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             router.push('/login');
@@ -108,8 +177,14 @@ export default function CartScreen() {
                         cooksMap.set(item.cookId, existing);
                     });
 
+                    const noteParts = [
+                        orderNotes.trim() || null,
+                        appliedPromo ? `Promo applied: ${appliedPromo.code} (-${appliedPromo.percent}%)` : null,
+                    ].filter(Boolean);
+
                     for (const [cookId, items] of cooksMap) {
-                        const orderTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                        const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+                        const orderTotal = appliedPromo ? rawTotal * (1 - appliedPromo.percent / 100) : rawTotal;
 
                         const { data: order, error: orderError } = await supabase
                             .from('orders')
@@ -119,9 +194,11 @@ export default function CartScreen() {
                                 status: 'New',
                                 total: orderTotal,
                                 delivery_method: 'Dine-in',
+                                delivery_address: null,
                                 payment_reference: response.reference || reference,
                                 payment_method: paymentMethod,
                                 payment_status: 'success',
+                                notes: noteParts.length > 0 ? noteParts.join(' · ') : null,
                             })
                             .select()
                             .single();
@@ -162,7 +239,16 @@ export default function CartScreen() {
                         }
                     }
 
+                    if (appliedPromo) {
+                        await supabase.from('promo_redemptions').insert({
+                            code: appliedPromo.code,
+                            user_id: user.id,
+                        });
+                    }
+
                     clearCart();
+                    handleRemovePromo();
+                    setOrderNotes('');
                     Alert.alert(
                         "Payment Successful! 🎉",
                         `Your order has been sent to the cook${cooksMap.size > 1 ? 's' : ''}.\nPayment: ${selectedOption?.name}\nRef: ${(response.reference || reference).slice(0, 15)}...`,
@@ -186,9 +272,9 @@ export default function CartScreen() {
     // Empty Cart
     if (cartItems.length === 0) {
         return (
-            <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+            <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
                 <View className="flex-1 bg-warm-cream">
-                <View className="flex-row items-center px-6 py-4 bg-white border-b border-gray-100">
+                <View className="flex-row items-center px-6 py-4 bg-surface border-b border-gray-100">
                     <TouchableOpacity onPress={() => handleBack()} className="mr-4">
                         <ChevronLeft size={28} color="#2D241E" />
                     </TouchableOpacity>
@@ -197,7 +283,7 @@ export default function CartScreen() {
                 <View className="flex-1 items-center justify-center px-8">
                     <ShoppingCart size={64} color="#D4D4D4" />
                     <Text className="text-xl font-bold text-text-main mt-6 mb-2 font-sans-bold">Your cart is empty</Text>
-                    <Text className="text-text-sub text-center font-sans mb-8">Explore meals from local cooks and add them to your cart!</Text>
+                    <Text className="text-text-sub text-center font-sans mb-8">Explore meals from local hosts and add them to your cart!</Text>
                     <TouchableOpacity
                         className="bg-clay-primary px-8 py-4 rounded-2xl active:scale-95"
                         onPress={() => router.replace('/(tabs)')}
@@ -211,10 +297,10 @@ export default function CartScreen() {
     }
 
     return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
             <View className="flex-1 bg-warm-cream">
             {/* Header */}
-            <View className="flex-row items-center justify-between px-4 py-4 bg-white border-b border-gray-100">
+            <View className="flex-row items-center justify-between px-4 py-4 bg-surface border-b border-gray-100">
                 <TouchableOpacity onPress={() => handleBack()} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <ChevronLeft size={24} color="#BF592B" />
                 </TouchableOpacity>
@@ -226,7 +312,7 @@ export default function CartScreen() {
 
                 {/* Order Summary */}
                 <View className="px-6 pt-6">
-                    <View className="bg-white rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 }}>
+                    <View className="bg-surface rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                         <View className="flex-row items-center justify-between mb-5">
                             <View className="flex-row items-center gap-2">
                                 <Receipt size={18} color="#BF592B" />
@@ -258,7 +344,7 @@ export default function CartScreen() {
                                             <View className="flex-row items-center justify-between mt-3">
                                                 <View className="flex-row items-center gap-3 bg-gray-50 px-2 py-1.5 rounded-full border border-gray-100">
                                                     <TouchableOpacity
-                                                        className="w-7 h-7 rounded-full bg-white items-center justify-center"
+                                                        className="w-7 h-7 rounded-full bg-surface items-center justify-center"
                                                         onPress={() => updateQuantity(item.id, item.quantity - 1)}
                                                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                                     >
@@ -287,10 +373,85 @@ export default function CartScreen() {
                         </View>
 
                         <View className="h-[1px] bg-gray-100 my-4" />
+
+                        {/* Promo Code */}
+                        {appliedPromo ? (
+                            <View className="flex-row items-center justify-between bg-green-50 border border-green-200 rounded-2xl px-4 py-3 mb-4">
+                                <View className="flex-row items-center gap-2">
+                                    <Check size={16} color="#007A33" />
+                                    <Text className="text-kente-green font-bold font-sans-bold text-sm">{appliedPromo.code} applied — {appliedPromo.percent}% off</Text>
+                                </View>
+                                <TouchableOpacity onPress={handleRemovePromo} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <X size={16} color="#007A33" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View className="mb-4">
+                                <View className="flex-row gap-2">
+                                    <View className="flex-1 flex-row items-center gap-2 bg-gray-50 rounded-xl px-3 border border-gray-100">
+                                        <Tag size={14} color="#8A7269" />
+                                        <TextInput
+                                            placeholder="Promo code"
+                                            placeholderTextColor="#9CA3AF"
+                                            autoCapitalize="characters"
+                                            className="flex-1 py-3 text-text-main font-sans text-sm"
+                                            value={promoInput}
+                                            onChangeText={(t) => { setPromoInput(t); setPromoError(''); }}
+                                        />
+                                    </View>
+                                    <TouchableOpacity
+                                        onPress={handleApplyPromo}
+                                        disabled={!promoInput.trim() || checkingPromo}
+                                        className={`px-5 rounded-xl items-center justify-center ${promoInput.trim() ? 'bg-clay-primary' : 'bg-gray-200'}`}
+                                    >
+                                        {checkingPromo
+                                            ? <ActivityIndicator size="small" color="white" />
+                                            : <Text className="text-white font-bold font-sans-bold text-sm">Apply</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                                {promoError ? (
+                                    <Text className="text-red-500 text-xs font-sans mt-1.5">{promoError}</Text>
+                                ) : null}
+                            </View>
+                        )}
+
+                        {appliedPromo ? (
+                            <View className="gap-1.5 mb-1">
+                                <View className="flex-row justify-between items-center">
+                                    <Text className="text-sm text-text-sub font-sans">Subtotal</Text>
+                                    <Text className="text-sm text-text-main font-sans">₵{subtotal.toFixed(2)}</Text>
+                                </View>
+                                <View className="flex-row justify-between items-center">
+                                    <Text className="text-sm text-kente-green font-sans">Discount (-{appliedPromo.percent}%)</Text>
+                                    <Text className="text-sm text-kente-green font-sans">-₵{discount.toFixed(2)}</Text>
+                                </View>
+                            </View>
+                        ) : null}
+
                         <View className="flex-row justify-between items-center">
                             <Text className="text-label-lg font-label-lg text-text-sub uppercase tracking-wider font-sans-bold">Total Amount</Text>
                             <Text className="text-headline-md font-headline-md text-clay-primary font-sans-bold">₵{total.toFixed(2)}</Text>
                         </View>
+                    </View>
+                </View>
+
+                {/* Delivery Method */}
+                <View className="px-6 mt-6">
+                    <Text className="text-title-lg font-title-lg text-text-main mb-4 font-sans-bold">How will you get your food?</Text>
+                    <View className="flex-row items-center gap-3 bg-clay-primary/5 border-2 border-clay-primary rounded-2xl py-3 px-4 mb-4">
+                        <Home size={20} color="#BF592B" />
+                        <Text className="text-sm font-sans-bold text-clay-primary">Dine-in — you'll eat at the host's home</Text>
+                    </View>
+
+                    <View className="flex-row items-center gap-2 bg-surface rounded-2xl px-4 border border-gray-100">
+                        <MessageSquare size={14} color="#8A7269" />
+                        <TextInput
+                            placeholder="Add a note for the host (optional)"
+                            placeholderTextColor="#9CA3AF"
+                            className="flex-1 py-3 text-text-main font-sans text-sm"
+                            value={orderNotes}
+                            onChangeText={setOrderNotes}
+                        />
                     </View>
                 </View>
 
@@ -305,7 +466,7 @@ export default function CartScreen() {
                         return (
                             <View
                                 key={option.id}
-                                className={`bg-white rounded-3xl mb-3 border-2 ${selected ? 'border-clay-primary' : 'border-gray-100'}`}
+                                className={`bg-surface rounded-3xl mb-3 border-2 ${selected ? 'border-clay-primary' : 'border-gray-100'}`}
                             >
                                 <TouchableOpacity
                                     className="p-4 flex-row items-center gap-4"
@@ -349,14 +510,14 @@ export default function CartScreen() {
                             <View className="flex-row items-center gap-2 mb-1">
                                 <Home size={16} color="#fff" />
                                 <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#fff', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                                    Dine with the Cook
+                                    Dine with the Host
                                 </Text>
                             </View>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#fff' }}>
                                 Savor the moment.
                             </Text>
                             <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
-                                You'll eat at the cook's home — a true Ghanaian experience.
+                                You'll eat at the host's home — a true Ghanaian experience.
                             </Text>
                         </LinearGradient>
                     </View>
@@ -365,7 +526,7 @@ export default function CartScreen() {
 
             {/* Bottom Bar - Place Order */}
             <View
-                className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-6 pt-4"
+                className="absolute bottom-0 left-0 right-0 bg-surface border-t border-gray-100 px-6 pt-4"
                 style={{ paddingBottom: insets.bottom + 16 }}
             >
                 <View className="flex-row justify-between items-center mb-3">

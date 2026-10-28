@@ -8,6 +8,7 @@ module.exports = {
         // so existing classNames across all screens continue to work.
         'clay-primary':   '#BF592B', // was #D65A31 → Roasted Clay primary
         'brand-cream':    '#FFF8F6', // was #FDFBF7 → design system surface
+        surface:          '#F7EEE7', // warm greige replacing pure white card/surface backgrounds
         text: {
           main: '#231915', // was #2D241E → on-surface
           sub:  '#56423B', // was #6D6D6D → on-surface-variant
@@ -16,7 +17,7 @@ module.exports = {
           brown: '#4E342E', // kept
         },
         warm: {
-          cream: '#FFF8F6', // was #FAF7F2
+          cream: '#F8E4DD', // matches Home screen background
         },
         kente: {
           red:    '#BF592B', // remapped to primary

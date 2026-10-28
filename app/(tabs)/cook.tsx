@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Store, Truck, Calendar, Info, Star, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation, Lock, Wheat, Soup, Flame, Apple, Fish, Cake, Leaf, Sprout, Minus, Utensils, Save } from 'lucide-react-native';
+import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Calendar, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation, Lock, Wheat, Soup, Flame, Apple, Fish, Cake, Leaf, Sprout, Utensils, Save } from 'lucide-react-native';
 
 const CATEGORY_ICONS: { [key: string]: React.ComponentType<any> } = {
   'Rice Dishes': Wheat,
@@ -22,11 +22,8 @@ import * as Location from 'expo-location';
 import { decode } from 'base64-arraybuffer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProcessLoader from '@/components/ProcessLoader';
-
-const PAST_ORDERS = [
-  { id: '101', name: 'Waakye with Wele', date: 'Yesterday', price: 35 },
-  { id: '102', name: 'Fried Yam & Titus', date: 'Last Week', price: 25 },
-];
+import { format, parseISO } from 'date-fns';
+import { DAYS, TIME_PRESETS, MIN_GAP_DAYS, MAX_SESSIONS, SESSION_SERVING_CAP, nextDateForWeekday, isTooCloseToExistingSessions } from '@/lib/schedule';
 
 const PREP_TIMES = [
   { label: '15 min', value: 15 },
@@ -34,6 +31,151 @@ const PREP_TIMES = [
   { label: '45 min', value: 45 },
   { label: '60 min', value: 60 },
 ];
+
+// Lets a cook pick which scheduled session a pot belongs to, or set one up
+// right here — no separate screen — since most cooks won't have one yet
+// the first time they post a dish. Styled as its own orange card (like the
+// old "Join the Pot" design) so it reads as a distinct, required step —
+// session and listing are separate concepts, but a listing can't publish
+// without one.
+function SessionPicker({ sessions, selectedId, onSelect, editId, onSessionCreated }: {
+  sessions: any[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  editId?: string;
+  onSessionCreated: (id: string) => void;
+}) {
+  const [showAdd, setShowAdd] = useState(sessions.length === 0);
+  const [day, setDay] = useState<number | null>(null);
+  const [time, setTime] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  const canAddMore = sessions.length < MAX_SESSIONS;
+
+  const handleCreate = async () => {
+    if (day === null || !time) {
+      Alert.alert('Incomplete', 'Pick a day and time for your host day.');
+      return;
+    }
+    const candidateDate = nextDateForWeekday(day);
+    if (isTooCloseToExistingSessions(candidateDate, sessions)) {
+      Alert.alert('Too Close', `Cooking sessions need at least ${MIN_GAP_DAYS} full days between them.`);
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not logged in');
+      const { data, error } = await supabase
+        .from('cook_sessions')
+        .insert({
+          cook_id: user.id,
+          session_date: candidateDate.toISOString().split('T')[0],
+          start_time: `${time}:00`,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      setShowAdd(false);
+      setDay(null);
+      setTime(null);
+      onSessionCreated(data.id);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <View className="bg-clay-primary rounded-3xl p-5">
+      <View className="flex-row items-center gap-2 mb-1">
+        <View className="w-8 h-8 rounded-full items-center justify-center bg-surface/20">
+          <Calendar size={16} color="white" />
+        </View>
+        <Text className="text-base font-bold font-sans-bold text-white">Host Day</Text>
+      </View>
+      <Text className="text-xs text-white/80 font-sans leading-relaxed mb-4">
+        Each host day is one dish, fixed at {SESSION_SERVING_CAP} portions — the host day is when you're cooking, the dish is what you're serving. Every dish needs one attached before it can go live.
+      </Text>
+
+      {showAdd ? (
+        <View>
+          {sessions.length === 0 && (
+            <Text className="text-xs text-white/70 font-sans mb-3">No host days set up yet — add one right here.</Text>
+          )}
+          <View className="flex-row flex-wrap gap-2 mb-3">
+            {DAYS.map((d) => (
+              <TouchableOpacity
+                key={d.value}
+                onPress={() => setDay(d.value)}
+                className={`px-3 py-1.5 rounded-lg border ${day === d.value ? 'bg-surface border-white' : 'bg-surface/10 border-white/20'}`}
+              >
+                <Text className={`text-xs font-bold ${day === d.value ? 'text-clay-primary' : 'text-white/80'}`}>{d.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View className="flex-row flex-wrap gap-2 mb-4">
+            {TIME_PRESETS.map((t) => (
+              <TouchableOpacity
+                key={t.value}
+                onPress={() => setTime(t.value)}
+                className={`px-3 py-1.5 rounded-lg border ${time === t.value ? 'bg-surface border-white' : 'bg-surface/10 border-white/20'}`}
+              >
+                <Text className={`text-xs font-bold ${time === t.value ? 'text-clay-primary' : 'text-white/80'}`}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={handleCreate}
+              disabled={creating}
+              className={`flex-1 py-2.5 rounded-xl items-center ${creating ? 'bg-surface/40' : 'bg-surface'}`}
+            >
+              {creating ? <ActivityIndicator color="#BF592B" size="small" /> : (
+                <Text className="text-clay-primary text-xs font-bold font-sans-bold">Create Session</Text>
+              )}
+            </TouchableOpacity>
+            {sessions.length > 0 && (
+              <TouchableOpacity
+                onPress={() => { setShowAdd(false); setDay(null); setTime(null); }}
+                className="px-4 py-2.5 rounded-xl border border-white/30 items-center"
+              >
+                <Text className="text-white text-xs font-bold font-sans-bold">Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      ) : (
+        <View className="flex-row flex-wrap gap-2">
+          {sessions.map((s: any) => {
+            const hasOtherDish = (s.listings || []).some((l: any) => l.id !== editId);
+            const isSelected = selectedId === s.id;
+            const isDisabled = hasOtherDish && !isSelected;
+            return (
+              <TouchableOpacity
+                key={s.id}
+                onPress={() => !isDisabled && onSelect(s.id)}
+                disabled={isDisabled}
+                className={`px-4 py-2 rounded-xl border ${isSelected ? 'bg-surface border-white' : isDisabled ? 'bg-surface/5 border-white/10' : 'bg-surface/10 border-white/20'}`}
+              >
+                <Text className={`text-xs font-bold ${isSelected ? 'text-clay-primary' : isDisabled ? 'text-white/40' : 'text-white/80'}`}>
+                  {format(parseISO(s.session_date), 'EEE, MMM d')} · {format(new Date(`2000-01-01T${s.start_time}`), 'h:mm a')} · {hasOtherDish ? 'Assigned' : 'Open'}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          {canAddMore && (
+            <TouchableOpacity onPress={() => setShowAdd(true)} className="px-3 py-2 rounded-xl border border-dashed border-white/40 flex-row items-center gap-1">
+              <Plus size={12} color="white" />
+              <Text className="text-xs font-bold text-white">New</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
 
 
 
@@ -48,10 +190,11 @@ export default function CookScreen() {
   const [mealName, setMealName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [portions, setPortions] = useState('10');
   const [prepTime, setPrepTime] = useState(30);
   const [isAvailable, setIsAvailable] = useState(true);
-  const [supportsSessions, setSupportsSessions] = useState(true); // Default to true now
+  const [pickupAvailable, setPickupAvailable] = useState(true);
+  const [deliveryAvailable, setDeliveryAvailable] = useState(false);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [image, setImage] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [imagesBase64, setImagesBase64] = useState<string[]>([]);
@@ -65,10 +208,11 @@ export default function CookScreen() {
           setMealName(data.title || '');
           setDescription(data.description || '');
           setPrice(data.price?.toString() || '');
-          setPortions(data.portions_available?.toString() || '10');
           setPrepTime(data.prep_time_minutes || 30);
           setIsAvailable(data.available !== false);
-          setSupportsSessions(data.supports_sessions || false);
+          setPickupAvailable(data.pickup_available !== false);
+          setDeliveryAvailable(data.delivery_available === true);
+          setSelectedSessionId(data.session_id || null);
           const cats = data.category ? data.category.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
           setSelectedCategories(cats);
           setImage(data.image || null);
@@ -87,14 +231,6 @@ export default function CookScreen() {
   // -- CATEGORY STATE --
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [isCategoryVisible, setIsCategoryVisible] = useState(false);
-
-  // -- SESSION STATE --
-  const [sessionPrice, setSessionPrice] = useState('');
-  const [totalSlots, setTotalSlots] = useState('20');
-  const [minSlots, setMinSlots] = useState('5');
-  const [maxPerUser, setMaxPerUser] = useState('5');
-  const [sessionNote, setSessionNote] = useState('');
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [loading, setLoading] = useState(false);
 
@@ -220,8 +356,7 @@ export default function CookScreen() {
   };
 
     const handlePublish = async () => {
-      const finalPrice = price || sessionPrice;
-      if (!mealName || !finalPrice) {
+      if (!mealName || !price) {
         Alert.alert('Incomplete Form', 'Please give your dish a name and set a price.');
         return;
       }
@@ -234,24 +369,27 @@ export default function CookScreen() {
         return;
       }
 
-    const numPrice = parseFloat(finalPrice);
-    const numPortions = parseInt(portions, 10);
+    const numPrice = parseFloat(price);
+    const numPortions = SESSION_SERVING_CAP;
     if (isNaN(numPrice) || numPrice <= 0) {
       Alert.alert('Invalid Price', 'Please enter a valid price.');
       return;
     }
-    if (isNaN(numPortions) || numPortions <= 0) {
-      Alert.alert('Invalid Portions', 'Please enter a valid number of portions.');
+    if (!selectedSessionId) {
+      Alert.alert('Host Day Required', 'Every dish needs a host day attached before it can go live. Pick or create one below.');
       return;
     }
-    if (supportsSessions) {
-      const numTotal = parseInt(totalSlots, 10);
-      const numMin = parseInt(minSlots, 10);
-      if (isNaN(numTotal) || numTotal <= 0 || isNaN(numMin) || numMin <= 0) {
-        Alert.alert('Invalid Session Details', 'Please enter valid plate and minimum numbers.');
+    const selectedSession = upcomingSessions.find((s: any) => s.id === selectedSessionId);
+    if (selectedSession) {
+      const otherDishes = (selectedSession.listings || []).filter((l: any) => l.id !== edit_id);
+      if (otherDishes.length > 0) {
+        Alert.alert('Host Day Already Has a Dish', 'Each host day is one dish only. Pick a different host day or edit the dish already assigned to this one.');
         return;
       }
     }
+    const orderDeadlineISO = selectedSession
+      ? new Date(`${selectedSession.session_date}T${selectedSession.start_time}`).toISOString()
+      : null;
 
     setLoading(true);
     try {
@@ -260,7 +398,7 @@ export default function CookScreen() {
 
       const imageUrls = await uploadImages(user.id);
 
-      // 1. Create or Update Listing
+      // Create or Update Listing
       const listingData: any = {
         cook_id: user.id,
         title: mealName,
@@ -269,7 +407,10 @@ export default function CookScreen() {
         portions_available: numPortions,
         prep_time_minutes: prepTime,
         available: isAvailable,
-        supports_sessions: supportsSessions,
+        pickup_available: pickupAvailable,
+        delivery_available: deliveryAvailable,
+        session_id: selectedSessionId,
+        order_deadline: orderDeadlineISO,
         category: selectedCategories.length > 0 ? selectedCategories.join(', ') : 'Custom',
         location_text: locationText || null,
         latitude: locationLat,
@@ -277,56 +418,26 @@ export default function CookScreen() {
         image: imageUrls || null
       };
 
-      let listingError, listing;
+      let listingError;
 
       if (edit_id) {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('listings')
           .update(listingData)
           .eq('id', edit_id)
           .select()
           .single();
         listingError = error;
-        listing = data;
       } else {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('listings')
           .insert(listingData)
           .select()
           .single();
         listingError = error;
-        listing = data;
       }
 
       if (listingError) throw listingError;
-
-      // 2. Optional: Create Meal Session
-      if (supportsSessions && listing) {
-        const { error: sessionError } = await supabase
-          .from('meal_sessions')
-          .insert({
-            listing_id: listing.id,
-            cook_id: user.id,
-            title: mealName,
-            description: description,
-            session_note: sessionNote || description,
-            session_date: sessionDate,
-            start_time: '13:00',
-            request_deadline: new Date(new Date(sessionDate).getTime() - 4 * 60 * 60 * 1000).toISOString(),
-            total_slots: parseInt(totalSlots),
-            min_requests_required: parseInt(minSlots),
-            max_per_user: parseInt(maxPerUser),
-            price_per_plate: parseFloat(sessionPrice || price)
-          });
-
-        if (sessionError) {
-          // Roll back: delete the listing we just created to keep DB consistent
-          if (!edit_id) {
-            await supabase.from('listings').delete().eq('id', listing.id);
-          }
-          throw sessionError;
-        }
-      }
 
       Alert.alert('Success! 🎉', edit_id ? 'Your dish has been updated.' : 'Your dish is now live on the marketplace.');
 
@@ -339,7 +450,7 @@ export default function CookScreen() {
       setImages([]);
       setImagesBase64([]);
       setSelectedCategories([]);
-      setSupportsSessions(false);
+      setSelectedSessionId(null);
 
       queryClient.invalidateQueries({ queryKey: ['my-menu', user.id] });
       queryClient.invalidateQueries({ queryKey: ['explore-feed'] });
@@ -378,13 +489,48 @@ export default function CookScreen() {
 
   const isApprovedCook = cookProfile?.role === 'COOK' && cookProfile?.cook_application_status === 'approved';
 
+  // Upcoming cooking sessions this listing can attach to (drives the countdown + deadline)
+  const { data: upcomingSessions = [] } = useQuery({
+    queryKey: ['cook-upcoming-sessions'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from('cook_sessions')
+        .select('*, listings(id, portions_available)')
+        .eq('cook_id', user.id)
+        .gte('session_date', new Date().toISOString().split('T')[0])
+        .order('session_date', { ascending: true });
+      if (error) {
+        console.error('Error fetching upcoming sessions:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: isApprovedCook,
+  });
+
+  // Default a new dish onto the cook's soonest open (dish-free) upcoming
+  // session instead of leaving it on "No session".
+  useEffect(() => {
+    if (!edit_id && selectedSessionId === null) {
+      const openSession = upcomingSessions.find((s: any) => !(s.listings || []).length);
+      if (openSession) setSelectedSessionId(openSession.id);
+    }
+  }, [edit_id, upcomingSessions]);
+
+  const handleSessionCreated = (newSessionId: string) => {
+    setSelectedSessionId(newSessionId);
+    queryClient.invalidateQueries({ queryKey: ['cook-upcoming-sessions'] });
+  };
+
   // ----------------------
   // RENDER: COOK MODE (Post a Meal)
   // ----------------------
   if (isCookMode) {
     if (isCookProfileLoading) {
         return (
-            <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+            <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
                 <View className="flex-1 bg-warm-cream items-center justify-center">
                     <ActivityIndicator size="large" color="#D65A31" />
                 </View>
@@ -395,7 +541,7 @@ export default function CookScreen() {
     // LOCKED: Not an approved cook
     if (!isApprovedCook) {
       return (
-        <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
           <View className="flex-1 bg-warm-cream items-center justify-center px-8">
             <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-6">
               <Lock size={36} color="#9CA3AF" />
@@ -404,7 +550,7 @@ export default function CookScreen() {
               Kitchen Locked
             </Text>
             <Text className="text-text-sub text-center text-base font-sans mb-8 leading-relaxed">
-              You need to apply and get approved as a cook before you can post meals. Complete the application to unlock your kitchen.
+              You need to apply and get approved as a host before you can post meals. Complete the application to unlock your kitchen.
             </Text>
             {cookProfile?.cook_application_status === 'pending' ? (
               <View className="bg-orange-50 rounded-2xl px-6 py-4 border border-orange-100 w-full items-center">
@@ -418,7 +564,7 @@ export default function CookScreen() {
                 style={{ shadowColor: '#D65A31', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
               >
                 <UtensilsCrossed size={20} color="white" />
-                <Text className="text-white font-bold text-lg font-sans-bold">Apply to Cook</Text>
+                <Text className="text-white font-bold text-lg font-sans-bold">Apply to Host</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -428,8 +574,8 @@ export default function CookScreen() {
 
     if (edit_id) {
       return (
-        <SafeAreaView className="flex-1 bg-white" edges={['bottom']}>
-          <View className="flex-1 bg-white">
+        <SafeAreaView className="flex-1 bg-surface" edges={['bottom']}>
+          <View className="flex-1 bg-surface">
             {/* Header */}
             <View className="px-4 pb-4 bg-[#FFF8F6] border-b border-[#F2DFD7] flex-row justify-between items-center" style={{ paddingTop: insets.top + 16 }}>
               <TouchableOpacity onPress={() => router.back()} className="p-2">
@@ -552,7 +698,7 @@ export default function CookScreen() {
                   <TextInput
                     placeholder="Tomtom Suya"
                     placeholderTextColor="#9CA3AF"
-                    className="bg-white rounded-2xl px-4 py-3 text-text-main font-sans text-base border border-[#F2DFD7]"
+                    className="bg-surface rounded-2xl px-4 py-3 text-text-main font-sans text-base border border-[#F2DFD7]"
                     value={mealName}
                     onChangeText={setMealName}
                   />
@@ -666,52 +812,17 @@ export default function CookScreen() {
 
                 {/* Portions & Price Row */}
                 <View className="flex-row gap-4 mb-5">
-                  {/* Portions Stepper */}
-                  <View className="flex-1 bg-white border border-[#F2DFD7] rounded-3xl p-4 justify-between">
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#8A7269', marginBottom: 8 }}>Portions</Text>
-                    <View className="flex-row items-center justify-between">
-                      <TouchableOpacity
-                        onPress={() => {
-                          const val = parseInt(portions, 10);
-                          if (!isNaN(val) && val > 1) {
-                            setPortions((val - 1).toString());
-                          }
-                        }}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          borderWidth: 1,
-                          borderColor: '#F2DFD7',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Minus size={14} color="#8A7269" />
-                      </TouchableOpacity>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }}>{portions || '1'}</Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          const val = parseInt(portions, 10);
-                          setPortions((isNaN(val) ? 1 : val + 1).toString());
-                        }}
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          borderWidth: 1,
-                          borderColor: '#F2DFD7',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <Plus size={14} color="#8A7269" />
-                      </TouchableOpacity>
+                  {/* Portions — fixed, one dish per cook day */}
+                  <View className="flex-1 bg-surface border border-[#F2DFD7] rounded-3xl p-4 justify-between">
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#8A7269', marginBottom: 8 }}>Portions (fixed)</Text>
+                    <View className="flex-row items-center justify-center">
+                      <Users size={16} color="#D65A31" />
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915', marginLeft: 8 }}>{SESSION_SERVING_CAP}</Text>
                     </View>
                   </View>
 
                   {/* Price */}
-                  <View className="flex-1 bg-white border border-[#F2DFD7] rounded-3xl p-4 justify-between">
+                  <View className="flex-1 bg-surface border border-[#F2DFD7] rounded-3xl p-4 justify-between">
                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#8A7269', marginBottom: 8 }}>Price (GHS)</Text>
                     <View className="flex-row items-center">
                       <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#BF592B', marginRight: 8 }}>₵</Text>
@@ -719,10 +830,7 @@ export default function CookScreen() {
                         keyboardType="numeric"
                         style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915', flex: 1, padding: 0 }}
                         value={price}
-                        onChangeText={(t) => {
-                          setPrice(t);
-                          setSessionPrice(t);
-                        }}
+                        onChangeText={setPrice}
                       />
                     </View>
                   </View>
@@ -736,7 +844,7 @@ export default function CookScreen() {
                       <TouchableOpacity
                         key={time}
                         onPress={() => setPrepTime(time)}
-                        className={`flex-1 py-2.5 rounded-xl border items-center ${prepTime === time ? 'bg-[#BF592B] border-[#BF592B]' : 'bg-white border-[#F2DFD7]'}`}
+                        className={`flex-1 py-2.5 rounded-xl border items-center ${prepTime === time ? 'bg-[#BF592B] border-[#BF592B]' : 'bg-surface border-[#F2DFD7]'}`}
                       >
                         <Text className={`text-xs font-bold ${prepTime === time ? 'text-white' : 'text-text-sub'}`}>{time}</Text>
                       </TouchableOpacity>
@@ -747,7 +855,7 @@ export default function CookScreen() {
                 {/* Available for Sessions Toggle Card */}
                 <View className="bg-[#FFF1EC] rounded-2xl p-4 flex-row items-center justify-between mb-4 border border-[#F2DFD7]">
                   <View className="flex-row items-center gap-3 flex-1 mr-4">
-                    <View className="w-10 h-10 bg-white rounded-xl items-center justify-center border border-[#F2DFD7]">
+                    <View className="w-10 h-10 bg-surface rounded-xl items-center justify-center border border-[#F2DFD7]">
                       <Calendar size={20} color="#BF592B" />
                     </View>
                     <View className="flex-1">
@@ -764,80 +872,16 @@ export default function CookScreen() {
                   />
                 </View>
 
-                {/* Join the Pot Toggle Card */}
-                <View className="bg-[#FFF0F5] rounded-2xl p-4 flex-row items-center justify-between mb-6 border border-[#FFD2E5]">
-                  <View className="flex-row items-center gap-3 flex-1 mr-4">
-                    <View className="w-10 h-10 bg-white rounded-xl items-center justify-center border border-[#FFD2E5]">
-                      <UtensilsCrossed size={20} color="#BF592B" />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row items-center gap-1.5">
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Join the Pot</Text>
-                        <View className="bg-green-600 px-2 py-0.5 rounded">
-                          <Text className="text-white text-[8px] font-bold">POPULAR</Text>
-                        </View>
-                      </View>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', marginTop: 1 }}>
-                        Opt-in for larger community batches to boost kitchen efficiency.
-                      </Text>
-                    </View>
-                  </View>
-                  <Switch
-                    value={supportsSessions}
-                    onValueChange={setSupportsSessions}
-                    trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
-                    thumbColor={supportsSessions ? '#BF592B' : '#83746E'}
-                    ios_backgroundColor="#F2DFD7"
+                {/* Which cooking session this dish belongs to */}
+                <View className="mb-6">
+                  <SessionPicker
+                    sessions={upcomingSessions}
+                    selectedId={selectedSessionId}
+                    onSelect={setSelectedSessionId}
+                    onSessionCreated={handleSessionCreated}
+                    editId={edit_id as string}
                   />
                 </View>
-
-                {/* Join the Pot Expanded Form (conditional if supportsSessions is true) */}
-                {supportsSessions && (
-                  <View className="bg-[#FFF0F5] rounded-3xl p-5 mb-6 border border-[#FFD2E5]">
-                    <View className="flex-row gap-4 mb-4">
-                      <View className="flex-1">
-                        <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase px-1">Total Plates</Text>
-                        <TextInput
-                          className="bg-white rounded-xl px-4 py-3 text-text-main font-bold border border-[#FFD2E5]"
-                          placeholder="20"
-                          keyboardType="numeric"
-                          value={totalSlots}
-                          onChangeText={setTotalSlots}
-                        />
-                      </View>
-                      <View className="flex-1">
-                        <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase px-1">Min. Needed</Text>
-                        <TextInput
-                          className="bg-white rounded-xl px-4 py-3 text-text-main font-bold border border-[#FFD2E5]"
-                          placeholder="5"
-                          keyboardType="numeric"
-                          value={minSlots}
-                          onChangeText={setMinSlots}
-                        />
-                      </View>
-                    </View>
-                    
-                    <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase px-1">Price per Plate (₵)</Text>
-                    <TextInput
-                      className="bg-white rounded-xl px-4 py-3 text-text-main font-bold mb-4 border border-[#FFD2E5]"
-                      placeholder={price || "35.00"}
-                      keyboardType="numeric"
-                      value={sessionPrice}
-                      onChangeText={(t) => {
-                        setSessionPrice(t);
-                        setPrice(t);
-                      }}
-                    />
-                    
-                    <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase px-1">Session Note</Text>
-                    <TextInput
-                      className="bg-white rounded-xl px-4 py-3 text-text-main font-bold mb-4 border border-[#FFD2E5]"
-                      placeholder="Enter special note for this pot..."
-                      value={sessionNote}
-                      onChangeText={setSessionNote}
-                    />
-                  </View>
-                )}
 
                 {/* Submit Button */}
                 <TouchableOpacity
@@ -860,7 +904,7 @@ export default function CookScreen() {
 
             {/* CATEGORY SELECTOR MODAL FOR EDIT FLOW */}
             <Modal visible={isCategoryVisible} animationType="slide" transparent={false}>
-              <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+              <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
                 <View className="px-4 pt-8 pb-4 border-b border-gray-100 flex-row items-center gap-3">
                   <TouchableOpacity 
                     onPress={() => setIsCategoryVisible(false)} 
@@ -890,7 +934,7 @@ export default function CookScreen() {
                             }
                             setIsCategoryVisible(false);
                           }}
-                          className="w-full bg-white rounded-2xl border border-gray-100 p-4 flex-row items-center justify-between shadow-sm active:bg-clay-primary/5"
+                          className="w-full bg-surface rounded-2xl border border-gray-100 p-4 flex-row items-center justify-between shadow-sm active:bg-clay-primary/5"
                         >
                           <Text className={`font-bold text-lg font-sans-bold ${isSelected ? 'text-[#BF592B]' : 'text-text-main'}`}>{cat}</Text>
                           <View className="w-10 h-10 bg-gray-50 rounded-full items-center justify-center">
@@ -912,14 +956,18 @@ export default function CookScreen() {
       <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
         <View className="flex-1 bg-warm-cream">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1">
-          <View className="px-6 pb-4 bg-white border-b border-gray-100 flex-row justify-between items-center" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
+          <View className="px-6 pb-4 bg-warm-cream border-b border-[#DDC1B6]/30 flex-row justify-between items-center" style={{ paddingTop: insets.top + 48, zIndex: 10 }}>
             <View>
               <Text className="text-2xl font-bold text-text-main font-sans-bold">{edit_id ? 'Edit Your Dish' : 'Post a New Dish'}</Text>
               <Text className="text-text-sub text-sm font-sans">{edit_id ? 'Update the details for your listing' : 'Share your culinary creation with the community'}</Text>
+              <TouchableOpacity onPress={() => router.push('/cook-schedule')} className="flex-row items-center gap-1 mt-1.5">
+                <Calendar size={12} color="#BF592B" />
+                <Text className="text-clay-primary text-xs font-bold font-sans-bold">Manage Weekly Schedule</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity 
-              onPress={() => router.back()} 
-              className="px-4 py-2 bg-gray-100 rounded-full flex-row items-center gap-2 active:bg-gray-200"
+            <TouchableOpacity
+              onPress={() => router.back()}
+              className="px-4 py-2 bg-surface rounded-full flex-row items-center gap-2 active:bg-gray-100 border border-[#DDC1B6]/50"
             >
               <ArrowLeft size={20} color="#1A1A1A" />
               <Text className="text-sm font-bold text-text-main font-sans-bold">Cancel</Text>
@@ -932,8 +980,11 @@ export default function CookScreen() {
             contentContainerStyle={{ paddingBottom: 60 }}
           >
 
-            {/* Section 1: Dish Info */}
-            <View className="bg-white rounded-3xl p-5 mb-6 shadow-sm">
+            {/* Dish Info — everything about this pot lives in one place */}
+            <View
+              className="bg-surface rounded-3xl p-5 mb-20 border border-[#DDC1B6]"
+              style={{ shadowColor: '#9C3F12', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.09, shadowRadius: 20, elevation: 2 }}
+            >
               <View className="flex-row items-center gap-2 mb-4">
                 <View className="w-8 h-8 bg-clay-primary/10 rounded-full items-center justify-center">
                   <UtensilsCrossed size={16} color="#D65A31" />
@@ -945,9 +996,9 @@ export default function CookScreen() {
               {images.length === 0 ? (
                 <TouchableOpacity
                   onPress={pickImage}
-                  className="bg-gray-50 rounded-2xl h-60 items-center justify-center mb-6 border-2 border-dashed border-gray-200 overflow-hidden"
+                  className="bg-[#FEEAE2] rounded-2xl h-60 items-center justify-center mb-6 border-2 border-dashed border-[#DDC1B6] overflow-hidden"
                 >
-                  <Camera size={32} color="#9CA3AF" />
+                  <Camera size={32} color="#BF592B" />
                   <Text className="text-text-sub mt-2 font-sans font-medium text-center px-4">Tap to take or choose photos of your dish (up to 4)</Text>
                 </TouchableOpacity>
               ) : (
@@ -972,7 +1023,7 @@ export default function CookScreen() {
                       <TouchableOpacity
                         onPress={pickImage}
                         activeOpacity={0.8}
-                        className="w-48 h-full bg-gray-50 rounded-2xl items-center justify-center border-2 border-dashed border-gray-200"
+                        className="w-48 h-full bg-[#FEEAE2] rounded-2xl items-center justify-center border-2 border-dashed border-[#DDC1B6]"
                       >
                         <Plus size={24} color="#BF592B" />
                         <Text className="text-text-sub mt-2 font-sans font-medium text-center px-2 text-xs">
@@ -1041,8 +1092,8 @@ export default function CookScreen() {
               {/* Custom Listing Title */}
               <TextInput
                 placeholder="Custom Listing Title (e.g. Grandma's Style)"
-                placeholderTextColor="#9CA3AF"
-                className="bg-gray-50 rounded-xl px-4 py-3 text-text-main font-sans text-base mb-4 italic"
+                placeholderTextColor="#8A7269"
+                className="bg-[#FFF1EC] border border-[#DDC1B6] rounded-xl px-4 py-3 text-text-main font-sans text-base mb-4 italic"
                 value={mealName}
                 onChangeText={setMealName}
               />
@@ -1050,10 +1101,10 @@ export default function CookScreen() {
               {/* Description */}
               <TextInput
                 placeholder="Tell users why your version is special..."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#8A7269"
                 multiline
                 numberOfLines={3}
-                className="bg-gray-50 rounded-xl px-4 py-3 text-text-main font-sans text-base min-h-[80px]"
+                className="bg-[#FFF1EC] border border-[#DDC1B6] rounded-xl px-4 py-3 text-text-main font-sans text-base min-h-[80px]"
                 textAlignVertical="top"
                 value={description}
                 onChangeText={setDescription}
@@ -1061,19 +1112,19 @@ export default function CookScreen() {
 
               {/* Location */}
               <View className="mt-4">
-                <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase tracking-widest px-1">Pickup / Cook Location</Text>
+                <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase tracking-widest px-1">Pickup / Host Location</Text>
                 <View className="flex-row gap-2 mb-2">
                   <TextInput
                     placeholder="e.g. East Legon, Accra"
-                    placeholderTextColor="#9CA3AF"
-                    className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-text-main font-sans text-base border border-gray-100"
+                    placeholderTextColor="#8A7269"
+                    className="flex-1 bg-[#FFF1EC] rounded-xl px-4 py-3 text-text-main font-sans text-base border border-[#DDC1B6]"
                     value={locationText}
                     onChangeText={setLocationText}
                   />
                   <TouchableOpacity
                     onPress={useCurrentLocation}
                     disabled={locationFetching}
-                    className="bg-clay-primary/10 rounded-xl px-3 items-center justify-center border border-clay-primary/20"
+                    className="bg-[#F8E4DD] rounded-xl px-3 items-center justify-center border border-[#DDC1B6]"
                   >
                     {locationFetching
                       ? <ActivityIndicator size="small" color="#D65A31" />
@@ -1088,44 +1139,31 @@ export default function CookScreen() {
                   </View>
                 ) : null}
               </View>
-            </View>
 
-            {/* Section 2: Meal Details */}
-            <View className="bg-white rounded-3xl p-5 mb-6 shadow-sm">
-              <View className="flex-row items-center gap-2 mb-4">
-                <View className="w-8 h-8 bg-clay-primary/10 rounded-full items-center justify-center">
-                  <Info size={16} color="#D65A31" />
-                </View>
-                <Text className="text-base font-bold text-text-main font-sans-bold">Meal Details</Text>
-              </View>
+              <View className="h-[1px] bg-[#DDC1B6]/40 my-5" />
+              <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase tracking-widest px-1">Meal Details</Text>
+              <Text className="text-xs text-text-sub font-sans leading-relaxed mb-4 px-1">
+                Each host day is one dish, fixed at {SESSION_SERVING_CAP} portions — that's your whole serving pool for that day.
+              </Text>
 
               <View className="flex-row gap-4 mb-5">
                 <View className="flex-1">
-                  <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase tracking-widest px-1">Portions</Text>
-                  <View className="bg-gray-50 rounded-xl px-4 py-3 flex-row items-center gap-2">
+                  <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase tracking-widest px-1">Portions (fixed)</Text>
+                  <View className="bg-[#FFF1EC] border border-[#DDC1B6] rounded-xl px-4 py-3 flex-row items-center gap-2">
                     <Users size={16} color="#D65A31" />
-                    <TextInput
-                      placeholder="10"
-                      keyboardType="numeric"
-                      className="flex-1 text-text-main font-bold"
-                      value={portions}
-                      onChangeText={setPortions}
-                    />
+                    <Text className="flex-1 text-text-main font-bold">{SESSION_SERVING_CAP}</Text>
                   </View>
                 </View>
                 <View className="flex-1">
                   <Text className="text-[10px] font-bold text-text-sub mb-2 uppercase tracking-widest px-1">Price (₵)</Text>
-                  <View className="bg-gray-50 rounded-xl px-4 py-3 flex-row items-center gap-2">
+                  <View className="bg-[#FFF1EC] border border-[#DDC1B6] rounded-xl px-4 py-3 flex-row items-center gap-2">
                     <Text className="text-clay-primary font-bold">₵</Text>
                     <TextInput
                       placeholder="45.00"
                       keyboardType="numeric"
                       className="flex-1 text-text-main font-bold"
                       value={price}
-                      onChangeText={(t) => {
-                        setPrice(t);
-                        setSessionPrice(t); // Sync
-                      }}
+                      onChangeText={setPrice}
                     />
                   </View>
                 </View>
@@ -1137,26 +1175,17 @@ export default function CookScreen() {
                   <TouchableOpacity
                     key={time.value}
                     onPress={() => setPrepTime(time.value)}
-                    className={`px-4 py-2 rounded-xl border ${prepTime === time.value ? 'bg-clay-primary border-clay-primary' : 'bg-white border-gray-100'}`}
+                    className={`px-4 py-2 rounded-xl border ${prepTime === time.value ? 'bg-clay-primary border-clay-primary' : 'bg-surface border-[#DDC1B6]'}`}
                   >
                     <Text className={`text-xs font-bold ${prepTime === time.value ? 'text-white' : 'text-text-sub'}`}>{time.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
 
-            {/* Section 3: Status */}
-            <View className="bg-white rounded-3xl p-5 mb-6 shadow-sm">
-              <View className="flex-row items-center gap-2 mb-4">
-                <View className="w-8 h-8 bg-clay-primary/10 rounded-full items-center justify-center">
-                  <Check size={16} color="#D65A31" />
-                </View>
-                <Text className="text-base font-bold text-text-main font-sans-bold">Status</Text>
-              </View>
-
-              <View className="flex-row justify-between items-center px-1">
+              <View className="h-[1px] bg-[#DDC1B6]/40 my-5" />
+              <View className="flex-row justify-between items-center px-1 mb-5">
                 <View className="flex-row items-center gap-3">
-                  <View className="bg-kente-yellow/10 p-2 rounded-lg">
+                  <View className="bg-[#F8E4DD] p-2 rounded-lg">
                     <Check size={16} color="#D65A31" />
                   </View>
                   <Text className="text-sm font-bold text-text-main font-sans-bold">Available for Sessions</Text>
@@ -1165,87 +1194,18 @@ export default function CookScreen() {
                   onPress={() => setIsAvailable(!isAvailable)}
                   className={`w-12 h-6 rounded-full px-1 justify-center ${isAvailable ? 'bg-clay-primary' : 'bg-gray-200'}`}
                 >
-                  <View className={`w-4 h-4 rounded-full bg-white transform ${isAvailable ? 'translate-x-6' : 'translate-x-0'}`} />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Section 4: Join the Pot (Session) */}
-            <View className={`rounded-3xl p-5 mb-20 shadow-md ${supportsSessions ? 'bg-clay-primary' : 'bg-white border-2 border-dashed border-clay-primary/20'}`}>
-              <View className="flex-row justify-between items-center mb-4">
-                <View className="flex-row items-center gap-2">
-                  <View className={`w-8 h-8 rounded-full items-center justify-center ${supportsSessions ? 'bg-white/20' : 'bg-clay-primary/10'}`}>
-                    <Star size={16} color={supportsSessions ? 'white' : '#D65A31'} fill={supportsSessions ? 'white' : 'none'} />
-                  </View>
-                  <Text className={`text-base font-bold font-sans-bold ${supportsSessions ? 'text-white' : 'text-text-main'}`}>Join the Pot</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setSupportsSessions(!supportsSessions)}
-                  className={`w-12 h-6 rounded-full px-1 justify-center ${supportsSessions ? 'bg-white/30' : 'bg-clay-primary/10'}`}
-                >
-                  <View className={`w-4 h-4 rounded-full bg-white transform ${supportsSessions ? 'translate-x-6' : 'translate-x-0'}`} />
+                  <View className={`w-4 h-4 rounded-full bg-surface transform ${isAvailable ? 'translate-x-6' : 'translate-x-0'}`} />
                 </TouchableOpacity>
               </View>
 
-              {!supportsSessions ? (
-                <Text className="text-[11px] text-text-sub font-sans leading-relaxed px-1">
-                  Launch a community "Meal Drop" where multiple people reserve plates for a specific time. Great for batch cooking!
-                </Text>
-              ) : (
-                <View className="mt-2">
-                  <View className="flex-row gap-4 mb-4">
-                    <View className="flex-1">
-                      <Text className="text-[10px] font-bold text-white/70 mb-2 uppercase px-1">Total Plates</Text>
-                      <TextInput
-                        className="bg-white/10 rounded-xl px-4 py-3 text-white font-bold"
-                        placeholder="20"
-                        placeholderTextColor="rgba(255,255,255,0.4)"
-                        keyboardType="numeric"
-                        value={totalSlots}
-                        onChangeText={setTotalSlots}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-[10px] font-bold text-white/70 mb-2 uppercase px-1">Min. Needed</Text>
-                      <TextInput
-                        className="bg-white/10 rounded-xl px-4 py-3 text-white font-bold"
-                        placeholder="5"
-                        placeholderTextColor="rgba(255,255,255,0.4)"
-                        keyboardType="numeric"
-                        value={minSlots}
-                        onChangeText={setMinSlots}
-                      />
-                    </View>
-                  </View>
-
-                  <Text className="text-[10px] font-bold text-white/70 mb-2 uppercase px-1">Price per Plate (₵)</Text>
-                  <TextInput
-                    className="bg-white/10 rounded-xl px-4 py-3 text-white font-bold mb-4"
-                    placeholder={price || "35.00"}
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    keyboardType="numeric"
-                    value={sessionPrice}
-                    onChangeText={(t) => {
-                      setSessionPrice(t);
-                      setPrice(t); // Sync
-                    }}
-                  />
-
-                  <Text className="text-[10px] font-bold text-white/70 mb-2 uppercase px-1">Session Note (e.g. Grandma style with extra shito)</Text>
-                  <TextInput
-                    className="bg-white/10 rounded-xl px-4 py-3 text-white font-bold mb-4"
-                    placeholder="Enter special note for this pot..."
-                    placeholderTextColor="rgba(255,255,255,0.4)"
-                    value={sessionNote}
-                    onChangeText={setSessionNote}
-                  />
-
-                  <View className="flex-row items-center gap-2 bg-white/10 rounded-xl p-3 border border-white/10">
-                    <Calendar size={16} color="white" />
-                    <Text className="text-white text-xs font-bold font-sans-bold">Scheduled for Today (1:00 PM)</Text>
-                  </View>
-                </View>
-              )}
+              <View className="h-[1px] bg-[#DDC1B6]/40 my-5" />
+              <SessionPicker
+                sessions={upcomingSessions}
+                selectedId={selectedSessionId}
+                onSelect={setSelectedSessionId}
+                onSessionCreated={handleSessionCreated}
+                editId={edit_id as string}
+              />
             </View>
 
             {/* Spacer */}
@@ -1265,7 +1225,7 @@ export default function CookScreen() {
                   <>
                     <Plus size={20} color="white" />
                     <Text className="text-white font-bold text-lg font-sans-bold">
-                      {edit_id ? 'Update Dish' : (supportsSessions ? 'Launch Meal Drop' : 'Publish Listing')}
+                      {edit_id ? 'Update Dish' : 'Publish Listing'}
                     </Text>
                   </>
                 )}
@@ -1275,7 +1235,7 @@ export default function CookScreen() {
 
           {/* CATEGORY MODAL */}
           <Modal visible={isCategoryVisible} animationType="slide" transparent={false}>
-            <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+            <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
               <View className="px-4 pt-8 pb-4 border-b border-gray-100 flex-row items-center gap-3">
                 <TouchableOpacity 
                   onPress={() => setIsCategoryVisible(false)} 
@@ -1305,7 +1265,7 @@ export default function CookScreen() {
                           }
                           setIsCategoryVisible(false);
                         }}
-                        className="w-full bg-white rounded-2xl border border-gray-100 p-4 flex-row items-center justify-between shadow-sm active:bg-clay-primary/5"
+                        className="w-full bg-surface rounded-2xl border border-gray-100 p-4 flex-row items-center justify-between shadow-sm active:bg-clay-primary/5"
                       >
                         <Text className={`font-bold text-lg font-sans-bold ${isSelected ? 'text-[#BF592B]' : 'text-text-main'}`}>{cat}</Text>
                         <View className="w-10 h-10 bg-gray-50 rounded-full items-center justify-center">
@@ -1332,31 +1292,31 @@ export default function CookScreen() {
   return (
     <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
       <View className="flex-1 bg-warm-cream">
-      <View className="px-6 pb-4 bg-white border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
-        <Text className="text-2xl font-bold text-text-main font-sans-bold">Saved</Text>
-        <Text className="text-sm text-text-sub font-sans">Your favorite meals and cooks</Text>
+      <View className="px-6 pb-4 bg-surface border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
+        <Text className="text-2xl font-bold text-text-main font-sans-bold">Watching</Text>
+        <Text className="text-sm text-text-sub font-sans">Meals and hosts you're keeping an eye on</Text>
       </View>
 
       <ScrollView className="flex-1 p-6" showsVerticalScrollIndicator={false}>
 
         {/* Section 1: Favorites */}
         <View className="flex-row items-center justify-between mb-4">
-          <Text className="text-lg font-bold text-text-main font-sans-bold">Liked Meals</Text>
-          <Text className="text-sm text-text-sub font-sans">{savedIds.length} saved</Text>
+          <Text className="text-lg font-bold text-text-main font-sans-bold">Watching</Text>
+          <Text className="text-sm text-text-sub font-sans">{savedIds.length} watching</Text>
         </View>
 
         {savedLoading ? (
           <ActivityIndicator size="small" color="#D65A31" style={{ marginVertical: 20 }} />
         ) : savedListings.length === 0 ? (
-          <View className="bg-white rounded-2xl p-8 items-center mb-6 shadow-sm">
+          <View className="bg-surface rounded-2xl p-8 items-center mb-6 shadow-sm">
             <Heart size={40} color="#E5E7EB" />
-            <Text className="text-text-sub font-sans text-center mt-3">No saved meals yet{'\n'}Tap ♥ on any dish to save it here</Text>
+            <Text className="text-text-sub font-sans text-center mt-3">Not watching any meals yet{'\n'}Tap ♥ on any dish to add it to your watchlist</Text>
           </View>
         ) : (
           savedListings.map((meal: any) => (
             <TouchableOpacity
               key={meal.id}
-              className="bg-white p-3 rounded-2xl mb-4 flex-row gap-4 shadow-sm"
+              className="bg-surface p-3 rounded-2xl mb-4 flex-row gap-4 shadow-sm"
               onPress={() => router.push(`/listing/${meal.id}`)}
             >
               {meal.image ? (
@@ -1368,7 +1328,7 @@ export default function CookScreen() {
               )}
               <View className="flex-1 justify-center">
                 <Text className="font-bold text-text-main text-lg mb-0.5" numberOfLines={1}>{meal.title}</Text>
-                <Text className="text-text-sub text-xs mb-2">by {meal.profiles?.full_name || 'Chef'}</Text>
+                <Text className="text-text-sub text-xs mb-2">by {meal.profiles?.full_name || 'Host'}</Text>
                 <Text className="text-clay-primary font-bold">₵{meal.price}</Text>
               </View>
               <View className="justify-center pr-2">
@@ -1378,9 +1338,9 @@ export default function CookScreen() {
           ))
         )}
 
-        {/* No more Saved Tip */}
+        {/* No more Watching Tip */}
         <View className="mt-8 mb-20 items-center">
-          <Text className="text-gray-400 text-sm">Tap the heart icon on any meal to save it here.</Text>
+          <Text className="text-gray-400 text-sm">Tap the heart icon on any meal to add it to your watchlist.</Text>
         </View>
 
       </ScrollView>
