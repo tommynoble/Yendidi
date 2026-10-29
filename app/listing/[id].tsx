@@ -3,9 +3,9 @@ import { View, Text, Image, ScrollView, TouchableOpacity, Pressable, ActivityInd
 const { width, height } = Dimensions.get('window');
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
-    ArrowLeft, Heart, Clock, Star, Plus, Minus, ChefHat, Flame,
+    ArrowLeft, Heart, Star, Plus, Minus, ChefHat, Flame,
     ShoppingCart, MapPin, Utensils, Navigation, Share2, Upload, Pencil,
-    Sparkles, Shield, Check, Wifi, Music, Car, Droplet, MessageSquare,
+    Sparkles, Shield, Check, Wifi, Music, Car, Droplet,
     Info, ChevronRight, CheckCircle2, Coffee, Users as UsersIcon, Leaf,
     Wheat, Soup, Apple, Fish, Cake, Sprout, X
 } from 'lucide-react-native';
@@ -41,7 +41,15 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import CartToast from '@/components/CartToast';
+import AvatarStack from '@/components/AvatarStack';
 import { formatPotCountdown } from '@/lib/countdown';
+import TimeLocationCards from '@/components/TimeLocationCards';
+import RibbonBadgeIcon from '@/components/RibbonBadgeIcon';
+import SectionHeader from '@/components/SectionHeader';
+import CourseList, { Course } from '@/components/CourseList';
+import TableGuests from '@/components/TableGuests';
+import GatheringNotes from '@/components/GatheringNotes';
+import { format } from 'date-fns';
 
 const DINE_IN_1 = require('@/assets/images/dine_in_1.jpg');
 const DINE_IN_2 = require('@/assets/images/dine_in_2.jpg');
@@ -137,7 +145,7 @@ export default function ListingDetailScreen() {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('listings')
-                .select('*, profiles(id, full_name, avatar_url, kitchen_image_url, rating, served_count)')
+                .select('*, profiles(id, full_name, avatar_url, kitchen_image_url, rating, served_count, verified, location, location_description)')
                 .eq('id', id as string)
                 .single();
             if (error) throw error;
@@ -173,11 +181,24 @@ export default function ListingDetailScreen() {
         queryFn: async () => {
             const { data } = await supabase
                 .from('cook_applications')
-                .select('kitchen_name, bio, location, specialties, cooking_frequency, max_session_capacity')
+                .select('kitchen_name, bio, location, location_description, specialties, cooking_frequency, max_session_capacity')
                 .eq('user_id', listing.cook_id)
                 .eq('status', 'approved')
                 .single();
             return data;
+        },
+        enabled: !!listing?.cook_id,
+    });
+
+    // Review count for the "★ rating · N reviews" line
+    const { data: reviewCount } = useQuery({
+        queryKey: ['cook-review-count', listing?.cook_id],
+        queryFn: async () => {
+            const { count } = await supabase
+                .from('reviews')
+                .select('id', { count: 'exact', head: true })
+                .eq('cook_id', listing.cook_id);
+            return count || 0;
         },
         enabled: !!listing?.cook_id,
     });
@@ -472,38 +493,17 @@ export default function ListingDetailScreen() {
                         </View>
                     )}
 
-                    <View
-                        style={{
-                            position: 'absolute',
-                            bottom: -10,
-                            right: 24,
-                            backgroundColor: '#BF592B',
-                            paddingHorizontal: 16,
-                            paddingVertical: 8,
-                            borderRadius: 9999,
-                            shadowColor: '#231915',
-                            shadowOffset: { width: 0, height: 4 },
-                            shadowOpacity: 0.2,
-                            shadowRadius: 8,
-                            elevation: 5,
-                            zIndex: 10
-                        }}
-                    >
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: 'white' }}>
-                            GHS {currentPrice.toFixed(2)}
-                        </Text>
-                    </View>
                 </View>
 
                 {/* White Content Card curving over the image */}
                 <View
                     style={{
-                        backgroundColor: 'rgba(191,89,43,0.05)',
+                        backgroundColor: '#F8E4DD',
                         borderTopLeftRadius: 36,
                         borderTopRightRadius: 36,
                         marginTop: -32,
                         paddingHorizontal: 20,
-                        paddingTop: 52,
+                        paddingTop: 40,
                         shadowColor: '#231915',
                         shadowOffset: { width: 0, height: -4 },
                         shadowOpacity: 0.07,
@@ -511,92 +511,218 @@ export default function ListingDetailScreen() {
                         elevation: 2
                     }}
                 >
-                    {/* Title & Best Seller Badge Section */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: '#231915', flex: 1, marginRight: 16, lineHeight: 28 }}>
-                            {listing.title}
+                    {/* Title */}
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
+                        {listing.title}
+                    </Text>
+
+                    {/* Food description */}
+                    {!!listing.description?.trim() && (
+                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: '#56423B', lineHeight: 21, textAlign: 'center', marginBottom: 18 }}>
+                            {listing.description.trim()}
                         </Text>
-                        <View style={{ backgroundColor: '#FFF1EC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#BF592B' }}>Best Seller</Text>
-                        </View>
+                    )}
+
+                    {/* Avatar Stack — who's already in */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 6 }}>
+                        <AvatarStack id={listing.id} portionsAvailable={listing.portions_available} size={24} />
+                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#56423B' }}>
+                            People coming
+                        </Text>
                     </View>
 
-                    {/* Rating & Prep Time Row */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 22 }}>
+                    {/* Rating, Reviews & Prep Time Row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                             <Star size={14} color="#BF592B" fill="#BF592B" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#BF592B' }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915' }}>
                                 {listing.profiles?.rating ? Number(listing.profiles.rating).toFixed(1) : 'New'}
                             </Text>
                         </View>
-                        <Text style={{ color: '#DDC1B6', marginHorizontal: 2 }}>•</Text>
+                        <Text style={{ color: '#DDC1B6', marginHorizontal: 2 }}>·</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#231915', textDecorationLine: 'underline' }}>
+                            {reviewCount || 0} review{reviewCount === 1 ? '' : 's'}
+                        </Text>
+                        <Text style={{ color: '#DDC1B6', marginHorizontal: 2 }}>·</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Clock size={14} color="#56423B" />
+                            <Flame size={14} color="#56423B" />
                             <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B' }}>
-                                Ready in {listing.prep_time_minutes || 30} min
+                                {listing.portions_available} seat{listing.portions_available === 1 ? '' : 's'} left
                             </Text>
                         </View>
-                    </View>
-
-                    {/* Join the Pot: seats + countdown for scheduled sessions */}
-                    {listing.order_deadline && (
-                        <View style={{ backgroundColor: 'rgba(191,89,43,0.05)', borderRadius: 16, padding: 12, marginBottom: 20 }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: potDidNotFill ? '#8A7269' : '#BF592B' }}>
-                                {deadlinePassed ? (potDidNotFill ? "This Session Didn't Fill" : 'Event started') : formatPotCountdown(listing.order_deadline)}
-                            </Text>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915', marginTop: 2 }}>
-                                {listing.portions_available} of {potTotalSeats} seats remaining
-                            </Text>
-                        </View>
-                    )}
-
-                    {/* Description */}
-                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: '#56423B', lineHeight: 22, marginBottom: 22 }}>
-                        {listing.description || "Authentic Ghanaian food served fresh. Cooked with traditional recipes passed down through generations in a clean host kitchen."}
-                    </Text>
-
-                    {/* Info Tags */}
-                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
-                        {(() => {
-                            const cats = listing.category ? listing.category.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
-                            const finalCats = cats.length > 0 ? cats : ['Spicy Hearth'];
-                            return finalCats.map((catName: string) => {
-                                const style = CATEGORY_TAG_STYLES[catName] || DEFAULT_TAG_STYLE;
-                                const IconComponent = style.icon;
-                                return (
-                                    <View key={catName} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: style.bg, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: style.border }}>
-                                        <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: style.iconBg, alignItems: 'center', justifyContent: 'center' }}>
-                                            <IconComponent size={12} color={style.iconColor} />
-                                        </View>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: style.text }}>
-                                            {catName}
-                                        </Text>
-                                    </View>
-                                );
-                            });
-                        })()}
-
-                        {/* Always include Earthenware as a premium tag if not already selected */}
-                        {!listing.category?.includes('Earthenware') && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFF8F6', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#F2DFD7' }}>
-                                <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: 'rgba(132,82,60,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Utensils size={12} color="#8A7269" />
-                                </View>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915' }}>
-                                    Earthenware
-                                </Text>
-                            </View>
-                        )}
                     </View>
 
                     {/* Thin Divider */}
-                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginVertical: 20 }} />
+                    <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 14 }} />
+
+                    {/* Hosted By Row */}
+                    <TouchableOpacity
+                        onPress={() => router.push(`/cook/${listing.cook_id}`)}
+                        activeOpacity={0.8}
+                        style={{ alignItems: 'center', marginBottom: 16 }}
+                    >
+                        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFDBCE', alignItems: 'center', justifyContent: 'center' }}>
+                            {(listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url) ? (
+                                <Image
+                                    source={{ uri: listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url }}
+                                    style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F2DFD7' }}
+                                />
+                            ) : (
+                                <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#944421' }}>
+                                        {(listing.profiles?.full_name || cookApp?.kitchen_name || 'H').trim().charAt(0).toUpperCase()}
+                                    </Text>
+                                </View>
+                            )}
+                            <View style={{ position: 'absolute', bottom: 1, right: 1, width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFCD00', alignItems: 'center', justifyContent: 'center' }}>
+                                <RibbonBadgeIcon height={11} />
+                            </View>
+                        </View>
+                        <View style={{ marginTop: 6, alignItems: 'center' }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915', textAlign: 'center' }} numberOfLines={1}>
+                                Hosted by {cookApp?.kitchen_name || listing.profiles?.full_name || 'the host'}
+                            </Text>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', marginTop: 0, textAlign: 'center' }}>
+                                Verified Host · {listing.profiles?.served_count || 0}+ served
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    {/* Highlights — three boxes */}
+                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+                        {[
+                            { icon: <MapPin size={16} color="#BF592B" />, title: 'Beautiful area', sub: 'Loved location' },
+                            { icon: <Flame size={16} color="#BF592B" />, title: 'Crowd favorite', sub: 'Most ordered' },
+                            { icon: <Shield size={16} color="#BF592B" />, title: 'Verified Host', sub: 'Highly rated' },
+                        ].map((h) => (
+                            <View key={h.title} style={{ flex: 1, backgroundColor: '#FFF1EC', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', gap: 4 }}>
+                                {h.icon}
+                                <View style={{ alignItems: 'center' }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11.5, color: '#231915', textAlign: 'center' }} numberOfLines={1}>{h.title}</Text>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#8A7269', textAlign: 'center', marginTop: 0 }} numberOfLines={1}>{h.sub}</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+
+                    {/* Hearth experience, host highlight, time & location */}
+                    {(() => {
+                        const start = listing.order_deadline ? new Date(listing.order_deadline) : null;
+                        const scheduled = !!start && !isNaN(start.getTime());
+                        const methods = [listing.pickup_available && 'Pickup', listing.delivery_available && 'Delivery'].filter(Boolean).join(' • ');
+                        const hostLocation = listing.location_text || cookApp?.location || listing.profiles?.location || 'Ghana';
+                        const landmark = cookApp?.location_description || listing.profiles?.location_description;
+                        const spots = listing.portions_available || 0;
+                        const spotsNote = spots > 0 ? `${spots} spot${spots === 1 ? '' : 's'} left` : 'Fully booked';
+
+                        return (
+                            <View style={{ gap: 28, marginBottom: 28 }}>
+                                <TimeLocationCards
+                                    scheduled={scheduled}
+                                    dateTitle={scheduled ? format(start as Date, 'EEEE, MMM d') : `Ready in ${listing.prep_time_minutes || 30} min`}
+                                    timeLine={scheduled ? format(start as Date, 'h:mm a') : undefined}
+                                    timeNote={spotsNote}
+                                    locationTitle={hostLocation}
+                                    locationTag="Private Residence"
+                                    locationLine={methods || undefined}
+                                    locationNote={landmark || undefined}
+                                />
+                            </View>
+                        );
+                    })()}
+
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 20 }} />
+
+                    {/* Section heading */}
+                    <SectionHeader
+                        inset={false}
+                        title="Dine-In Courses"
+                        subtitle={`Four slow courses, led by ${(listing.title || 'the main dish').trim()}`}
+                        badge="4 Courses"
+                        extraBottom={12}
+                    />
+
+                    {/* Sample UI copy — real courses will come from the cook later. The main course uses the dish's own data. */}
+                    {(() => {
+                        const cats = listing.category ? listing.category.split(',').map((c: string) => c.trim()).filter(Boolean) : [];
+                        const courses: Course[] = [
+                            { title: 'Welcome Elixir', tag: 'Arrival', description: 'Chilled hibiscus sobolo infused with fresh ginger & cloves, served as you settle in at the table.' },
+                            { title: 'Kelewele & Peanuts', tag: 'Starters', description: 'Spiced fried plantain tossed with roasted groundnuts, to share while the pots finish.' },
+                            {
+                                title: listing.title,
+                                tag: 'Main Course',
+                                highlight: true,
+                                description: listing.description?.trim() || `${listing.title}, cooked from scratch and served fresh at the table.`,
+                                chips: cats.length > 0 ? cats : ['Cooked fresh'],
+                            },
+                            { title: 'Sweet Finale', tag: 'Dessert', description: 'Warm toasted coconut with a drizzle of honey to close the meal.' },
+                        ];
+                        return (
+                            <View style={{ marginBottom: 24 }}>
+                                <CourseList courses={courses} />
+                            </View>
+                        );
+                    })()}
+
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 14 }} />
+
+                    {/* Sample UI content — real guests will come from bookings later */}
+                    <SectionHeader
+                        inset={false}
+                        title="Who's at the Table"
+                        subtitle="4 seats claimed • 4 spaces waiting"
+                        badge="Friendly crowd"
+                        extraBottom={12}
+                    />
+                    <View style={{ marginBottom: 24 }}>
+                        <TableGuests
+                            showHeader={false}
+                            seatsClaimed={4}
+                            spacesWaiting={4}
+                            guests={[
+                                { name: 'Kwesi O.', role: 'Architect' },
+                                { name: 'Abena M.', role: 'Designer' },
+                                { name: 'Nana K.', role: 'Musician' },
+                                { name: 'Sarah T.', role: 'Traveler' },
+                            ]}
+                        />
+                    </View>
+
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 14 }} />
+
+                    {/* Gathering notes heading */}
+                    <SectionHeader
+                        inset={false}
+                        title="Gathering Notes"
+                        subtitle="Attire, drinks and dietary details to know before you come"
+                        extraBottom={12}
+                    />
+
+                    {/* Sample UI copy — real notes will come from the cook later. */}
+                    <View style={{ marginBottom: 24 }}>
+                        <GatheringNotes
+                            notes={[
+                                { label: 'Attire', text: 'Smart casual or colorful African wax prints; comfortable garden seating.' },
+                                { label: 'BYOB', text: 'Palm wine & artisanal Sobolo provided. Guests welcome to bring favorite wines.' },
+                                { label: 'Dietary', text: `${(listing.title || 'The main dish').trim()} is the centerpiece. Tell the host about any allergies or vegetarian needs at booking.` },
+                            ]}
+                        />
+                    </View>
+
+                    {/* Thin Divider */}
+                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginTop: 4, marginBottom: 8 }} />
 
                     {/* Dine-In Experience Preview */}
                     <View style={{ marginBottom: 20 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', letterSpacing: 0.5, marginBottom: 14 }}>
-                            Your Dine-In Experience Preview
-                        </Text>
+                        <SectionHeader
+                            inset={false}
+                            title="Step Into the Hearth"
+                            subtitle="A first look at the table, the setting and the fire before you arrive"
+                            extraBottom={8}
+                        />
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
@@ -655,123 +781,7 @@ export default function ListingDetailScreen() {
                         </ScrollView>
                     </View>
 
-                    {/* Thin Divider */}
-                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginVertical: 20 }} />
 
-                    {/* Dining Options */}
-                    <View style={{ marginBottom: 20 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', letterSpacing: 0.5, marginBottom: 14 }}>
-                            Dining Options
-                        </Text>
-                        <View style={{ flexDirection: 'column', gap: 14 }}>
-                            {/* Dine-In Option */}
-                            <View
-                                style={{
-                                    backgroundColor: '#FFF1EC',
-                                    borderWidth: 1.5,
-                                    borderColor: '#BF592B',
-                                    borderRadius: 20,
-                                    padding: 16,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    position: 'relative',
-                                    shadowColor: '#231915',
-                                    shadowOffset: { width: 0, height: 2 },
-                                    shadowOpacity: 0.07,
-                                    shadowRadius: 6,
-                                    elevation: 2
-                                }}
-                            >
-                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 16 }}>
-                                    <View style={{
-                                        width: 44,
-                                        height: 44,
-                                        borderRadius: 22,
-                                        backgroundColor: '#BF592B',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                    }}>
-                                        <Utensils size={20} color="white" />
-                                    </View>
-                                    <View style={{ marginLeft: 14, flex: 1 }}>
-                                        <Text style={{
-                                            fontFamily: 'PlusJakartaSans_700Bold',
-                                            fontSize: 16,
-                                            color: '#BF592B',
-                                            textTransform: 'uppercase'
-                                        }}>
-                                            Dine-In
-                                        </Text>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', marginTop: 3 }} numberOfLines={2}>
-                                            Authentic experience. Savor your meal in our handcrafted earthenware.
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={{
-                                        fontFamily: 'PlusJakartaSans_700Bold',
-                                        fontSize: 15,
-                                        color: '#BF592B'
-                                    }}>
-                                        GHS {getOptionPrice('standard').toFixed(2)}
-                                    </Text>
-                                </View>
-                                <View style={{ position: 'absolute', top: -8, right: -8, width: 22, height: 22, borderRadius: 11, backgroundColor: '#BF592B', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'white' }}>
-                                    <Check size={12} color="white" strokeWidth={3} />
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Thin Divider */}
-                    <View style={{ height: 1, backgroundColor: '#F2DFD7', marginVertical: 20 }} />
-
-                    {/* Chef Section */}
-                    <View style={{ marginBottom: 28 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', letterSpacing: 0.5, marginBottom: 14 }}>
-                            Chef
-                        </Text>
-                        <TouchableOpacity
-                            onPress={() => router.push(`/cook/${listing.cook_id}`)}
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                backgroundColor: '#FFF1EC',
-                                borderRadius: 24,
-                                padding: 16,
-                                borderWidth: 1,
-                                borderColor: '#F2DFD7'
-                            }}
-                            activeOpacity={0.8}
-                        >
-                            <View style={{ position: 'relative' }}>
-                                <Image 
-                                    source={{ uri: listing.profiles?.avatar_url || 'https://images.unsplash.com/photo-1577219491135-ce391730fb2c?w=150' }} 
-                                    style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#F2DFD7' }} 
-                                />
-                                <View style={{ position: 'absolute', bottom: 0, right: 0, width: 16, height: 16, borderRadius: 8, backgroundColor: '#006A3C', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: 'white' }}>
-                                    <Check size={9} color="white" strokeWidth={3} />
-                                </View>
-                            </View>
-                            <View style={{ flex: 1, marginLeft: 14 }}>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
-                                    {cookApp?.kitchen_name || listing.profiles?.full_name || "Tamara's Kitchen"}
-                                </Text>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', marginTop: 2 }} numberOfLines={1}>
-                                    Expertly chef and clean • 15y exp.
-                                </Text>
-                                <View style={{ flexDirection: 'row', gap: 2, marginTop: 4 }}>
-                                    {[1, 2, 3, 4, 5].map((s) => (
-                                        <Star key={s} size={12} color="#BF592B" fill="#BF592B" />
-                                    ))}
-                                </View>
-                            </View>
-                            <TouchableOpacity style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F7EEE7', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F2DFD7' }}>
-                                <MessageSquare size={20} color="#231915" />
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                    </View>
                 </View>
             </ScrollView>
 
@@ -882,36 +892,11 @@ export default function ListingDetailScreen() {
                             activeOpacity={0.9}
                         >
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: 'white' }}>
-                                {deadlinePassed ? 'Orders Closed' : (selectedOption === 'takeaway' ? 'Reserve & Pickup' : 'Reserve & Dine-In')}
+                                {deadlinePassed ? 'Orders Closed' : (quantity === 1 ? 'Reserve one seat' : `Reserve ${quantity} seats`)}
                             </Text>
                             <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
-                                Total: GHS {(currentPrice * quantity).toFixed(2)}
+                                for GHS {(currentPrice * quantity).toFixed(2)}
                             </Text>
-                        </TouchableOpacity>
-
-                        {/* Cart shortcut */}
-                        <TouchableOpacity
-                            onPress={() => router.push('/cart')}
-                            style={{
-                                width: 52,
-                                height: 52,
-                                borderRadius: 26,
-                                backgroundColor: '#BF592B',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                shadowColor: '#BF592B',
-                                shadowOffset: { width: 0, height: 4 },
-                                shadowOpacity: 0.25,
-                                shadowRadius: 10,
-                                elevation: 5
-                            }}
-                        >
-                            <ShoppingCart size={20} color="white" />
-                            {getCartCount() > 0 && (
-                                <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#231915', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Text style={{ color: 'white', fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold' }}>{getCartCount()}</Text>
-                                </View>
-                            )}
                         </TouchableOpacity>
                     </>
                 )}

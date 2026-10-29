@@ -1,8 +1,11 @@
 import React, { useCallback } from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
-import { Home, Compass, Plus, Receipt, User, LayoutDashboard, BookOpen, Heart, ChefHat } from 'lucide-react-native';
+import { Home, Compass, Plus, User, LayoutDashboard, BookOpen, Heart, ChefHat } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
+import ForkKnifeIcon from '@/components/ForkKnifeIcon';
+
+const fullBleedScene = { backgroundColor: '#F8E4DD', paddingHorizontal: 0 };
 
 export default function TabLayout() {
   const isCookMode = useAppStore(state => state.isCookMode);
@@ -36,7 +39,7 @@ export default function TabLayout() {
 
   const OrdersIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      <Receipt size={22} color={color} strokeWidth={focused ? 2 : 1.5} />
+      <ForkKnifeIcon size={22} color={color} strokeWidth={focused ? 2.6 : 2.1} />
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Requests' : 'Orders'}</Text>
     </View>
   ), [isCookMode]);
@@ -52,6 +55,9 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        // The 6px page gutter lives on each tab page, so the tab bar itself can span the full screen width.
+        // Explore (map), Watching and Orders are full-bleed layouts and opt out below.
+        sceneStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 6 },
         tabBarStyle: {
           backgroundColor: '#F8E4DD',
           borderTopColor: '#DDC1B6',
@@ -75,10 +81,10 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ tabBarIcon: HomeIcon }} />
-      <Tabs.Screen name="explore" options={{ tabBarIcon: ExploreIcon }} />
-      <Tabs.Screen name="cook" options={{ tabBarIcon: CookIcon }} />
+      <Tabs.Screen name="explore" options={{ tabBarIcon: ExploreIcon, sceneStyle: fullBleedScene }} />
+      <Tabs.Screen name="cook" options={{ tabBarIcon: CookIcon, sceneStyle: fullBleedScene }} />
 
-      <Tabs.Screen name="orders" options={{ tabBarIcon: OrdersIcon }} />
+      <Tabs.Screen name="orders" options={{ tabBarIcon: OrdersIcon, sceneStyle: fullBleedScene }} />
       <Tabs.Screen name="profile" options={{ tabBarIcon: ProfileIcon }} />
     </Tabs>
   );

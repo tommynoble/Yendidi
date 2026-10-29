@@ -1,19 +1,24 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
-import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform, Animated, RefreshControl, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, Animated, RefreshControl, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, MapPin, Star, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, ShoppingCart, Plus, Flame, ChefHat, Heart, Leaf, Utensils, Soup, Fish, Cake, Apple, Sprout, Wheat, ShoppingBag, Check, MessageCircle } from 'lucide-react-native';
+import { Search, MapPin, Star, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, Plus, Flame, ChefHat, Heart, Leaf, Utensils, Soup, Fish, Cake, Apple, Sprout, Wheat, ShoppingBag, Check, MessageCircle, Calendar as CalendarIcon } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useRouter, useNavigation } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { getDishImage } from '@/constants/Images';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProcessLoader from '@/components/ProcessLoader';
-import { formatPotCountdown } from '@/lib/countdown';
+import AvatarStack from '@/components/AvatarStack';
+import { formatPotCountdown, isPotCountdownActive } from '@/lib/countdown';
+import SectionHeader from '@/components/SectionHeader';
+import CartIcon from '@/components/CartIcon';
+import PeopleIcon from '@/components/PeopleIcon';
+import HostRow from '@/components/HostRow';
 
 const AnimatedHeartOverlay = ({ visible }: { visible: boolean }) => {
   const scale = React.useRef(new Animated.Value(0)).current;
@@ -78,6 +83,62 @@ const getDisplayRating = (rating: any, id?: string) => {
   const seed = id ? id.charCodeAt(0) : 0;
   return seed % 2 === 0 ? '4.5' : '4.2';
 };
+
+// RN has no native inner-shadow — fake it with a dark gradient that fades in
+// right at the edges of the food photo, leaving the center untouched.
+const ImageInnerShadow = () => (
+  <LinearGradient
+    pointerEvents="none"
+    start={{ x: 0, y: 0 }}
+    end={{ x: 0, y: 1 }}
+    colors={['rgba(217,130,92,0.2)', 'rgba(217,130,92,0)', 'rgba(217,130,92,0)', 'rgba(217,130,92,0.2)']}
+    locations={[0, 0.14, 0.86, 1]}
+    style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+  />
+);
+
+// Gray pulsing placeholder block — standard skeleton-loading pattern, shown
+// in place of cards while their query is still in flight.
+const SkeletonBox = ({ style }: { style?: any }) => {
+  const pulse = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.5, duration: 650, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  return <Animated.View style={[{ backgroundColor: '#E4D4C9', opacity: pulse }, style]} />;
+};
+
+const SkeletonGridCard = () => (
+  <View style={{ width: '47%' }}>
+    <View style={{ backgroundColor: '#F7EEE7', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(191,89,43,0.15)' }}>
+      <SkeletonBox style={{ width: '100%', height: 155 }} />
+      <View style={{ padding: 12 }}>
+        <SkeletonBox style={{ width: '70%', height: 13, borderRadius: 6, marginBottom: 8 }} />
+        <SkeletonBox style={{ width: '45%', height: 10, borderRadius: 5 }} />
+      </View>
+    </View>
+  </View>
+);
+
+const SkeletonHeroCard = () => (
+  <View style={{ marginHorizontal: 16, marginBottom: 20 }}>
+    <View style={{ backgroundColor: '#F7EEE7', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(191,89,43,0.15)' }}>
+      <SkeletonBox style={{ width: '100%', height: 300 }} />
+      <View style={{ padding: 16, paddingBottom: 22 }}>
+        <SkeletonBox style={{ width: '60%', height: 18, borderRadius: 8, marginBottom: 10 }} />
+        <SkeletonBox style={{ width: '35%', height: 13, borderRadius: 6 }} />
+      </View>
+    </View>
+  </View>
+);
 
 const ICON_MAP: { [key: string]: React.ComponentType<any> } = {
   Utensils,
@@ -285,11 +346,11 @@ export default function HomeScreen() {
 
   // Fetch Featured Meals (Cooking Now) — Real listings from cooks
   const { data: featuredMeals, isLoading: isLoadingMeals, refetch: refetchFeaturedMeals } = useQuery({
-    queryKey: ['featured-meals', activeCategory],
+    queryKey: ['featured-meals', activeCategory, 'with-cook-location'],
     queryFn: async () => {
       let query = supabase
         .from('listings')
-        .select('*, profiles(full_name, avatar_url, rating, kitchen_image_url)')
+        .select('*, profiles(full_name, avatar_url, rating, kitchen_image_url, location)')
         .eq('available', true);
 
       if (activeCategory !== 'All') {
@@ -312,6 +373,7 @@ export default function HomeScreen() {
   });
 
   const featuredMealsMain = useMemo(() => featuredMeals || [], [featuredMeals]);
+
 
   // Fetch all available listings with cook profiles for thumbnails
   const { data: allListings = [], refetch: refetchAllListings } = useQuery({
@@ -727,7 +789,7 @@ export default function HomeScreen() {
                 shadowRadius: 6,
                 elevation: 2
               }}>
-                <ShoppingCart size={15} color="#BF592B" />
+                <CartIcon size={16} color="#BF592B" />
               </View>
               {cartCount > 0 && (
                 <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#BF592B', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#BF592B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 2 }}>
@@ -924,20 +986,24 @@ export default function HomeScreen() {
             /* DEFAULT BROWSE VIEW */
             <View>
 
+              {isLoadingMeals && (
+                <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28, marginTop: 8 }}>
+                  <SkeletonGridCard />
+                  <SkeletonGridCard />
+                  <SkeletonGridCard />
+                  <SkeletonGridCard />
+                </View>
+              )}
+
               {(featuredMeals || []).length > 0 && (
                 <>
                   {/* POPULAR DISHES HEADER */}
-                  <View style={{ paddingHorizontal: 20, marginTop: 8, marginBottom: 16 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <Flame size={18} color="#BF592B" fill="#BF592B" />
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>Hottest in Accra</Text>
-                      </View>
-                      <TouchableOpacity onPress={() => router.push('/(tabs)/explore/map')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>See All</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                  <SectionHeader
+                    title="Upcoming Gatherings"
+                    subtitle="Intimate communal dining & supper club feasts"
+                    onActionPress={() => router.push('/(tabs)/explore/map')}
+                    extraBottom={14}
+                  />
 
                   {/* POPULAR DISHES GRID — four main foods, same real data as Loved Foods */}
                   <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 }}>
@@ -955,6 +1021,7 @@ export default function HomeScreen() {
                       >
                       <TouchableOpacity
                         style={{
+                          flex: 1,
                           backgroundColor: '#F7EEE7',
                           borderRadius: 24,
                           overflow: 'hidden',
@@ -966,20 +1033,98 @@ export default function HomeScreen() {
                       >
                         <View style={{ height: 155, backgroundColor: '#F2DFD7', position: 'relative' }}>
                           <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                          {item.order_deadline && (
-                            <View style={{ position: 'absolute', top: 9, left: 9, backgroundColor: '#BF592B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
+                          <ImageInnerShadow />
+                          <TouchableOpacity
+                            onPress={() => toggleSaved(item.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ position: 'absolute', top: 8, left: 8, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', shadowColor: '#BF592B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 4 }}
+                          >
+                            <Heart size={14} color="#BF592B" fill={savedIds.includes(item.id) ? '#BF592B' : 'rgba(191,89,43,0.25)'} />
+                          </TouchableOpacity>
+                          <AnimatedHeartOverlay visible={!!animatingLikes[item.id]} />
+                          {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
+                            <View style={{ position: 'absolute', top: 42, left: 9, backgroundColor: '#BF592B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
                               <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: 'white' }}>{formatPotCountdown(item.order_deadline)}</Text>
                             </View>
                           )}
-                        </View>
-                        <View style={{ padding: 12 }}>
-                          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }} numberOfLines={1}>{item.title || item.name}</Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 3 }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#8A7269', flex: 1 }} numberOfLines={1}>{item.portions_available} seat{item.portions_available === 1 ? '' : 's'} left</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                              <Star size={7} color="#BF592B" fill="#BF592B" />
-                              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#BF592B' }}>{getDisplayRating(item.profiles?.rating, item.id)}</Text>
+                          <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                            <AvatarStack id={item.id} portionsAvailable={item.portions_available} size={22} />
+                          </View>
+                          {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
+                            <View
+                              style={{
+                                position: 'absolute',
+                                left: 8,
+                                bottom: 8,
+                                maxWidth: '92%',
+                                height: 24,
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: 4,
+                                paddingHorizontal: 10,
+                                borderRadius: 9999,
+                                backgroundColor: 'rgba(250,249,244,0.95)',
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 1 },
+                                shadowOpacity: 0.05,
+                                shadowRadius: 2,
+                                elevation: 1,
+                              }}
+                            >
+                              <CalendarIcon size={12} color="#944421" strokeWidth={2.25} />
+                              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, lineHeight: 16, color: '#944421', flexShrink: 1 }} numberOfLines={1}>
+                                {format(new Date(item.order_deadline), "EEE, MMM d '•' h:mm a")}
+                              </Text>
                             </View>
+                          )}
+                        </View>
+                        <View style={{ padding: 12, flex: 1 }}>
+                          <View style={{ marginBottom: 4 }}>
+                            <HostRow compact showAvatar={false} showName={false} location={item.profiles?.location} />
+                          </View>
+                          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }} numberOfLines={1}>{item.title || item.name}</Text>
+                          <View style={{ flexGrow: 1, marginTop: 3 }}>
+                            {!!item.description?.trim() && (
+                              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, lineHeight: 13, color: '#56423B' }} numberOfLines={3} ellipsizeMode="tail">{item.description.trim()}</Text>
+                            )}
+                          </View>
+                          {/* Price + reserve footer */}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(219,193,184,0.5)' }}>
+                            <View style={{ flexShrink: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <PeopleIcon height={8} />
+                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 9, lineHeight: 12, color: '#55433C', flexShrink: 1 }} numberOfLines={1}>
+                                  {item.portions_available > 0 ? `${item.portions_available} spot${item.portions_available === 1 ? '' : 's'} left` : 'Fully booked'}
+                                </Text>
+                              </View>
+                              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, lineHeight: 19, color: '#944421' }}>GH₵</Text>
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, lineHeight: 19, color: '#944421' }} numberOfLines={1}>{item.price}</Text>
+                                </View>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 9, color: '#55433C' }}>/seat</Text>
+                              </View>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handleCardPress(item.id)}
+                              activeOpacity={0.85}
+                              accessibilityLabel="Reserve a seat"
+                              style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: 7,
+                                backgroundColor: '#944421',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 1 },
+                                shadowOpacity: 0.05,
+                                shadowRadius: 2,
+                                elevation: 1,
+                              }}
+                            >
+                              <Utensils size={13} color="white" strokeWidth={3} />
+                            </TouchableOpacity>
                           </View>
                         </View>
                       </TouchableOpacity>
@@ -990,15 +1135,14 @@ export default function HomeScreen() {
               )}
 
               {/* Popular Near You heading */}
-              <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>Popular Near You</Text>
-              </View>
+              <SectionHeader title="Popular Near You" subtitle="Home-cooked favorites from kitchens close to you" extraBottom={8} />
 
               {/* Featured Bento Card */}
               {isLoadingMeals ? (
-                <View style={{ paddingHorizontal: 20, marginBottom: 24 }}>
-                  <ActivityIndicator color="#BF592B" />
-                </View>
+                <>
+                  <SkeletonHeroCard />
+                  <SkeletonHeroCard />
+                </>
               ) : featuredMealsMain.length > 0 && (
                 <View>
                   {featuredMealsMain
@@ -1024,8 +1168,9 @@ export default function HomeScreen() {
                         <View style={{ backgroundColor: '#F7EEE7', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)' }}>
                           <View style={{ position: 'relative', height: 300, backgroundColor: '#F2DFD7' }}>
                             <Image source={getDishImage(hero.title || hero.name, hero.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                            <ImageInnerShadow />
                             <AnimatedHeartOverlay visible={!!animatingLikes[hero.id]} />
-                            {hero.order_deadline && (
+                            {hero.order_deadline && isPotCountdownActive(hero.order_deadline) && (
                               <View style={{ position: 'absolute', top: 12, left: 12, backgroundColor: '#BF592B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
                                 <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: 'white' }}>{formatPotCountdown(hero.order_deadline)}</Text>
                               </View>
@@ -1033,19 +1178,88 @@ export default function HomeScreen() {
                             <TouchableOpacity
                               onPress={() => toggleSaved(hero.id)}
                               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                              style={{ position: 'absolute', top: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.85)', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)', alignItems: 'center', justifyContent: 'center' }}
+                              style={{ position: 'absolute', bottom: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.85)', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)', alignItems: 'center', justifyContent: 'center' }}
                             >
                               <Heart size={15} color="#BF592B" fill={savedIds.includes(hero.id) ? '#BF592B' : 'transparent'} />
                             </TouchableOpacity>
-                          </View>
-                          <View style={{ padding: 16, paddingBottom: 22 }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }} numberOfLines={1}>{hero.title || hero.name}</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 6 }}>
-                              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269', flex: 1 }} numberOfLines={1}>{hero.portions_available} seat{hero.portions_available === 1 ? '' : 's'} left</Text>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                <Star size={11} color="#BF592B" fill="#BF592B" />
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#BF592B' }}>{getDisplayRating(hero.profiles?.rating, hero.id)}</Text>
+                            <View style={{ position: 'absolute', top: 12, right: 12 }}>
+                              <AvatarStack id={hero.id} portionsAvailable={hero.portions_available} size={28} />
+                            </View>
+                            {hero.order_deadline && isPotCountdownActive(hero.order_deadline) && (
+                              <View
+                                style={{
+                                  position: 'absolute',
+                                  left: 12,
+                                  bottom: 12,
+                                  maxWidth: '75%',
+                                  height: 24,
+                                  flexDirection: 'row',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  paddingHorizontal: 10,
+                                  borderRadius: 9999,
+                                  backgroundColor: 'rgba(250,249,244,0.95)',
+                                  shadowColor: '#000',
+                                  shadowOffset: { width: 0, height: 1 },
+                                  shadowOpacity: 0.05,
+                                  shadowRadius: 2,
+                                  elevation: 1,
+                                }}
+                              >
+                                <CalendarIcon size={12} color="#944421" strokeWidth={2.25} />
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, lineHeight: 16, color: '#944421', flexShrink: 1 }} numberOfLines={1}>
+                                  {format(new Date(hero.order_deadline), "EEE, MMM d '•' h:mm a")}
+                                </Text>
                               </View>
+                            )}
+                          </View>
+                          <View style={{ padding: 16, paddingBottom: 16 }}>
+                            <View style={{ marginBottom: 6 }}>
+                              <HostRow showAvatar={false} showName={false} location={hero.profiles?.location} />
+                            </View>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }} numberOfLines={1}>{hero.title || hero.name}</Text>
+                            {!!hero.description?.trim() && (
+                              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 16, color: '#56423B', marginTop: 4 }} numberOfLines={3} ellipsizeMode="tail">{hero.description.trim()}</Text>
+                            )}
+                            {/* Price + reserve footer */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(219,193,184,0.5)' }}>
+                              <View style={{ flexShrink: 1 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                  <PeopleIcon height={10} />
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, lineHeight: 14, color: '#55433C', flexShrink: 1 }} numberOfLines={1}>
+                                    {hero.portions_available > 0 ? `${hero.portions_available} spot${hero.portions_available === 1 ? '' : 's'} left` : 'Fully booked'}
+                                  </Text>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
+                                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, lineHeight: 24, color: '#944421' }}>GH₵</Text>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, lineHeight: 24, color: '#944421' }} numberOfLines={1}>{hero.price}</Text>
+                                  </View>
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: '#55433C' }}>/seat</Text>
+                                </View>
+                              </View>
+                              <TouchableOpacity
+                                onPress={() => handleCardPress(hero.id)}
+                                activeOpacity={0.85}
+                                accessibilityLabel="Reserve a seat"
+                                style={{
+                                  height: 32,
+                                  paddingHorizontal: 12,
+                                  flexDirection: 'row',
+                                  gap: 6,
+                                  borderRadius: 8,
+                                  backgroundColor: '#944421',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  shadowColor: '#000',
+                                  shadowOffset: { width: 0, height: 1 },
+                                  shadowOpacity: 0.05,
+                                  shadowRadius: 2,
+                                  elevation: 1,
+                                }}
+                              >
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: 'white' }} numberOfLines={1}>Reserve Seat</Text>
+                              </TouchableOpacity>
                             </View>
                           </View>
                         </View>
@@ -1058,9 +1272,7 @@ export default function HomeScreen() {
               {/* Horizontal swipeable row, right after the big cards — Airbnb-style */}
               {featuredMealsMain.length > 2 && (
                 <>
-                <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>More Hosts to Discover</Text>
-                </View>
+                <SectionHeader title="More Hosts to Discover" />
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -1093,11 +1305,23 @@ export default function HomeScreen() {
                     >
                       <View style={{ height: 142, backgroundColor: '#F2DFD7', position: 'relative' }}>
                         <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                        {item.order_deadline && (
-                          <View style={{ position: 'absolute', top: 9, left: 9, backgroundColor: '#BF592B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
+                        <ImageInnerShadow />
+                        <TouchableOpacity
+                          onPress={() => toggleSaved(item.id)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={{ position: 'absolute', top: 8, left: 8, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', shadowColor: '#BF592B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 4 }}
+                        >
+                          <Heart size={14} color="#BF592B" fill={savedIds.includes(item.id) ? '#BF592B' : 'rgba(191,89,43,0.25)'} />
+                        </TouchableOpacity>
+                        <AnimatedHeartOverlay visible={!!animatingLikes[item.id]} />
+                        {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
+                          <View style={{ position: 'absolute', top: 42, left: 9, backgroundColor: '#BF592B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: 'white' }}>{formatPotCountdown(item.order_deadline)}</Text>
                           </View>
                         )}
+                        <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                          <AvatarStack id={item.id} portionsAvailable={item.portions_available} size={22} />
+                        </View>
                       </View>
                       <View style={{ padding: 12 }}>
                         <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }} numberOfLines={1}>{item.title || item.name}</Text>
@@ -1117,9 +1341,7 @@ export default function HomeScreen() {
               )}
 
               {/* FEATURED EDITORIAL CARDS */}
-              <View style={{ paddingHorizontal: 20, marginBottom: 14 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>Featured</Text>
-              </View>
+              <SectionHeader title="Featured" />
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -1180,15 +1402,11 @@ export default function HomeScreen() {
               {likedItems.length > 0 && (
                 <View style={{ marginBottom: 28 }}>
                   {/* Section header */}
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 16, marginBottom: 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Heart size={18} color="#BF592B" fill="#BF592B" />
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>Liked Meals</Text>
-                    </View>
-                    <Pressable onPress={() => router.push('/(tabs)/explore/map')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>See all</Text>
-                    </Pressable>
-                  </View>
+                  <SectionHeader
+                    title="Liked Meals"
+                    icon={<Heart size={18} color="#BF592B" fill="#BF592B" />}
+                    onActionPress={() => router.push('/(tabs)/explore/map')}
+                  />
 
                   {/* Row 1 — big cards (70% width) */}
                   <ScrollView
@@ -1225,7 +1443,7 @@ export default function HomeScreen() {
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                                 <Flame size={10} color="#BA1A1A" fill="#BA1A1A" />
                                 <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 10, color: '#BA1A1A' }} numberOfLines={1}>
-                                  {hItem.order_deadline ? formatPotCountdown(hItem.order_deadline) : `${hItem.portions_available} seat${hItem.portions_available === 1 ? "" : "s"} left`}
+                                  {hItem.order_deadline && isPotCountdownActive(hItem.order_deadline) ? formatPotCountdown(hItem.order_deadline) : `${hItem.portions_available} seat${hItem.portions_available === 1 ? "" : "s"} left`}
                                 </Text>
                               </View>
                             </View>
@@ -1276,7 +1494,7 @@ export default function HomeScreen() {
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                                   <Flame size={10} color="#BA1A1A" fill="#BA1A1A" />
                                   <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 10, color: '#BA1A1A' }} numberOfLines={1}>
-                                    {hItem.order_deadline ? formatPotCountdown(hItem.order_deadline) : `${hItem.portions_available} seat${hItem.portions_available === 1 ? "" : "s"} left`}
+                                    {hItem.order_deadline && isPotCountdownActive(hItem.order_deadline) ? formatPotCountdown(hItem.order_deadline) : `${hItem.portions_available} seat${hItem.portions_available === 1 ? "" : "s"} left`}
                                   </Text>
                                 </View>
                               )}
@@ -1293,15 +1511,13 @@ export default function HomeScreen() {
               {/* More Dishes — vertical + grid */}
               {featuredMealsMain.length > 6 && (
                 <View style={{ paddingHorizontal: 20 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Flame size={18} color="#BF592B" fill="#BF592B" />
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>Popular Near You</Text>
-                    </View>
-                    <Pressable onPress={() => router.push('/(tabs)/explore/map')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>See all</Text>
-                    </Pressable>
-                  </View>
+                  <SectionHeader
+                    title="Popular Near You"
+                    subtitle="Home-cooked favorites from kitchens close to you"
+                    icon={<Flame size={18} color="#BF592B" fill="#BF592B" />}
+                    onActionPress={() => router.push('/(tabs)/explore/map')}
+                    inset={false}
+                  />
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                     {featuredMealsMain.slice(6, 12).map((item: any) => (
                       <View
@@ -1322,15 +1538,19 @@ export default function HomeScreen() {
                           <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: '#F7EEE7', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)' }}>
                             <View style={{ position: 'relative', height: 155 }}>
                               <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                              <ImageInnerShadow />
                               <TouchableOpacity style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }} onPress={() => toggleSaved(item.id)}>
                                 <Heart size={13} color="#BF592B" fill={savedIds.includes(item.id) ? '#BF592B' : 'transparent'} />
                               </TouchableOpacity>
                               <AnimatedHeartOverlay visible={!!animatingLikes[item.id]} />
-                              {item.order_deadline && (
+                              {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
                                 <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#BF592B', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 }}>
                                   <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 9, color: 'white' }}>{formatPotCountdown(item.order_deadline)}</Text>
                                 </View>
                               )}
+                              <View style={{ position: 'absolute', top: 42, right: 8 }}>
+                                <AvatarStack id={item.id} portionsAvailable={item.portions_available} size={22} />
+                              </View>
                             </View>
                             <View style={{ padding: 10 }}>
                               <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915', marginBottom: 4 }} numberOfLines={1}>{item.title || item.name}</Text>

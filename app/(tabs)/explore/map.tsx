@@ -67,7 +67,7 @@ export default function ExploreMapScreen() {
 
     // Bottom sheet — peek (collapsed) and expanded snap points
     const HEADER_SPACE = insets.top + 150;
-    const PEEK_HEIGHT = 130;
+    const PEEK_HEIGHT = 116;
     const EXPANDED_HEIGHT = SCREEN_HEIGHT - HEADER_SPACE;
     const sheetY = useRef(new Animated.Value(EXPANDED_HEIGHT - PEEK_HEIGHT)).current;
     const sheetYValue = useRef(EXPANDED_HEIGHT - PEEK_HEIGHT);
@@ -337,8 +337,8 @@ export default function ExploreMapScreen() {
                     paddingBottom: 14,
                     position: 'absolute',
                     top: 0,
-                    left: 0,
-                    right: 0,
+                    left: 6,
+                    right: 6,
                     zIndex: 50,
                 }}
             >
@@ -372,7 +372,7 @@ export default function ExploreMapScreen() {
                             returnKeyType="search"
                         />
                         <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#8A7269', marginTop: 1 }}>
-                            {isLoading ? 'Loading cooks…' : `${filteredCooks.length} cook${filteredCooks.length !== 1 ? 's' : ''} near you`}
+                            {isLoading ? 'Loading gatherings…' : `${filteredCooks.length} gathering${filteredCooks.length !== 1 ? 's' : ''} near you`}
                         </Text>
                     </View>
                     {searchQuery.length > 0 && (
@@ -452,7 +452,7 @@ export default function ExploreMapScreen() {
                 <View
                     style={{
                         position: 'absolute',
-                        right: 16,
+                        right: 22,
                         zIndex: 60,
                         bottom: (sheetExpanded ? EXPANDED_HEIGHT : PEEK_HEIGHT) + 16,
                     }}
@@ -489,8 +489,8 @@ export default function ExploreMapScreen() {
                 <Animated.View
                     style={{
                         position: 'absolute',
-                        left: 0,
-                        right: 0,
+                        left: 6,
+                        right: 6,
                         bottom: 0,
                         height: EXPANDED_HEIGHT + 40,
                         backgroundColor: '#F7EEE7',
@@ -506,29 +506,29 @@ export default function ExploreMapScreen() {
                     }}
                 >
                     {/* Drag handle + count — the draggable area */}
-                    <View {...panResponder.panHandlers} style={{ paddingTop: 10, paddingBottom: 4 }}>
+                    <View {...panResponder.panHandlers} style={{ paddingTop: 2, paddingBottom: 0 }}>
                         <TouchableOpacity
                             activeOpacity={0.7}
                             onPress={() => selectedCook ? setSelectedCook(null) : snapSheet(!sheetExpanded)}
                             style={{ alignItems: 'center' }}
                         >
-                            <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: '#E5D9D3', marginBottom: 12 }} />
+                            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5D9D3', marginBottom: 4 }} />
                             {selectedCook ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>
                                         {selectedCook.name}
                                     </Text>
                                     <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#BF592B' }}>
-                                        · back to all cooks
+                                        · back to all gatherings
                                     </Text>
                                 </View>
                             ) : filteredCooks.length > 0 ? (
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
-                                    {filteredCooks.length} cook{filteredCooks.length !== 1 ? 's' : ''} near you
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>
+                                    {filteredCooks.length} gathering{filteredCooks.length !== 1 ? 's' : ''} near you
                                 </Text>
                             ) : (
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915' }}>
-                                    No cooks in this area yet
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>
+                                    No gatherings in this area yet
                                 </Text>
                             )}
                         </TouchableOpacity>

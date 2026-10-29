@@ -8,15 +8,16 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { useFonts } from 'expo-font';
-import { ErrorBoundary, Stack, useRouter } from 'expo-router';
+import { ErrorBoundary, Stack, useRouter, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/lib/supabase';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
+import PageTransitionLoader from '@/components/PageTransitionLoader';
 import './global.css';
 
 export { ErrorBoundary };
@@ -38,6 +39,20 @@ try {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const router = useRouter();
+  const pathname = usePathname();
+  const [showTransitionLoader, setShowTransitionLoader] = useState(false);
+  const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Brief bouncing-dots indicator on every route change, so navigation feels alive
+  // without blocking the new screen underneath it.
+  useEffect(() => {
+    setShowTransitionLoader(true);
+    if (transitionTimer.current) clearTimeout(transitionTimer.current);
+    transitionTimer.current = setTimeout(() => setShowTransitionLoader(false), 500);
+    return () => {
+      if (transitionTimer.current) clearTimeout(transitionTimer.current);
+    };
+  }, [pathname]);
 
   // Redirect to onboarding whenever Supabase fires SIGNED_OUT — this covers
   // both explicit sign-out and background token refresh failures where
@@ -83,7 +98,7 @@ export default function RootLayout() {
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
             <Stack.Screen name="onboarding" />
-            <Stack.Screen name="(tabs)" />
+            <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 0 } }} />
             <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
             <Stack.Screen name="messages" options={{ presentation: 'card' }} />
             <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
@@ -92,6 +107,7 @@ export default function RootLayout() {
             <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 0 } }} />
             <Stack.Screen name="cart" options={{ presentation: 'card' }} />
           </Stack>
+          <PageTransitionLoader visible={showTransitionLoader} />
         </ThemeProvider>
       </PaystackProvider>
     </QueryClientProvider>

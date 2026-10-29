@@ -1,5 +1,12 @@
 import { differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
 
+// Once the deadline has passed there's nothing left to count down, so cards
+// should just stop showing the badge rather than display "Starting now".
+export function isPotCountdownActive(deadline: string | Date): boolean {
+    const target = typeof deadline === 'string' ? new Date(deadline) : deadline;
+    return target.getTime() > new Date().getTime();
+}
+
 // Dynamic urgency label for a scheduled "Join the Pot" listing — shifts from
 // days to hours to minutes as the cook's session start time approaches.
 export function formatPotCountdown(deadline: string | Date): string {
