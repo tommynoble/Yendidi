@@ -193,7 +193,20 @@ export default function AuthScreen() {
                     .eq('id', data.session.user.id)
                     .single();
                 if (profileError && profileError.code !== 'PGRST116') console.error('Profile Fetch Error:', profileError);
-                if (profile?.full_name) {
+                // First ever sign-in: the account was confirmed (by this very code) moments ago. Decided from the auth record,
+                // not from the profile, because a profile row can already exist with a name for a brand-new account
+                // (e.g. one created automatically), which used to send new people straight into the app.
+                const authUser = data.session.user;
+                const confirmedAt = authUser.email_confirmed_at || authUser.phone_confirmed_at || authUser.confirmed_at;
+                const isFirstSignIn = !!confirmedAt && !!authUser.last_sign_in_at
+                    && Math.abs(new Date(authUser.last_sign_in_at).getTime() - new Date(confirmedAt).getTime()) < 2 * 60 * 1000;
+
+                if (profile?.full_name && isFirstSignIn) {
+                    // Brand-new account that already has a name: skip the name step, but still run the onboarding questions.
+                    setStoreName(profile.full_name);
+                    setCookMode(false);
+                    setTimeout(() => { router.replace('/onboarding/preferences'); }, 100);
+                } else if (profile?.full_name) {
                     setStoreName(profile.full_name);
                     setCookMode(false);
                     const primed = await hasPrimedPermissions();
@@ -230,8 +243,8 @@ export default function AuthScreen() {
                 Animated.timing(splashOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
                 Animated.spring(splashScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
             ]).start();
-            const primed = await hasPrimedPermissions();
-            setTimeout(() => { router.replace(primed ? '/(tabs)' : '/onboarding/permissions'); }, 2500);
+            // New sign-ups answer a few taste questions first; that screen then continues on to permissions / the app.
+            setTimeout(() => { router.replace('/onboarding/preferences'); }, 2500);
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to save profile');
         } finally {

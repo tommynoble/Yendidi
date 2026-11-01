@@ -8,6 +8,8 @@ export default function OnboardingLayout() {
       }}
     >
       <Stack.Screen name="community" />
+      <Stack.Screen name="preferences" />
+      <Stack.Screen name="id-verification" />
       <Stack.Screen name="permissions" />
     </Stack>
   );

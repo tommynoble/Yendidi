@@ -1,9 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, RefreshControl, TextInput, Modal, Switch, Animated, Linking, AppState } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, RefreshControl, TextInput, Modal, Switch, Animated, Linking, AppState, LayoutAnimation } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Settings, LogOut, ChevronRight, User, Phone, ShieldCheck, ChefHat, RefreshCw, MapPin, Clock, Utensils, Calendar, Navigation, X, Check, Camera, Menu, Search, Star, Gem, Crown, CreditCard, Bell, Soup, Fish, Flame, Wallet } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Settings, LogOut, ChevronRight, User, Phone, ShieldCheck, ChefHat, RefreshCw, MapPin, Clock, Utensils, Calendar, Navigation, X, Check, Camera, Menu, Search, Star, Gem, Crown, CreditCard, Bell, Soup, Fish, Flame, Wallet } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import TasteProfile from '@/components/TasteProfile';
+import { loadPreferences, GuestPreferences } from '@/lib/preferencesOnboarding';
+import { PRIVATE_QUESTION_ID, GUEST_QUESTIONS } from '@/constants/guestQuestions';
+import { Sparkles } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import ProcessLoader from '@/components/ProcessLoader';
 import * as Location from 'expo-location';
@@ -39,12 +44,33 @@ const getTierInfo = (points: number) => {
     return { current, next, progress, pointsToNext, currentIndex };
 };
 
+// How much of the rewards card shows while it's collapsed.
+const REWARDS_PEEK_HEIGHT = 84;
+
 export default function ProfileScreen() {
     const router = useRouter();
     const { isCookMode, toggleCookMode } = useAppStore();
     const insets = useSafeAreaInsets();
 
     const [loading, setLoading] = useState(true);
+    // Collapsible sections: the activity counts and the rewards card. Both start collapsed to keep the page short.
+    const [showStats, setShowStats] = useState(false);
+    const [showRewards, setShowRewards] = useState(false);
+    const [showKitchen, setShowKitchen] = useState(false);
+    const toggleSection = (set: React.Dispatch<React.SetStateAction<boolean>>) => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        set((v) => !v);
+    };
+    // The guest's own sign-up answers (public taste + private dietary), refreshed whenever this tab is shown.
+    const [prefs, setPrefs] = useState<GuestPreferences>({});
+    useFocusEffect(React.useCallback(() => {
+        loadPreferences().then(setPrefs);
+        // The tab stays mounted, so refresh the "Watching" count from the saved list each time this tab is shown.
+        AsyncStorage.getItem(FAVORITES_KEY).then((raw) => {
+            const count = raw ? JSON.parse(raw).length : 0;
+            setStats((prev) => ({ ...prev, saved: count }));
+        }).catch(() => {});
+    }, []));
     const [profile, setProfile] = useState<any>(null);
     const [stats, setStats] = useState({ orders: 0, reviews: 0, saved: 0 });
     const [pendingApp, setPendingApp] = useState<any>(null);
@@ -638,8 +664,27 @@ export default function ProfileScreen() {
                         </View>
                     </View>
 
-                    {/* Stats Row */}
-                    <View className="flex-row justify-around bg-brand-surface border border-[#F2DFD7] mx-6 mb-6 py-3 rounded-2xl">
+                    {/* Activity counts — tap the header to show or hide */}
+                    <View className="mx-6 mb-6">
+                        <TouchableOpacity
+                            onPress={() => toggleSection(setShowStats)}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            accessibilityState={{ expanded: showStats }}
+                            className="flex-row items-center justify-between bg-brand-surface border border-[#F2DFD7] rounded-2xl px-4 py-3"
+                        >
+                            <View className="flex-1 pr-3">
+                                <Text className="text-card font-bold text-brand-ink font-sans-bold">Your activity</Text>
+                                {!showStats && (
+                                    <Text className="text-meta text-brand-muted font-sans" numberOfLines={1}>
+                                        {stats.orders} {isCookMode ? 'sales' : 'orders'} · {stats.reviews} reviews · {stats.saved} watching
+                                    </Text>
+                                )}
+                            </View>
+                            {showStats ? <ChevronUp size={20} color={palette.ink} /> : <ChevronDown size={20} color={palette.ink} />}
+                        </TouchableOpacity>
+                        {showStats && (
+                    <View className="flex-row justify-around bg-brand-surface border border-[#F2DFD7] mt-3 py-3 rounded-2xl">
                         <View className="items-center flex-1 border-r border-[#F2DFD7]">
                             <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.orders}</Text>
                             <Text className="text-meta text-brand-muted font-sans">{isCookMode ? 'Sales' : 'Orders'}</Text>
@@ -652,6 +697,8 @@ export default function ProfileScreen() {
                             <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.saved}</Text>
                             <Text className="text-meta text-brand-muted font-sans">Watching</Text>
                         </View>
+                    </View>
+                        )}
                     </View>
 
                     {/* COOK STATUS / SWITCH MODE BUTTON */}
@@ -713,17 +760,28 @@ export default function ProfileScreen() {
                         </View>
                     ) : profile.cook_application_status === 'pending' ? (
                         <View className="mx-6 mb-6 bg-brand-surface border border-[#F2DFD7] rounded-3xl p-5 shadow-sm">
-                            <View className="flex-row items-center justify-between mb-4 border-b border-gray-100 pb-4">
-                                <View>
+                            {/* Tap to show or hide the application details; collapsed by default while it's still under review */}
+                            <TouchableOpacity
+                                onPress={() => toggleSection(setShowKitchen)}
+                                activeOpacity={0.8}
+                                accessibilityRole="button"
+                                accessibilityState={{ expanded: showKitchen }}
+                                className={`flex-row items-center justify-between ${showKitchen ? 'mb-4 border-b border-gray-100 pb-4' : ''}`}
+                            >
+                                <View className="flex-1 pr-3">
                                     <Text className="font-bold text-brand-ink text-card font-sans-bold">Kitchen Profile</Text>
-                                    <Text className="text-brand-muted text-meta font-sans">Waitlist preview</Text>
+                                    <Text className="text-brand-muted text-meta font-sans">{showKitchen ? 'Waitlist preview' : `${pendingApp?.kitchen_name || 'Your application'} · tap to view`}</Text>
                                 </View>
-                                <View className="bg-[#FFF1EC] px-3 py-1.5 rounded-full flex-row items-center gap-1.5 border border-[#F2DFD7]">
-                                    <Clock size={12} color={palette.accent} />
-                                    <Text className="text-clay-primary text-meta font-sans-semibold">Under Review</Text>
+                                <View className="flex-row items-center gap-2">
+                                    <View className="bg-[#FFF1EC] px-3 py-1.5 rounded-full flex-row items-center gap-1.5 border border-[#F2DFD7]">
+                                        <Clock size={12} color={palette.accent} />
+                                        <Text className="text-clay-primary text-meta font-sans-semibold">Under Review</Text>
+                                    </View>
+                                    {showKitchen ? <ChevronUp size={20} color={palette.ink} /> : <ChevronDown size={20} color={palette.ink} />}
                                 </View>
-                            </View>
+                            </TouchableOpacity>
 
+                            {showKitchen && (
                             <View className="gap-4">
                                 <View className="flex-row items-start gap-3">
                                     <View className="w-10 h-10 bg-[#FFF1EC] rounded-xl items-center justify-center mt-0.5">
@@ -763,6 +821,7 @@ export default function ProfileScreen() {
                                     </View>
                                 </View>
                             </View>
+                            )}
                         </View>
                     ) : profile.cook_application_status === 'rejected' ? (
                         <TouchableOpacity
@@ -829,9 +888,12 @@ export default function ProfileScreen() {
                         return (
                         <View className="mb-6">
                             <View className="flex-row justify-between items-end px-6 mb-3">
-                                <Text className="text-card font-bold text-brand-ink font-sans-bold">
-                                    Rewards & Discounts
-                                </Text>
+                                <TouchableOpacity onPress={() => toggleSection(setShowRewards)} activeOpacity={0.8} accessibilityRole="button" accessibilityState={{ expanded: showRewards }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} className="flex-row items-center gap-1.5">
+                                    <Text className="text-card font-bold text-brand-ink font-sans-bold">
+                                        Rewards & Discounts
+                                    </Text>
+                                    {showRewards ? <ChevronUp size={18} color={palette.ink} /> : <ChevronDown size={18} color={palette.ink} />}
+                                </TouchableOpacity>
                                 <TouchableOpacity onPress={() => Alert.alert(
                                     'Benefits',
                                     `Earn 1 point per ₵1 spent. Root (0+), Sankofa (500+), Nyame (1,500+), Ohene (3,000+). Flip your card for a reward code.`
@@ -843,10 +905,13 @@ export default function ProfileScreen() {
                             </View>
 
                             {/* Flidable Card Container */}
+                            {/* Closed: only the top of the card peeks out, fading into the page. Open: the whole card, tap to flip. */}
+                            <View className="mx-6" style={{ height: showRewards ? 256 : REWARDS_PEEK_HEIGHT, overflow: 'hidden', borderRadius: 24 }}>
                             <TouchableOpacity 
                                 activeOpacity={0.95} 
-                                onPress={toggleFlip}
-                                className="mx-6 h-64"
+                                onPress={showRewards ? toggleFlip : () => toggleSection(setShowRewards)}
+                                className="h-64"
+                                accessibilityLabel={showRewards ? 'Reward card. Tap to flip' : 'Show reward card'}
                             >
                                 {/* FRONT SIDE */}
                                 <Animated.View 
@@ -987,11 +1052,71 @@ export default function ProfileScreen() {
                                     </View>
                                 </Animated.View>
                             </TouchableOpacity>
+                            {!showRewards && (
+                                <LinearGradient
+                                    pointerEvents="none"
+                                    colors={['rgba(248,228,221,0)', palette.canvas]}
+                                    style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 44 }}
+                                />
+                            )}
+                            </View>
                         </View>
                         );
                     })()}
 
 
+
+                    {/* Taste profile — the guest's public taste, plus their private dietary needs (only they and their hosts see those) */}
+                    {!isCookMode && (
+                        <View className="mb-6 px-6">
+                            <View className="flex-row items-center justify-between mb-3">
+                                <Text className="text-card font-bold text-brand-ink font-sans-bold">Your taste profile</Text>
+                                <TouchableOpacity onPress={() => router.push('/onboarding/preferences?edit=1')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: palette.accent }}>{Object.keys(prefs).length > 0 ? 'Edit' : 'Add'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                            {/* Not finished the sign-up questions yet: invite them to pick up where they left off */}
+                            {(() => {
+                                const total = GUEST_QUESTIONS.length;
+                                const answered = GUEST_QUESTIONS.filter((q) => prefs[q.id]?.length).length;
+                                if (answered >= total) return null;
+                                const firstOpen = Math.max(0, GUEST_QUESTIONS.findIndex((q) => !prefs[q.id]?.length));
+                                return (
+                                    <TouchableOpacity
+                                        onPress={() => router.push(`/onboarding/preferences?edit=1&start=${firstOpen}`)}
+                                        activeOpacity={0.85}
+                                        accessibilityRole="button"
+                                        className="mb-3 rounded-2xl p-4 flex-row items-center gap-3"
+                                        style={{ backgroundColor: palette.accent }}
+                                    >
+                                        <View className="w-10 h-10 rounded-xl items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+                                            <Sparkles size={20} color="#FFFFFF" />
+                                        </View>
+                                        <View className="flex-1">
+                                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#FFFFFF' }}>
+                                                {answered === 0 ? 'Finish your taste profile' : 'Pick up where you left off'}
+                                            </Text>
+                                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: 'rgba(255,255,255,0.92)', marginTop: 1 }}>
+                                                {answered} of {total} questions answered. Tell us what you love so we can match you to the right tables.
+                                            </Text>
+                                            <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginTop: 8 }}>
+                                                <View style={{ height: 4, borderRadius: 2, backgroundColor: '#FFFFFF', width: `${(answered / total) * 100}%` }} />
+                                            </View>
+                                        </View>
+                                        <ChevronRight size={20} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                );
+                            })()}
+                            <View className="bg-brand-surface rounded-2xl p-4 border border-[#F2DFD7]">
+                                <TasteProfile
+                                    taste={prefs}
+                                    dietary={prefs[PRIVATE_QUESTION_ID]}
+                                    emptyText="Tell us what you love to eat so hosts and other guests know who's joining the table."
+                                />
+                                <Text className="text-micro text-brand-muted font-sans mt-3">Other guests can see your cravings, vibe and travel answers. Allergies stay private to your hosts.</Text>
+                            </View>
+                        </View>
+                    )}
 
                     {/* Account Settings Section */}
                     <View className="mb-6">

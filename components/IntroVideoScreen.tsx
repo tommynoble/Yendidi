@@ -19,6 +19,10 @@ export default function IntroVideoScreen({ source, onContinue }: {
 }) {
     const player = useVideoPlayer(source ?? null, (p) => {
         if (source) {
+            // Silent video that never takes over the phone's audio: muted, and mixed with whatever else is playing
+            // so the user's background music keeps going while the intro runs.
+            p.muted = true;
+            p.audioMixingMode = 'mixWithOthers';
             p.loop = true;
             p.play();
         }
@@ -95,7 +99,7 @@ export default function IntroVideoScreen({ source, onContinue }: {
                             opacity: taglineFade,
                         }}
                     >
-                        Let's Eat Together
+                        Eat. Drink. Socialize.
                     </Animated.Text>
                 </Animated.View>
             </SafeAreaView>

@@ -45,6 +45,7 @@ import AvatarStack from '@/components/AvatarStack';
 import { formatPotCountdown } from '@/lib/countdown';
 import TimeLocationCards from '@/components/TimeLocationCards';
 import { palette, type, fonts } from '@/constants/theme';
+import { REQUIRE_ID_TO_BOOK, canBook, idVerificationHref, setAfterIdGate } from '@/lib/idVerification';
 import RibbonBadgeIcon from '@/components/RibbonBadgeIcon';
 import SectionHeader from '@/components/SectionHeader';
 import CourseList, { Course } from '@/components/CourseList';
@@ -95,6 +96,10 @@ export default function ListingDetailScreen() {
     const lightboxRef = useRef<FlatList>(null);
     const sectionOffsets = useRef<Record<string, number>>({});
     const FAVORITES_KEY = 'yendidii_favorites';
+
+    // "Tap to confirm" on the date card. Deliberately not saved: leaving the page resets it, so guests confirm again on return.
+    const [confirmed, setConfirmed] = useState(false);
+    const toggleConfirmed = () => setConfirmed(c => !c);
 
     // Keep the pot countdown/seats card and the order-deadline gate live while
     // this screen stays open, instead of a snapshot frozen at first render.
@@ -295,9 +300,21 @@ export default function ListingDetailScreen() {
     const potFilledEnough = potTotalSeats > 0 && potBookedCount >= potTotalSeats / 2;
     const potDidNotFill = deadlinePassed && !potFilledEnough;
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         if (!listing) return;
         if (deadlinePassed) return;
+        // Soft gate: browsing is free, but the first booking needs a verified ID (or "Maybe later" for now).
+        if (REQUIRE_ID_TO_BOOK && !(await canBook())) {
+            // After "Maybe later": add the seats and go straight to the cart to pay.
+            setAfterIdGate(() => { addToCartNow(); router.push('/cart'); });
+            router.push(idVerificationHref(`/listing/${listing.id}`));
+            return;
+        }
+        addToCartNow();
+    };
+
+    const addToCartNow = () => {
+        if (!listing) return;
         addToCart({
             id: listing.id, // Keep base listing.id to match backend validation constraints
             name: `${listing.title} (${optionName})`,
@@ -562,21 +579,21 @@ export default function ListingDetailScreen() {
                         activeOpacity={0.8}
                         style={{ alignItems: 'center', marginBottom: 16 }}
                     >
-                        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FFDBCE', alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: '#FFDBCE', alignItems: 'center', justifyContent: 'center' }}>
                             {(listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url) ? (
                                 <Image
                                     source={{ uri: listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url }}
-                                    style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F2DFD7' }}
+                                    style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: '#F2DFD7' }}
                                 />
                             ) : (
-                                <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center' }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#944421' }}>
+                                <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 21, color: '#944421' }}>
                                         {(listing.profiles?.full_name || cookApp?.kitchen_name || 'H').trim().charAt(0).toUpperCase()}
                                     </Text>
                                 </View>
                             )}
-                            <View style={{ position: 'absolute', bottom: 1, right: 1, width: 18, height: 18, borderRadius: 9, backgroundColor: '#FFCD00', alignItems: 'center', justifyContent: 'center' }}>
-                                <RibbonBadgeIcon height={11} />
+                            <View style={{ position: 'absolute', bottom: 1, right: 1, width: 21, height: 21, borderRadius: 10.5, backgroundColor: '#FFCD00', alignItems: 'center', justifyContent: 'center' }}>
+                                <RibbonBadgeIcon height={13} />
                             </View>
                         </View>
                         <View style={{ marginTop: 6, alignItems: 'center' }}>
@@ -615,15 +632,14 @@ export default function ListingDetailScreen() {
                         // Nearby landmark line; placeholder until hosts add one.
                         const landmark = (cookApp?.location_description || listing.profiles?.location_description || '').trim();
                         const nearby = landmark ? (/^near\b/i.test(landmark) ? landmark : `Near ${landmark}`) : 'Near Ecobank';
-                        const spots = listing.portions_available || 0;
-                        const spotsNote = spots > 0 ? `${spots} spot${spots === 1 ? '' : 's'} left` : 'Fully booked';
 
                         return (
                             <View style={{ gap: 28, marginBottom: 28 }}>
                                 <TimeLocationCards
+                                    confirmed={confirmed}
+                                    onConfirmPress={toggleConfirmed}
                                     dateTitle={scheduled ? format(start as Date, 'EEEE, MMM d') : 'Saturday, Nov 14'}
                                     timeLine={scheduled ? format(start as Date, 'h:mm a') : '6:00 PM'}
-                                    timeNote={spotsNote}
                                     locationTitle={hostLocation}
                                     locationTag="Private Residence"
                                     locationLine={nearby}

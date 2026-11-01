@@ -39,7 +39,8 @@ export default function PermissionsOnboardingScreen() {
 
     const finish = async () => {
         await markPermissionsPrimed();
-        router.replace('/(tabs)');
+        // Map drop: new guests land straight on the map with hosts around them.
+        router.replace('/(tabs)/explore/map');
     };
 
     const advance = () => {

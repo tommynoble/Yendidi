@@ -18,6 +18,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/lib/supabase';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
+import { clearUserData, claimDeviceForUser } from '@/lib/session';
 import PageTransitionLoader from '@/components/PageTransitionLoader';
 import { palette } from '@/constants/theme';
 import './global.css';
@@ -62,7 +63,13 @@ export default function RootLayout() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
+        // Nothing from this account (cart, saved dishes, cached results, answers) may carry over to the next person.
+        clearUserData(queryClient);
         setTimeout(() => router.replace('/onboarding/community'), 0);
+      }
+      if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        // A different account on the same phone also starts clean.
+        claimDeviceForUser(session.user.id, queryClient);
       }
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         registerForPushNotificationsAsync().catch((e) => console.warn('Push registration error:', e));

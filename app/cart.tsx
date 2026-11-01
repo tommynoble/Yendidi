@@ -6,6 +6,7 @@ import { ChevronLeft, ShoppingCart, CheckCircle, Home, Receipt, ShieldCheck, Min
 import { useRouter } from 'expo-router';
 import { useAppStore } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
+import { REQUIRE_ID_TO_BOOK, canBook, idVerificationHref, setAfterIdGate } from '@/lib/idVerification';
 import { usePaystack } from 'react-native-paystack-webview';
 import { getDishImage } from '@/constants/Images';
 import ProcessLoader from '@/components/ProcessLoader';
@@ -155,6 +156,12 @@ export default function CartScreen() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             router.push('/login');
+            return;
+        }
+        // Same check again at payment, in case the cart was filled before verification was required.
+        if (REQUIRE_ID_TO_BOOK && !(await canBook())) {
+            setAfterIdGate(handlePlaceOrder); // "Maybe later" carries straight on to payment
+            router.push(idVerificationHref('/cart'));
             return;
         }
 
