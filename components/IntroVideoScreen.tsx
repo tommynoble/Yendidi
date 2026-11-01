@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Image, Animated, StyleSheet } from 'react-native';
 import { VideoView, useVideoPlayer, VideoSource } from 'expo-video';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { palette } from '@/constants/theme';
 
 const HOLD_MS = 4500;
 
@@ -58,7 +59,7 @@ export default function IntroVideoScreen({ source, onContinue }: {
     }, []);
 
     return (
-        <Animated.View style={[StyleSheet.absoluteFill, !source && { backgroundColor: '#BF592B' }, { opacity: screenFade }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, !source && { backgroundColor: palette.accent }, { opacity: screenFade }]}>
             {source && (
                 <VideoView
                     player={player}
@@ -67,7 +68,7 @@ export default function IntroVideoScreen({ source, onContinue }: {
                     nativeControls={false}
                 />
             )}
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(191,89,43,0.35)' }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(194, 83, 39,0.35)' }]} />
 
             <SafeAreaView style={StyleSheet.absoluteFill} pointerEvents="none">
                 <Animated.View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: fade, transform: [{ translateY }] }}>

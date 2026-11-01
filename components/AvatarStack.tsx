@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, Image, Pressable, Animated } from 'react-native';
+import { palette } from '@/constants/theme';
 
 // No "who bought this" data yet — a deterministic placeholder count/faces per
 // listing so the stack looks consistent on re-render instead of random noise.
@@ -19,11 +20,16 @@ const getSeatStack = (id: string, portionsAvailable?: number) => {
 
 // Collapsed: only the "+N" chip shows, the faces are tucked behind it.
 // Tap the chip: the faces slide out to its left (springy, fading in); tap again to tuck them back.
-export default function AvatarStack({ id, portionsAvailable, size = 18 }: { id: string; portionsAvailable?: number; size?: number }) {
+// `defaultOpen` starts with the faces already out. `reserveSpace` always keeps layout room for the open faces
+// (instead of letting them overflow to the left of the chip), so the group can be centred without shifting, e.g. on the dish page.
+export default function AvatarStack({ id, portionsAvailable, size = 18, defaultOpen = false, reserveSpace = false }: { id: string; portionsAvailable?: number; size?: number; defaultOpen?: boolean; reserveSpace?: boolean }) {
   const { shown, cover, extra } = getSeatStack(id, portionsAvailable);
   const step = size * 0.55; // distance between faces once revealed (they overlap slightly)
-  const progress = useRef(new Animated.Value(0)).current;
-  const [open, setOpen] = useState(false);
+  const progress = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
+  const [open, setOpen] = useState(defaultOpen);
+  // With `reserveSpace` the room for the open faces is always kept, so toggling never changes the layout width
+  // (and the surrounding row never shifts); the chip just sits at the right end of that room.
+  const reserved = reserveSpace ? shown.length * step : 0;
 
   const toggle = () => {
     const next = !open;
@@ -37,7 +43,7 @@ export default function AvatarStack({ id, portionsAvailable, size = 18 }: { id: 
   };
 
   const shadow = {
-    shadowColor: '#BF592B',
+    shadowColor: palette.accent,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
@@ -45,7 +51,7 @@ export default function AvatarStack({ id, portionsAvailable, size = 18 }: { id: 
   } as const;
 
   return (
-    <View style={{ width: size, height: size }}>
+    <View style={{ width: size + reserved, height: size }}>
       {shown.map((uri, i) => (
         <Animated.Image
           key={i}
@@ -54,13 +60,13 @@ export default function AvatarStack({ id, portionsAvailable, size = 18 }: { id: 
             {
               position: 'absolute',
               top: 0,
-              left: 0,
+              left: reserved,
               width: size,
               height: size,
               borderRadius: size / 2,
               backgroundColor: '#F2DFD7',
               borderWidth: 1,
-              borderColor: 'rgba(191,89,43,0.35)',
+              borderColor: 'rgba(194, 83, 39,0.35)',
               opacity: progress.interpolate({ inputRange: [0, 0.35, 1], outputRange: [0, 1, 1], extrapolate: 'clamp' }),
               transform: [
                 { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -(shown.length - i) * step] }) },
@@ -76,7 +82,7 @@ export default function AvatarStack({ id, portionsAvailable, size = 18 }: { id: 
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={open ? 'Hide people who joined' : `Show ${extra} more people who joined`}
-        style={[{ width: size, height: size, borderRadius: size / 2 }, shadow]}
+        style={[{ position: 'absolute', top: 0, left: reserved, width: size, height: size, borderRadius: size / 2 }, shadow]}
       >
         {/* inner view clips the photo to the circle (the shadow lives on the Pressable) */}
         <View
@@ -86,7 +92,7 @@ export default function AvatarStack({ id, portionsAvailable, size = 18 }: { id: 
             borderRadius: size / 2,
             overflow: 'hidden',
             borderWidth: 1,
-            borderColor: 'rgba(191,89,43,0.35)',
+            borderColor: 'rgba(194, 83, 39,0.35)',
             backgroundColor: '#F2DFD7',
             alignItems: 'center',
             justifyContent: 'center',

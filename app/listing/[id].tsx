@@ -20,17 +20,17 @@ const CATEGORY_TAG_STYLES: {
         icon: React.ComponentType<any> 
     } 
 } = {
-    'Rice Dishes': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Wheat },
-    'Soups & Stews': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Soup },
-    'Grills & Kebabs': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Flame },
-    'Traditional Snacks': { bg: '#FFF1EC', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Apple },
-    'Seafood': { bg: '#EBF5FF', border: '#CCE5FF', text: '#231915', iconBg: 'rgba(0,102,204,0.1)', iconColor: '#0066CC', icon: Fish },
-    'Pastries': { bg: '#FFF0F5', border: '#FFD2E5', text: '#231915', iconBg: 'rgba(191,89,43,0.1)', iconColor: '#BF592B', icon: Cake },
-    'Vegan': { bg: '#F0FFF8', border: '#B2DFCC', text: '#231915', iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Leaf },
-    'Vegetarian': { bg: '#F0FFF8', border: '#B2DFCC', text: '#231915', iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Sprout }
+    'Rice Dishes': { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Wheat },
+    'Soups & Stews': { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Soup },
+    'Grills & Kebabs': { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Flame },
+    'Traditional Snacks': { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Apple },
+    'Seafood': { bg: '#EBF5FF', border: '#CCE5FF', text: palette.ink, iconBg: 'rgba(0,102,204,0.1)', iconColor: '#0066CC', icon: Fish },
+    'Pastries': { bg: '#FFF0F5', border: '#FFD2E5', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Cake },
+    'Vegan': { bg: '#F0FFF8', border: '#B2DFCC', text: palette.ink, iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Leaf },
+    'Vegetarian': { bg: '#F0FFF8', border: '#B2DFCC', text: palette.ink, iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Sprout }
 };
 
-const DEFAULT_TAG_STYLE = { bg: '#FFF8F6', border: '#F2DFD7', text: '#231915', iconBg: 'rgba(132,82,60,0.1)', iconColor: '#8A7269', icon: Utensils };
+const DEFAULT_TAG_STYLE = { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(132,82,60,0.1)', iconColor: palette.muted, icon: Utensils };
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -44,6 +44,7 @@ import CartToast from '@/components/CartToast';
 import AvatarStack from '@/components/AvatarStack';
 import { formatPotCountdown } from '@/lib/countdown';
 import TimeLocationCards from '@/components/TimeLocationCards';
+import { palette, type, fonts } from '@/constants/theme';
 import RibbonBadgeIcon from '@/components/RibbonBadgeIcon';
 import SectionHeader from '@/components/SectionHeader';
 import CourseList, { Course } from '@/components/CourseList';
@@ -350,7 +351,7 @@ export default function ListingDetailScreen() {
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#F8E4DD' }}>
+        <View style={{ flex: 1, backgroundColor: palette.canvas }}>
             {/* Floating Top Navigation Overlay */}
             <View
                 style={{
@@ -372,7 +373,7 @@ export default function ListingDetailScreen() {
                         backgroundColor: 'rgba(247,238,231,0.65)',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        shadowColor: '#231915',
+                        shadowColor: palette.ink,
                         shadowOffset: { width: 0, height: 3 },
                         shadowOpacity: 0.18,
                         shadowRadius: 6,
@@ -380,7 +381,7 @@ export default function ListingDetailScreen() {
                     }}
                     onPress={() => router.back()}
                 >
-                    <ArrowLeft size={17} color="#231915" />
+                    <ArrowLeft size={17} color={palette.ink} />
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
@@ -391,7 +392,7 @@ export default function ListingDetailScreen() {
                             backgroundColor: 'rgba(247,238,231,0.65)',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            shadowColor: '#231915',
+                            shadowColor: palette.ink,
                             shadowOffset: { width: 0, height: 3 },
                             shadowOpacity: 0.18,
                             shadowRadius: 6,
@@ -399,7 +400,7 @@ export default function ListingDetailScreen() {
                         }}
                         onPress={handleShare}
                     >
-                        <Share2 size={15} color="#231915" />
+                        <Share2 size={15} color={palette.ink} />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={{
@@ -409,7 +410,7 @@ export default function ListingDetailScreen() {
                             backgroundColor: 'rgba(247,238,231,0.65)',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            shadowColor: '#231915',
+                            shadowColor: palette.ink,
                             shadowOffset: { width: 0, height: 3 },
                             shadowOpacity: 0.18,
                             shadowRadius: 6,
@@ -418,7 +419,7 @@ export default function ListingDetailScreen() {
                         onPress={toggleSaved}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Heart size={15} color={saved ? '#BA1A1A' : '#231915'} fill={saved ? '#BA1A1A' : 'transparent'} />
+                        <Heart size={15} color={saved ? '#BA1A1A' : palette.ink} fill={saved ? '#BA1A1A' : 'transparent'} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -498,13 +499,13 @@ export default function ListingDetailScreen() {
                 {/* White Content Card curving over the image */}
                 <View
                     style={{
-                        backgroundColor: '#F8E4DD',
+                        backgroundColor: palette.canvas,
                         borderTopLeftRadius: 36,
                         borderTopRightRadius: 36,
                         marginTop: -32,
                         paddingHorizontal: 20,
                         paddingTop: 40,
-                        shadowColor: '#231915',
+                        shadowColor: palette.ink,
                         shadowOffset: { width: 0, height: -4 },
                         shadowOpacity: 0.07,
                         shadowRadius: 12,
@@ -512,41 +513,41 @@ export default function ListingDetailScreen() {
                     }}
                 >
                     {/* Title */}
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
+                    <Text style={{ ...type.hero, color: palette.ink, lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
                         {listing.title}
                     </Text>
 
                     {/* Food description */}
                     {!!listing.description?.trim() && (
-                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: '#56423B', lineHeight: 21, textAlign: 'center', marginBottom: 18 }}>
+                        <Text style={{ ...type.body, color: palette.muted, lineHeight: 21, textAlign: 'center', marginBottom: 18 }}>
                             {listing.description.trim()}
                         </Text>
                     )}
 
                     {/* Avatar Stack — who's already in */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 6 }}>
-                        <AvatarStack id={listing.id} portionsAvailable={listing.portions_available} size={24} />
-                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#56423B' }}>
-                            People coming
+                        <AvatarStack id={listing.id} portionsAvailable={listing.portions_available} size={30} defaultOpen reserveSpace />
+                        <Text style={{ ...type.body, fontFamily: fonts.semibold, color: palette.muted }}>
+                            Already at the table
                         </Text>
                     </View>
 
                     {/* Rating, Reviews & Prep Time Row */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Star size={14} color="#BF592B" fill="#BF592B" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915' }}>
+                            <Star size={14} color={palette.accent} fill={palette.accent} />
+                            <Text style={{ ...type.body, fontFamily: fonts.bold, color: palette.ink }}>
                                 {listing.profiles?.rating ? Number(listing.profiles.rating).toFixed(1) : 'New'}
                             </Text>
                         </View>
-                        <Text style={{ color: '#DDC1B6', marginHorizontal: 2 }}>·</Text>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#231915', textDecorationLine: 'underline' }}>
-                            {reviewCount || 0} review{reviewCount === 1 ? '' : 's'}
+                        <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(122, 92, 83, 0.5)', marginHorizontal: 3 }} />
+                        <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.ink }}>
+                            ({reviewCount || 0} review{reviewCount === 1 ? '' : 's'})
                         </Text>
-                        <Text style={{ color: '#DDC1B6', marginHorizontal: 2 }}>·</Text>
+                        <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(122, 92, 83, 0.5)', marginHorizontal: 3 }} />
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Flame size={14} color="#56423B" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B' }}>
+                            <Flame size={14} color={palette.accent} strokeWidth={2.75} />
+                            <Text style={{ ...type.body, fontFamily: fonts.bold, color: palette.accent }}>
                                 {listing.portions_available} seat{listing.portions_available === 1 ? '' : 's'} left
                             </Text>
                         </View>
@@ -579,10 +580,10 @@ export default function ListingDetailScreen() {
                             </View>
                         </View>
                         <View style={{ marginTop: 6, alignItems: 'center' }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915', textAlign: 'center' }} numberOfLines={1}>
+                            <Text style={{ ...type.cardTitleSmall, color: palette.ink, textAlign: 'center' }} numberOfLines={1}>
                                 Hosted by {cookApp?.kitchen_name || listing.profiles?.full_name || 'the host'}
                             </Text>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#8A7269', marginTop: 0, textAlign: 'center' }}>
+                            <Text style={{ ...type.meta, color: palette.muted, textAlign: 'center' }}>
                                 Verified Host · {listing.profiles?.served_count || 0}+ served
                             </Text>
                         </View>
@@ -591,15 +592,15 @@ export default function ListingDetailScreen() {
                     {/* Highlights — three boxes */}
                     <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
                         {[
-                            { icon: <MapPin size={16} color="#BF592B" />, title: 'Beautiful area', sub: 'Loved location' },
-                            { icon: <Flame size={16} color="#BF592B" />, title: 'Crowd favorite', sub: 'Most ordered' },
-                            { icon: <Shield size={16} color="#BF592B" />, title: 'Verified Host', sub: 'Highly rated' },
+                            { icon: <MapPin size={16} color={palette.accent} />, title: 'Beautiful area', sub: 'Loved location' },
+                            { icon: <Flame size={16} color={palette.accent} />, title: 'Crowd favorite', sub: 'Most ordered' },
+                            { icon: <Shield size={16} color={palette.accent} />, title: 'Verified Host', sub: 'Highly rated' },
                         ].map((h) => (
-                            <View key={h.title} style={{ flex: 1, backgroundColor: '#FFF1EC', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', gap: 4 }}>
+                            <View key={h.title} style={{ flex: 1, backgroundColor: palette.surface, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', gap: 4 }}>
                                 {h.icon}
                                 <View style={{ alignItems: 'center' }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11.5, color: '#231915', textAlign: 'center' }} numberOfLines={1}>{h.title}</Text>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#8A7269', textAlign: 'center', marginTop: 0 }} numberOfLines={1}>{h.sub}</Text>
+                                    <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_600SemiBold', color: palette.ink, textAlign: 'center' }} numberOfLines={1}>{h.title}</Text>
+                                    <Text style={{ ...type.micro, fontFamily: 'PlusJakartaSans_400Regular', color: palette.muted, textAlign: 'center' }} numberOfLines={1}>{h.sub}</Text>
                                 </View>
                             </View>
                         ))}
@@ -609,23 +610,23 @@ export default function ListingDetailScreen() {
                     {(() => {
                         const start = listing.order_deadline ? new Date(listing.order_deadline) : null;
                         const scheduled = !!start && !isNaN(start.getTime());
-                        const methods = [listing.pickup_available && 'Pickup', listing.delivery_available && 'Delivery'].filter(Boolean).join(' • ');
+                        // Placeholder date until sessions have real dates; swap in the booking's date when it exists.
                         const hostLocation = listing.location_text || cookApp?.location || listing.profiles?.location || 'Ghana';
-                        const landmark = cookApp?.location_description || listing.profiles?.location_description;
+                        // Nearby landmark line; placeholder until hosts add one.
+                        const landmark = (cookApp?.location_description || listing.profiles?.location_description || '').trim();
+                        const nearby = landmark ? (/^near\b/i.test(landmark) ? landmark : `Near ${landmark}`) : 'Near Ecobank';
                         const spots = listing.portions_available || 0;
                         const spotsNote = spots > 0 ? `${spots} spot${spots === 1 ? '' : 's'} left` : 'Fully booked';
 
                         return (
                             <View style={{ gap: 28, marginBottom: 28 }}>
                                 <TimeLocationCards
-                                    scheduled={scheduled}
-                                    dateTitle={scheduled ? format(start as Date, 'EEEE, MMM d') : `Ready in ${listing.prep_time_minutes || 30} min`}
-                                    timeLine={scheduled ? format(start as Date, 'h:mm a') : undefined}
+                                    dateTitle={scheduled ? format(start as Date, 'EEEE, MMM d') : 'Saturday, Nov 14'}
+                                    timeLine={scheduled ? format(start as Date, 'h:mm a') : '6:00 PM'}
                                     timeNote={spotsNote}
                                     locationTitle={hostLocation}
                                     locationTag="Private Residence"
-                                    locationLine={methods || undefined}
-                                    locationNote={landmark || undefined}
+                                    locationLine={nearby}
                                 />
                             </View>
                         );
@@ -729,7 +730,7 @@ export default function ListingDetailScreen() {
                             contentContainerStyle={{ gap: 12, paddingRight: 20 }}
                         >
                             {/* Card 1: Eating Kenkey */}
-                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
+                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                                 <Image 
                                     source={DINE_IN_3} 
                                     style={{ width: '100%', height: '100%' }} 
@@ -739,14 +740,14 @@ export default function ListingDetailScreen() {
                                     colors={['transparent', 'rgba(0,0,0,0.85)']}
                                     style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
                                 >
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', lineHeight: 14 }}>
+                                    <Text style={{ ...type.micro, color: 'white', lineHeight: 14 }}>
                                         True local flavors
                                     </Text>
                                 </LinearGradient>
                             </View>
 
                             {/* Card 2: Group Dining */}
-                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
+                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                                 <Image 
                                     source={DINE_IN_2} 
                                     style={{ width: '100%', height: '100%' }} 
@@ -756,14 +757,14 @@ export default function ListingDetailScreen() {
                                     colors={['transparent', 'rgba(0,0,0,0.85)']}
                                     style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
                                 >
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', lineHeight: 14 }}>
+                                    <Text style={{ ...type.micro, color: 'white', lineHeight: 14 }}>
                                         Authentic dining seating
                                     </Text>
                                 </LinearGradient>
                             </View>
 
                             {/* Card 3: Preparation */}
-                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
+                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                                 <Image 
                                     source={DINE_IN_1} 
                                     style={{ width: '100%', height: '100%' }} 
@@ -773,7 +774,7 @@ export default function ListingDetailScreen() {
                                     colors={['transparent', 'rgba(0,0,0,0.85)']}
                                     style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
                                 >
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'white', lineHeight: 14 }}>
+                                    <Text style={{ ...type.micro, color: 'white', lineHeight: 14 }}>
                                         Traditional food preparation
                                     </Text>
                                 </LinearGradient>
@@ -792,7 +793,7 @@ export default function ListingDetailScreen() {
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    backgroundColor: '#F7EEE7',
+                    backgroundColor: palette.surface,
                     borderTopWidth: 1.5,
                     borderTopColor: '#F2DFD7',
                     paddingHorizontal: 20,
@@ -807,19 +808,19 @@ export default function ListingDetailScreen() {
                 {isOwner && isCookMode ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
                         <View style={{ flex: 1, marginRight: 16 }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Preview Mode</Text>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#56423B', marginTop: 2 }}>This is how eaters see your dining experience.</Text>
+                            <Text style={{ ...type.cardTitleSmall, color: palette.ink }}>Preview Mode</Text>
+                            <Text style={{ ...type.meta, fontFamily: fonts.regular, color: palette.muted, marginTop: 2 }}>This is how eaters see your dining experience.</Text>
                         </View>
                         <TouchableOpacity
                             style={{
-                                backgroundColor: '#BF592B',
+                                backgroundColor: palette.accent,
                                 borderRadius: 16,
                                 paddingVertical: 12,
                                 paddingHorizontal: 20,
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 gap: 8,
-                                shadowColor: '#BF592B',
+                                shadowColor: palette.accent,
                                 shadowOffset: { width: 0, height: 4 },
                                 shadowOpacity: 0.25,
                                 shadowRadius: 10,
@@ -829,7 +830,7 @@ export default function ListingDetailScreen() {
                             activeOpacity={0.9}
                         >
                             <Pencil size={16} color="white" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: 'white' }}>Edit Dish</Text>
+                            <Text style={{ ...type.cardTitleSmall, color: 'white' }}>Edit Dish</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -839,8 +840,8 @@ export default function ListingDetailScreen() {
                             flexDirection: 'row',
                             alignItems: 'center',
                             gap: 14,
-                            backgroundColor: '#FFF1EC',
-                            borderRadius: 9999,
+                            backgroundColor: palette.canvas,
+                            borderRadius: 16,
                             paddingHorizontal: 12,
                             paddingVertical: 6,
                             borderWidth: 1,
@@ -850,10 +851,18 @@ export default function ListingDetailScreen() {
                             <TouchableOpacity
                                 onPress={() => setQuantity(q => Math.max(1, q - 1))}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: 10,
+                                    backgroundColor: palette.surface,
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
                             >
-                                <Minus size={16} color="#BF592B" strokeWidth={2.5} />
+                                <Minus size={16} color={palette.accent} strokeWidth={2.5} />
                             </TouchableOpacity>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: '#231915', minWidth: 16, textAlign: 'center' }}>
+                            <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.ink, minWidth: 16, textAlign: 'center' }}>
                                 {quantity}
                             </Text>
                             <TouchableOpacity
@@ -861,8 +870,8 @@ export default function ListingDetailScreen() {
                                 style={{
                                     width: 36,
                                     height: 36,
-                                    borderRadius: 18,
-                                    backgroundColor: '#BF592B',
+                                    borderRadius: 10,
+                                    backgroundColor: palette.accent,
                                     alignItems: 'center',
                                     justifyContent: 'center'
                                 }}
@@ -875,13 +884,13 @@ export default function ListingDetailScreen() {
                         <TouchableOpacity
                             style={{
                                 flex: 1,
-                                backgroundColor: '#BF592B',
-                                borderRadius: 9999,
+                                backgroundColor: palette.accent,
+                                borderRadius: 16,
                                 height: 52,
                                 flexDirection: 'column',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                shadowColor: '#BF592B',
+                                shadowColor: palette.accent,
                                 shadowOffset: { width: 0, height: 4 },
                                 shadowOpacity: 0.25,
                                 shadowRadius: 10,
@@ -891,11 +900,11 @@ export default function ListingDetailScreen() {
                             disabled={!listing.available || deadlinePassed}
                             activeOpacity={0.9}
                         >
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: 'white' }}>
-                                {deadlinePassed ? 'Orders Closed' : (quantity === 1 ? 'Reserve one seat' : `Reserve ${quantity} seats`)}
+                            <Text style={{ ...type.card, fontFamily: fonts.extrabold, color: 'white' }}>
+                                {deadlinePassed ? 'Orders Closed' : 'Reserve seats'}
                             </Text>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
-                                for GHS {(currentPrice * quantity).toFixed(2)}
+                            <Text style={{ ...type.micro, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
+                                Total GHS {(currentPrice * quantity).toFixed(2)}
                             </Text>
                         </TouchableOpacity>
                     </>
@@ -912,19 +921,19 @@ export default function ListingDetailScreen() {
 
             {/* Photo tour */}
             <Modal visible={photoTourVisible} animationType="slide" onRequestClose={() => setPhotoTourVisible(false)}>
-                <View style={{ flex: 1, backgroundColor: '#F7EEE7', paddingTop: insets.top }}>
+                <View style={{ flex: 1, backgroundColor: palette.surface, paddingTop: insets.top }}>
                     {/* Header */}
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 }}>
                         <TouchableOpacity onPress={() => setPhotoTourVisible(false)} style={{ padding: 8 }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <ArrowLeft size={22} color="#231915" />
+                            <ArrowLeft size={22} color={palette.ink} />
                         </TouchableOpacity>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: '#231915' }}>Photo tour</Text>
+                        <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.ink }}>Photo tour</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
                             <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                <Share2 size={19} color="#231915" />
+                                <Share2 size={19} color={palette.ink} />
                             </TouchableOpacity>
                             <TouchableOpacity onPress={toggleSaved} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                <Heart size={19} color={saved ? '#BA1A1A' : '#231915'} fill={saved ? '#BA1A1A' : 'transparent'} />
+                                <Heart size={19} color={saved ? '#BA1A1A' : palette.ink} fill={saved ? '#BA1A1A' : 'transparent'} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -938,13 +947,13 @@ export default function ListingDetailScreen() {
                     >
                         <TouchableOpacity onPress={() => scrollToSection('dish')} activeOpacity={0.85} style={{ alignItems: 'center', width: 96 }}>
                             <Image source={sliderImages[0]} style={{ width: 96, height: 124, borderRadius: 16 }} resizeMode="cover" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, lineHeight: 16, color: '#231915', marginTop: 8, textAlign: 'center' }}>
+                            <Text style={{ ...type.meta, lineHeight: 16, color: palette.ink, marginTop: 8, textAlign: 'center' }}>
                                 The Dish
                             </Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => scrollToSection('dining')} activeOpacity={0.85} style={{ alignItems: 'center', width: 96 }}>
                             <Image source={DINE_IN_PHOTOS[0].image} style={{ width: 96, height: 124, borderRadius: 16 }} resizeMode="cover" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, lineHeight: 16, color: '#231915', marginTop: 8, textAlign: 'center' }}>
+                            <Text style={{ ...type.meta, lineHeight: 16, color: palette.ink, marginTop: 8, textAlign: 'center' }}>
                                 Dining{'\n'}Experience
                             </Text>
                         </TouchableOpacity>
@@ -953,7 +962,7 @@ export default function ListingDetailScreen() {
                     {/* Full photo list */}
                     <ScrollView ref={photoTourScrollRef} style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingTop: 20, paddingBottom: insets.bottom + 32 }}>
                         <View onLayout={(e) => { sectionOffsets.current.dish = e.nativeEvent.layout.y; }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, color: '#231915', paddingHorizontal: 20, marginBottom: 16 }}>
+                            <Text style={{ ...type.section, color: palette.ink, paddingHorizontal: 20, marginBottom: 16 }}>
                                 The Dish
                             </Text>
                             {sliderImages.map((img: any, index: number) => (
@@ -968,12 +977,12 @@ export default function ListingDetailScreen() {
                         </View>
 
                         <View onLayout={(e) => { sectionOffsets.current.dining = e.nativeEvent.layout.y; }}>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, color: '#231915', paddingHorizontal: 20, marginBottom: 4 }}>
+                            <Text style={{ ...type.section, color: palette.ink, paddingHorizontal: 20, marginBottom: 4 }}>
                                 Dining Experience
                             </Text>
                             {DINE_IN_PHOTOS.map((photo, index) => (
                                 <View key={index} style={{ marginTop: 16 }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B', paddingHorizontal: 20, marginBottom: 12 }}>
+                                    <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.muted, paddingHorizontal: 20, marginBottom: 12 }}>
                                         {photo.caption}
                                     </Text>
                                     <TouchableOpacity activeOpacity={0.9} onPress={() => setLightboxIndex(sliderImages.length + index)} style={{ paddingHorizontal: 20 }}>
@@ -990,7 +999,7 @@ export default function ListingDetailScreen() {
 
                     {/* Swipeable lightbox */}
                     {lightboxIndex !== null && (
-                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFF8F6', zIndex: 100 }}>
+                        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: palette.surface, zIndex: 100 }}>
                             <FlatList
                                 ref={lightboxRef}
                                 data={allPhotos}
@@ -1023,10 +1032,10 @@ export default function ListingDetailScreen() {
                                         width: 40,
                                         height: 40,
                                         borderRadius: 20,
-                                        backgroundColor: '#F7EEE7',
+                                        backgroundColor: palette.surface,
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        shadowColor: '#231915',
+                                        shadowColor: palette.ink,
                                         shadowOffset: { width: 0, height: 3 },
                                         shadowOpacity: 0.18,
                                         shadowRadius: 6,
@@ -1034,22 +1043,22 @@ export default function ListingDetailScreen() {
                                     }}
                                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 >
-                                    <X size={20} color="#231915" />
+                                    <X size={20} color={palette.ink} />
                                 </TouchableOpacity>
                                 <View
                                     style={{
-                                        backgroundColor: '#F7EEE7',
+                                        backgroundColor: palette.surface,
                                         paddingHorizontal: 12,
                                         paddingVertical: 8,
                                         borderRadius: 9999,
-                                        shadowColor: '#231915',
+                                        shadowColor: palette.ink,
                                         shadowOffset: { width: 0, height: 3 },
                                         shadowOpacity: 0.18,
                                         shadowRadius: 6,
                                         elevation: 4
                                     }}
                                 >
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915' }}>
+                                    <Text style={{ ...type.meta, fontFamily: fonts.semibold, color: palette.ink }}>
                                         {lightboxIndex + 1} / {allPhotos.length}
                                     </Text>
                                 </View>
@@ -1057,11 +1066,11 @@ export default function ListingDetailScreen() {
 
                             {/* Bottom caption */}
                             <View style={{ position: 'absolute', bottom: insets.bottom + 24, left: 20, right: 20, alignItems: 'center' }}>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#BF592B', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                                <Text style={{ ...type.meta, fontFamily: fonts.bold, color: palette.accent, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                                     {allPhotos[lightboxIndex]?.section}
                                 </Text>
                                 {allPhotos[lightboxIndex]?.caption && (
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 15, color: '#231915' }}>
+                                    <Text style={{ ...type.card, fontFamily: fonts.medium, color: palette.ink }}>
                                         {allPhotos[lightboxIndex]?.caption}
                                     </Text>
                                 )}

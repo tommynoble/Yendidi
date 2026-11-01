@@ -14,6 +14,7 @@ import { getDishImage } from '@/constants/Images';
 import Svg, { Path, Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
+import { palette } from '@/constants/theme';
 
 const FAVORITES_KEY = 'yendidii_favorites';
 
@@ -60,7 +61,7 @@ export default function ProfileScreen() {
     const [copied, setCopied] = useState(false);
     const flipAnimation = React.useRef(new Animated.Value(0)).current;
 
-    const skeletonOpacity = React.useRef(new Animated.Value(0.35)).current;
+    const skeletonOpacity = React.useRef(new Animated.Value(0.6)).current;
 
     useEffect(() => {
         let anim: Animated.CompositeAnimation;
@@ -68,12 +69,12 @@ export default function ProfileScreen() {
             anim = Animated.loop(
                 Animated.sequence([
                     Animated.timing(skeletonOpacity, {
-                        toValue: 0.75,
+                        toValue: 1,
                         duration: 800,
                         useNativeDriver: true,
                     }),
                     Animated.timing(skeletonOpacity, {
-                        toValue: 0.35,
+                        toValue: 0.6,
                         duration: 800,
                         useNativeDriver: true,
                     })
@@ -337,6 +338,18 @@ export default function ProfileScreen() {
         router.replace('/onboarding/community');
     }
 
+    function confirmSignOut() {
+        Alert.alert(
+            'Log out?',
+            'Are you sure you want to log out?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Log out', style: 'destructive', onPress: handleSignOut },
+            ],
+            { cancelable: true }
+        );
+    }
+
     const useCurrentLocation = async () => {
         setLocationFetching(true);
         try {
@@ -380,23 +393,23 @@ export default function ProfileScreen() {
 
     if (loading) {
         return (
-            <SafeAreaView className="flex-1 bg-warm-cream" edges={['top', 'bottom']}>
+            <SafeAreaView className="flex-1 bg-brand-canvas" edges={['top', 'bottom']}>
                 <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                     {/* Welcome Row Skeleton */}
                     <View style={{ paddingTop: 16 }} className="px-6 pb-4 flex-row items-center gap-4">
-                        <Animated.View style={{ opacity: skeletonOpacity }} className="w-20 h-20 bg-gray-200 rounded-full border-2 border-white shadow-sm" />
+                        <Animated.View style={{ opacity: skeletonOpacity }} className="w-20 h-20 bg-brand-skeleton rounded-full border-2 border-white shadow-sm" />
                         <View className="flex-1">
-                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-6 w-40 bg-gray-200 rounded-md mb-2" />
-                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-4 w-32 bg-gray-200 rounded-md" />
+                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-6 w-40 bg-brand-skeleton rounded-md mb-2" />
+                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-4 w-32 bg-brand-skeleton rounded-md" />
                         </View>
                     </View>
 
                     {/* Stats Row Skeleton */}
-                    <View className="flex-row justify-around bg-[#FCFBFA] border border-[#F2DFD7] mx-6 mb-6 py-4 rounded-2xl">
+                    <View className="flex-row justify-around bg-brand-surface border border-[#F2DFD7] mx-6 mb-6 py-4 rounded-2xl">
                         {[1, 2, 3].map((i) => (
                             <View key={i} className="items-center flex-1" style={i < 3 ? { borderRightWidth: 1, borderRightColor: '#F2DFD7' } : {}}>
-                                <Animated.View style={{ opacity: skeletonOpacity }} className="h-5 w-10 bg-gray-200 rounded mb-1.5" />
-                                <Animated.View style={{ opacity: skeletonOpacity }} className="h-3 w-16 bg-gray-200 rounded" />
+                                <Animated.View style={{ opacity: skeletonOpacity }} className="h-5 w-10 bg-brand-skeleton rounded mb-1.5" />
+                                <Animated.View style={{ opacity: skeletonOpacity }} className="h-3 w-16 bg-brand-skeleton rounded" />
                             </View>
                         ))}
                     </View>
@@ -405,46 +418,46 @@ export default function ProfileScreen() {
                     <View className="px-6 mb-6">
                         <Animated.View 
                             style={{ opacity: skeletonOpacity }} 
-                            className="bg-[#FCFBFA] border border-[#F2DFD7] rounded-2xl p-4 h-20 flex-row items-center justify-between"
+                            className="bg-brand-surface border border-[#F2DFD7] rounded-2xl p-4 h-20 flex-row items-center justify-between"
                         >
                             <View className="flex-row items-center gap-4">
-                                <View className="w-12 h-12 rounded-full bg-gray-200" />
+                                <View className="w-12 h-12 rounded-full bg-brand-skeleton" />
                                 <View className="gap-1.5">
-                                    <View className="h-4 w-28 bg-gray-200 rounded" />
-                                    <View className="h-3 w-44 bg-gray-200 rounded" />
+                                    <View className="h-4 w-28 bg-brand-skeleton rounded" />
+                                    <View className="h-3 w-44 bg-brand-skeleton rounded" />
                                 </View>
                             </View>
-                            <View className="w-10 h-6 bg-gray-200 rounded-full" />
+                            <View className="w-10 h-6 bg-brand-skeleton rounded-full" />
                         </Animated.View>
                     </View>
 
                     {/* Rewards & Discounts Card Skeleton */}
                     <View className="mb-6">
                         <View className="flex-row justify-between items-end px-6 mb-3">
-                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-5 w-44 bg-gray-200 rounded" />
-                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-4 w-24 bg-gray-200 rounded" />
+                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-5 w-44 bg-brand-skeleton rounded" />
+                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-4 w-24 bg-brand-skeleton rounded" />
                         </View>
                         <Animated.View 
                             style={{ opacity: skeletonOpacity }} 
-                            className="mx-6 h-64 bg-gray-200 rounded-3xl shadow-sm"
+                            className="mx-6 h-64 bg-brand-skeleton rounded-3xl shadow-sm"
                         />
                     </View>
 
                     {/* Account Settings Section Skeleton */}
                     <View className="mb-6">
                         <View className="px-6 mb-3">
-                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-5 w-36 bg-gray-200 rounded" />
+                            <Animated.View style={{ opacity: skeletonOpacity }} className="h-5 w-36 bg-brand-skeleton rounded" />
                         </View>
                         <View className="px-6 gap-3">
                             {[1, 2, 3, 4, 5].map((i) => (
                                 <Animated.View 
                                     key={i} 
                                     style={{ opacity: skeletonOpacity }} 
-                                    className="flex-row items-center bg-[#FCFBFA] p-3 rounded-2xl border border-[#F2DFD7] h-14"
+                                    className="flex-row items-center bg-brand-surface p-3 rounded-2xl border border-[#F2DFD7] h-14"
                                 >
-                                    <View className="w-10 h-10 bg-gray-200 rounded-xl mr-3" />
-                                    <View className="flex-1 h-4 bg-gray-200 rounded" />
-                                    <View className="w-4 h-4 bg-gray-200 rounded-full" />
+                                    <View className="w-10 h-10 bg-brand-skeleton rounded-xl mr-3" />
+                                    <View className="flex-1 h-4 bg-brand-skeleton rounded" />
+                                    <View className="w-4 h-4 bg-brand-skeleton rounded-full" />
                                 </Animated.View>
                             ))}
                         </View>
@@ -452,8 +465,8 @@ export default function ProfileScreen() {
 
                     {/* Adinkra Footer Skeleton */}
                     <View className="items-center justify-center py-8">
-                        <Animated.View style={{ opacity: skeletonOpacity }} className="w-12 h-12 bg-gray-200 rounded-full mb-3" />
-                        <Animated.View style={{ opacity: skeletonOpacity }} className="h-3 w-40 bg-gray-200 rounded" />
+                        <Animated.View style={{ opacity: skeletonOpacity }} className="w-12 h-12 bg-brand-skeleton rounded-full mb-3" />
+                        <Animated.View style={{ opacity: skeletonOpacity }} className="h-3 w-40 bg-brand-skeleton rounded" />
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -462,9 +475,9 @@ export default function ProfileScreen() {
 
     if (!profile) {
         return (
-            <SafeAreaView className="flex-1 bg-surface items-center justify-center p-6" edges={['top']}>
-                <View className="flex-1 bg-warm-cream items-center justify-center w-full">
-                <Text className="text-xl font-bold text-text-main mb-4 font-sans-bold">Not Logged In</Text>
+            <SafeAreaView className="flex-1 bg-brand-surface items-center justify-center p-6" edges={['top']}>
+                <View className="flex-1 bg-brand-canvas items-center justify-center w-full">
+                <Text className="text-section font-bold text-brand-ink mb-4 font-sans-bold">Not Logged In</Text>
                 <TouchableOpacity
                     className="bg-clay-primary px-8 py-3 rounded-xl"
                     onPress={() => router.replace('/onboarding/community')}
@@ -493,7 +506,7 @@ export default function ProfileScreen() {
         }] : []),
         {
             id: 'address',
-            title: 'My Addresses',
+            title: 'My Location',
             icon: MapPin,
             action: () => router.push('/address')
         },
@@ -520,12 +533,12 @@ export default function ProfileScreen() {
             title: 'Logout',
             icon: LogOut,
             isLogout: true,
-            action: handleSignOut
+            action: confirmSignOut
         }
     ];
 
     return (
-        <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
+        <SafeAreaView className="flex-1 bg-brand-canvas" edges={['bottom']}>
             {/* Location Edit Modal */}
             <Modal visible={locationEdit} transparent animationType="slide" onRequestClose={() => setLocationEdit(false)}>
                 <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}>
@@ -534,21 +547,21 @@ export default function ProfileScreen() {
                         activeOpacity={1}
                         onPress={() => setLocationEdit(false)}
                     />
-                    <View className="bg-surface rounded-t-3xl p-6">
+                    <View className="bg-brand-surface rounded-t-3xl p-6">
                         <View className="flex-row justify-between items-center mb-4">
-                            <Text className="text-lg font-bold text-text-main font-sans-bold">Set Your Location</Text>
+                            <Text className="text-card font-bold text-brand-ink font-sans-bold">Set Your Location</Text>
                             <TouchableOpacity onPress={() => setLocationEdit(false)}>
                                 <X size={22} color="#6B7280" />
                             </TouchableOpacity>
                         </View>
-                        <Text className="text-sm text-text-sub font-sans mb-3">
+                        <Text className="text-body text-brand-muted font-sans mb-3">
                             This helps cooks and eaters know where you are. Cooks: this shows on your listings.
                         </Text>
                         <View className="flex-row gap-2 mb-4">
                             <TextInput
                                 placeholder="e.g. East Legon, Accra"
                                 placeholderTextColor="#9CA3AF"
-                                className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-text-main font-sans text-base border border-gray-100"
+                                className="flex-1 bg-gray-50 rounded-xl px-4 py-3 text-brand-ink font-sans text-card border border-gray-100"
                                 value={locationDraft}
                                 onChangeText={(text) => { setLocationDraft(text); setLocationCoords(null); }}
                                 autoFocus
@@ -559,15 +572,15 @@ export default function ProfileScreen() {
                                 className="bg-[#FFF1EC] rounded-xl px-3 items-center justify-center border border-[#F2DFD7]"
                             >
                                 {locationFetching
-                                    ? <ActivityIndicator size="small" color="#BF592B" />
-                                    : <Navigation size={20} color="#BF592B" />}
+                                    ? <ActivityIndicator size="small" color={palette.accent} />
+                                    : <Navigation size={20} color={palette.accent} />}
                             </TouchableOpacity>
                         </View>
                         <TouchableOpacity
                             onPress={saveLocation}
                             disabled={locationSaving}
                             className="bg-clay-primary rounded-2xl py-4 flex-row items-center justify-center gap-2"
-                            style={{ shadowColor: '#BF592B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+                            style={{ shadowColor: palette.accent, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
                         >
                             {locationSaving
                                 ? <ActivityIndicator size="small" color="white" />
@@ -577,28 +590,28 @@ export default function ProfileScreen() {
                 </View>
             </Modal>
 
-            <View className="flex-1 bg-warm-cream">
+            <View className="flex-1 bg-brand-canvas">
                 <ScrollView 
                     className="flex-1" 
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#BF592B" colors={["#BF592B"]} />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />
                     }
                 >
                     {/* Welcome Row */}
                     <View style={{ paddingTop: insets.top + 16 }} className="px-6 pb-4 flex-row items-center gap-4">
                         <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} className="relative">
-                            <View className="w-20 h-20 bg-surface rounded-full overflow-hidden border-2 border-[#F2DFD7] shadow-sm p-1">
+                            <View className="w-20 h-20 bg-brand-surface rounded-full overflow-hidden border-2 border-[#F2DFD7] shadow-sm p-1">
                                 <View className="w-full h-full rounded-full overflow-hidden">
                                     {avatarUploading ? (
                                         <View className="w-full h-full items-center justify-center bg-gray-100">
-                                            <ActivityIndicator size="small" color="#BF592B" />
+                                            <ActivityIndicator size="small" color={palette.accent} />
                                         </View>
                                     ) : profile.avatar_url ? (
                                         <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
                                     ) : (
                                         <View className="w-full h-full items-center justify-center bg-clay-primary/10">
-                                            <User size={32} color="#BF592B" />
+                                            <User size={32} color={palette.accent} />
                                         </View>
                                     )}
                                 </View>
@@ -609,7 +622,7 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
 
                         <View className="flex-1">
-                            <Text className="text-2xl font-bold text-[#84523C] font-serif" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
+                            <Text className="text-hero font-bold text-[#84523C] font-serif" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
                                 Welcome Back, {profile.full_name?.split(' ')[0] || 'Kojo'}
                             </Text>
                             
@@ -617,8 +630,8 @@ export default function ProfileScreen() {
                                 className="flex-row items-center gap-1.5 mt-1"
                                 onPress={() => { setLocationDraft(profile.location || ''); setLocationCoords(null); setLocationEdit(true); }}
                             >
-                                <MapPin size={14} color="#BF592B" />
-                                <Text className="text-xs text-text-sub font-sans" numberOfLines={1}>
+                                <MapPin size={14} color={palette.accent} />
+                                <Text className="text-meta text-brand-muted font-sans" numberOfLines={1}>
                                     {profile.location || 'Greater Accra, Ghana'}
                                 </Text>
                             </TouchableOpacity>
@@ -626,18 +639,18 @@ export default function ProfileScreen() {
                     </View>
 
                     {/* Stats Row */}
-                    <View className="flex-row justify-around bg-[#FCFBFA] border border-[#F2DFD7] mx-6 mb-6 py-3 rounded-2xl">
+                    <View className="flex-row justify-around bg-brand-surface border border-[#F2DFD7] mx-6 mb-6 py-3 rounded-2xl">
                         <View className="items-center flex-1 border-r border-[#F2DFD7]">
-                            <Text className="text-xl font-bold text-text-main font-sans-bold">{stats.orders}</Text>
-                            <Text className="text-xs text-text-sub font-sans">{isCookMode ? 'Sales' : 'Orders'}</Text>
+                            <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.orders}</Text>
+                            <Text className="text-meta text-brand-muted font-sans">{isCookMode ? 'Sales' : 'Orders'}</Text>
                         </View>
                         <View className="items-center flex-1 border-r border-[#F2DFD7]">
-                            <Text className="text-xl font-bold text-text-main font-sans-bold">{stats.reviews}</Text>
-                            <Text className="text-xs text-text-sub font-sans">Reviews</Text>
+                            <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.reviews}</Text>
+                            <Text className="text-meta text-brand-muted font-sans">Reviews</Text>
                         </View>
                         <View className="items-center flex-1">
-                            <Text className="text-xl font-bold text-text-main font-sans-bold">{stats.saved}</Text>
-                            <Text className="text-xs text-text-sub font-sans">Watching</Text>
+                            <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.saved}</Text>
+                            <Text className="text-meta text-brand-muted font-sans">Watching</Text>
                         </View>
                     </View>
 
@@ -657,13 +670,13 @@ export default function ProfileScreen() {
                             })() && (
                                 <View className="mb-4 bg-green-50 rounded-3xl p-5 border border-green-200 shadow-sm">
                                     <View className="flex-row items-center gap-3 mb-3">
-                                        <Text className="text-3xl">🎉</Text>
+                                        <Text className="text-hero">🎉</Text>
                                         <View className="flex-1">
-                                            <Text className="font-bold text-green-800 text-lg font-sans-bold">You're Approved!</Text>
-                                            <Text className="text-green-600 text-xs font-sans">Welcome to the YɛnDidii host community</Text>
+                                            <Text className="font-bold text-green-800 text-card font-sans-bold">You're Approved!</Text>
+                                            <Text className="text-green-600 text-meta font-sans">Welcome to the YɛnDidii host community</Text>
                                         </View>
                                     </View>
-                                    <Text className="text-green-700 text-sm font-sans leading-5">
+                                    <Text className="text-green-700 text-body font-sans leading-5">
                                         Your kitchen has been verified. You can now host meal sessions to your community! Switch to Kitchen Mode below to get started.
                                     </Text>
                                 </View>
@@ -673,17 +686,17 @@ export default function ProfileScreen() {
                             <TouchableOpacity
                                 activeOpacity={0.9}
                                 onPress={handleToggleWithLoader}
-                                className="bg-[#FCFBFA] border border-[#F2DFD7] rounded-2xl p-4 shadow-sm flex-row items-center justify-between active:scale-98"
+                                className="bg-brand-surface border border-[#F2DFD7] rounded-2xl p-4 shadow-sm flex-row items-center justify-between active:scale-98"
                             >
                                 <View className="flex-row items-center gap-4">
                                     <View className="w-12 h-12 rounded-full bg-[#FFF1EC] items-center justify-center">
-                                        <ChefHat size={24} color="#BF592B" />
+                                        <ChefHat size={24} color={palette.accent} />
                                     </View>
                                     <View>
-                                        <Text className="font-bold text-text-main text-lg font-sans-bold">
+                                        <Text className="font-bold text-brand-ink text-card font-sans-bold">
                                             Kitchen Mode
                                         </Text>
-                                        <Text className="text-text-sub text-xs font-sans">
+                                        <Text className="text-brand-muted text-meta font-sans">
                                             {isCookMode ? 'Manage your menu & chef dashboard' : 'Toggle to manage your kitchen & menu'}
                                         </Text>
                                     </View>
@@ -692,33 +705,33 @@ export default function ProfileScreen() {
                                     value={isCookMode}
                                     onValueChange={handleToggleWithLoader}
                                     trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
-                                    thumbColor={isCookMode ? '#BF592B' : '#83746E'}
+                                    thumbColor={isCookMode ? palette.accent : palette.muted}
                                     ios_backgroundColor="#F2DFD7"
                                     pointerEvents="none"
                                 />
                             </TouchableOpacity>
                         </View>
                     ) : profile.cook_application_status === 'pending' ? (
-                        <View className="mx-6 mb-6 bg-[#FCFBFA] border border-[#F2DFD7] rounded-3xl p-5 shadow-sm">
+                        <View className="mx-6 mb-6 bg-brand-surface border border-[#F2DFD7] rounded-3xl p-5 shadow-sm">
                             <View className="flex-row items-center justify-between mb-4 border-b border-gray-100 pb-4">
                                 <View>
-                                    <Text className="font-bold text-text-main text-lg font-sans-bold">Kitchen Profile</Text>
-                                    <Text className="text-text-sub text-xs font-sans">Waitlist preview</Text>
+                                    <Text className="font-bold text-brand-ink text-card font-sans-bold">Kitchen Profile</Text>
+                                    <Text className="text-brand-muted text-meta font-sans">Waitlist preview</Text>
                                 </View>
                                 <View className="bg-[#FFF1EC] px-3 py-1.5 rounded-full flex-row items-center gap-1.5 border border-[#F2DFD7]">
-                                    <Clock size={12} color="#BF592B" />
-                                    <Text className="text-clay-primary text-xs font-sans-semibold">Under Review</Text>
+                                    <Clock size={12} color={palette.accent} />
+                                    <Text className="text-clay-primary text-meta font-sans-semibold">Under Review</Text>
                                 </View>
                             </View>
 
                             <View className="gap-4">
                                 <View className="flex-row items-start gap-3">
                                     <View className="w-10 h-10 bg-[#FFF1EC] rounded-xl items-center justify-center mt-0.5">
-                                        <ChefHat size={20} color="#BF592B" />
+                                        <ChefHat size={20} color={palette.accent} />
                                     </View>
                                     <View className="flex-1">
-                                        <Text className="text-xs text-text-sub font-sans uppercase tracking-wider mb-0.5">Kitchen Name</Text>
-                                        <Text className="font-semibold text-text-main text-base font-sans mt-0.5">{pendingApp?.kitchen_name || 'Loading...'}</Text>
+                                        <Text className="text-meta text-brand-muted font-sans uppercase tracking-wider mb-0.5">Kitchen Name</Text>
+                                        <Text className="font-semibold text-brand-ink text-card font-sans mt-0.5">{pendingApp?.kitchen_name || 'Loading...'}</Text>
                                     </View>
                                 </View>
 
@@ -727,13 +740,13 @@ export default function ProfileScreen() {
                                         <Utensils size={20} color="#007A33" />
                                     </View>
                                     <View className="flex-1">
-                                        <Text className="text-xs text-text-sub font-sans uppercase tracking-wider mb-0.5">Specialties</Text>
+                                        <Text className="text-meta text-brand-muted font-sans uppercase tracking-wider mb-0.5">Specialties</Text>
                                         <View className="flex-row flex-wrap gap-1 mt-1">
                                             {pendingApp?.specialties?.map((spec: string, i: number) => (
                                                 <View key={i} className="bg-gray-100 px-2 py-1 rounded-md">
-                                                    <Text className="text-text-main text-xs font-sans">{spec}</Text>
+                                                    <Text className="text-brand-ink text-meta font-sans">{spec}</Text>
                                                 </View>
-                                            )) || <Text className="text-text-main text-sm font-sans mt-0.5">...</Text>}
+                                            )) || <Text className="text-brand-ink text-body font-sans mt-0.5">...</Text>}
                                         </View>
                                     </View>
                                 </View>
@@ -743,8 +756,8 @@ export default function ProfileScreen() {
                                         <Calendar size={20} color="#0066CC" />
                                     </View>
                                     <View className="flex-1">
-                                        <Text className="text-xs text-text-sub font-sans uppercase tracking-wider mb-0.5">Hosting Plan</Text>
-                                        <Text className="text-text-main text-sm font-sans mt-0.5 capitalize">
+                                        <Text className="text-meta text-brand-muted font-sans uppercase tracking-wider mb-0.5">Hosting Plan</Text>
+                                        <Text className="text-brand-ink text-body font-sans mt-0.5 capitalize">
                                             {pendingApp?.cooking_frequency?.replace('_', ' ') || '...'} • {pendingApp?.max_session_capacity || '-'} guests
                                         </Text>
                                     </View>
@@ -757,12 +770,12 @@ export default function ProfileScreen() {
                             onPress={() => router.push('/onboarding/apply-to-cook')}
                         >
                             <View className="flex-row items-center gap-4 flex-1">
-                                <View className="w-12 h-12 rounded-full bg-surface items-center justify-center">
+                                <View className="w-12 h-12 rounded-full bg-brand-surface items-center justify-center">
                                     <Settings size={22} color="#DC2626" />
                                 </View>
                                 <View className="flex-1">
-                                    <Text className="font-bold text-red-600 text-base font-sans-bold">Application Rejected</Text>
-                                    <Text className="text-red-600/70 text-xs font-sans" numberOfLines={1}>
+                                    <Text className="font-bold text-red-600 text-card font-sans-bold">Application Rejected</Text>
+                                    <Text className="text-red-600/70 text-meta font-sans" numberOfLines={1}>
                                         {profile.cook_rejection_reason || 'Please edit and resubmit your details'}
                                     </Text>
                                 </View>
@@ -775,12 +788,12 @@ export default function ProfileScreen() {
                             onPress={() => router.push('/onboarding/apply-to-cook')}
                         >
                             <View className="flex-row items-center gap-4">
-                                <View className="w-12 h-12 rounded-full bg-surface/20 items-center justify-center">
+                                <View className="w-12 h-12 rounded-full bg-brand-surface/20 items-center justify-center">
                                     <ChefHat size={24} color="white" />
                                 </View>
                                 <View>
-                                    <Text className="font-bold text-white text-lg font-sans-bold">Apply to Host</Text>
-                                    <Text className="text-white/80 text-xs font-sans">Share your meals & earn from your kitchen</Text>
+                                    <Text className="font-bold text-white text-card font-sans-bold">Apply to Host</Text>
+                                    <Text className="text-white/80 text-meta font-sans">Share your meals & earn from your kitchen</Text>
                                 </View>
                             </View>
                             <ChevronRight size={20} color="white" />
@@ -790,23 +803,23 @@ export default function ProfileScreen() {
                     {/* Show Switch to Eating for non-approved users stuck in cook mode */}
                     {isCookMode && !(profile.role === 'COOK' && profile.cook_application_status === 'approved') && (
                         <TouchableOpacity
-                            className="mx-6 mb-6 bg-surface rounded-2xl p-4 shadow-sm flex-row items-center justify-between border border-gray-100 active:scale-98"
+                            className="mx-6 mb-6 bg-brand-surface rounded-2xl p-4 shadow-sm flex-row items-center justify-between border border-gray-100 active:scale-98"
                             onPress={handleToggleWithLoader}
                         >
                             <View className="flex-row items-center gap-4">
                                 <View className="w-12 h-12 rounded-full bg-gray-50 items-center justify-center">
-                                    <RefreshCw size={24} color="#BF592B" />
+                                    <RefreshCw size={24} color={palette.accent} />
                                 </View>
                                 <View>
-                                    <Text className="font-bold text-text-main text-lg font-sans-bold">
+                                    <Text className="font-bold text-brand-ink text-card font-sans-bold">
                                         Switch to Eating
                                     </Text>
-                                    <Text className="text-text-sub text-xs font-sans">
+                                    <Text className="text-brand-muted text-meta font-sans">
                                         Go back to finding food
                                     </Text>
                                 </View>
                             </View>
-                            <ChevronRight size={20} color="#BF592B" />
+                            <ChevronRight size={20} color={palette.accent} />
                         </TouchableOpacity>
                     )}
 
@@ -816,14 +829,14 @@ export default function ProfileScreen() {
                         return (
                         <View className="mb-6">
                             <View className="flex-row justify-between items-end px-6 mb-3">
-                                <Text className="text-lg font-bold text-text-main font-sans-bold">
+                                <Text className="text-card font-bold text-brand-ink font-sans-bold">
                                     Rewards & Discounts
                                 </Text>
                                 <TouchableOpacity onPress={() => Alert.alert(
                                     'Benefits',
                                     `Earn 1 point per ₵1 spent. Root (0+), Sankofa (500+), Nyame (1,500+), Ohene (3,000+). Flip your card for a reward code.`
                                 )}>
-                                    <Text className="text-sm font-semibold text-clay-primary font-sans-semibold">
+                                    <Text className="text-body font-semibold text-clay-primary font-sans-semibold">
                                         View Benefits
                                     </Text>
                                 </TouchableOpacity>
@@ -851,37 +864,37 @@ export default function ProfileScreen() {
                                 >
                                     <View className="flex-row justify-between items-start">
                                         <View>
-                                            <Text className="text-[10px] font-bold text-white/70 uppercase tracking-widest">
+                                            <Text className="text-micro font-bold text-white/70 uppercase tracking-widest">
                                                 Current Status
                                             </Text>
-                                            <Text className="text-2xl font-bold text-white font-serif mt-0.5" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
+                                            <Text className="text-hero font-bold text-white font-serif mt-0.5" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
                                                 {tierInfo.current.label} Tier
                                             </Text>
                                         </View>
-                                        <View className="bg-surface rounded-full px-3 py-1.5 flex-row items-center gap-1">
-                                            <Star size={12} color="#BF592B" fill="#BF592B" />
-                                            <Text className="text-clay-primary text-xs font-bold font-sans-bold">
+                                        <View className="bg-brand-surface rounded-full px-3 py-1.5 flex-row items-center gap-1">
+                                            <Star size={12} color={palette.accent} fill={palette.accent} />
+                                            <Text className="text-clay-primary text-meta font-bold font-sans-bold">
                                                 {(profile.loyalty_points || 0).toLocaleString()} pts
                                             </Text>
                                         </View>
                                     </View>
 
                                     <View className="mt-2">
-                                        <View className="h-2 bg-surface/20 rounded-full overflow-hidden">
+                                        <View className="h-2 bg-brand-surface/20 rounded-full overflow-hidden">
                                             <View style={{ width: `${tierInfo.progress}%` }} className="h-full bg-green-400 rounded-full" />
                                         </View>
                                         <View className="flex-row justify-between items-center mt-2">
-                                            <Text className="text-[10px] text-white/80 font-sans">
+                                            <Text className="text-micro text-white/80 font-sans">
                                                 {tierInfo.next ? `${tierInfo.pointsToNext} pts to Next Tier` : 'Highest Tier Reached'}
                                             </Text>
-                                            <Text className="text-[10px] text-white/80 font-sans">
+                                            <Text className="text-micro text-white/80 font-sans">
                                                 {tierInfo.next ? `${tierInfo.next.label} Tier Milestone` : '🎉'}
                                             </Text>
                                         </View>
                                     </View>
 
                                     <View className="flex-row justify-between items-center relative px-1 mt-4">
-                                        <View className="absolute left-6 right-6 top-[20px] h-[1px] bg-surface/20" />
+                                        <View className="absolute left-6 right-6 top-[20px] h-[1px] bg-brand-surface/20" />
                                         <View style={{ position: 'absolute', left: 24, width: `${(tierInfo.currentIndex / (LOYALTY_TIERS.length - 1)) * 100}%`, top: 20, height: 1 }} className="bg-green-400" />
 
                                         {LOYALTY_TIERS.map((tier, index) => {
@@ -907,10 +920,10 @@ export default function ProfileScreen() {
                                                     ) : tier.label === 'Ohene' ? (
                                                         <Crown size={14} color={done ? 'white' : 'rgba(255,255,255,0.4)'} />
                                                     ) : (
-                                                        <View className="w-2.5 h-2.5 rounded-full bg-surface" />
+                                                        <View className="w-2.5 h-2.5 rounded-full bg-brand-surface" />
                                                     )}
                                                 </View>
-                                                <Text className={`text-[10px] mt-1.5 font-sans-medium ${active ? 'text-white font-bold' : 'text-white/60'}`}>
+                                                <Text className={`text-micro mt-1.5 font-sans-medium ${active ? 'text-white font-bold' : 'text-white/60'}`}>
                                                     {tier.label}
                                                 </Text>
                                             </View>
@@ -935,15 +948,15 @@ export default function ProfileScreen() {
                                 >
                                     <View className="flex-row justify-between items-start">
                                         <View>
-                                            <Text className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
+                                            <Text className="text-micro font-bold text-white/50 uppercase tracking-widest">
                                                 Tier Reward
                                             </Text>
-                                            <Text className="text-xl font-bold text-white font-serif mt-0.5" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
+                                            <Text className="text-section font-bold text-white font-serif mt-0.5" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
                                                 Sankofa Discount Code
                                             </Text>
                                         </View>
                                         <View className="bg-clay-primary/20 border border-clay-primary/30 rounded-full px-3 py-1">
-                                            <Text className="text-clay-primary text-xs font-bold font-sans-bold">
+                                            <Text className="text-clay-primary text-meta font-bold font-sans-bold">
                                                 20% OFF
                                             </Text>
                                         </View>
@@ -953,22 +966,22 @@ export default function ProfileScreen() {
                                         <TouchableOpacity 
                                             activeOpacity={0.8}
                                             onPress={(e) => { e.stopPropagation(); copyCode(); }}
-                                            className="bg-[#231915] border border-dashed border-clay-primary rounded-2xl px-6 py-4 items-center justify-center w-full"
+                                            className="bg-brand-ink border border-dashed border-clay-primary rounded-2xl px-6 py-4 items-center justify-center w-full"
                                         >
-                                            <Text className="text-2xl font-bold text-white tracking-widest font-sans-bold">
+                                            <Text className="text-hero font-bold text-white tracking-widest font-sans-bold">
                                                 SANKOFA20
                                             </Text>
-                                            <Text className="text-clay-primary text-xs font-sans-medium mt-1">
+                                            <Text className="text-clay-primary text-meta font-sans-medium mt-1">
                                                 {copied ? 'Copied to Clipboard! 📋' : 'Tap to Copy Code'}
                                             </Text>
                                         </TouchableOpacity>
                                     </View>
 
                                     <View className="flex-row justify-between items-center mt-2 border-t border-white/10 pt-3">
-                                        <Text className="text-[10px] text-white/50 font-sans">
+                                        <Text className="text-micro text-white/50 font-sans">
                                             * Valid on next meal session
                                         </Text>
-                                        <Text className="text-[10px] text-clay-primary font-sans-medium">
+                                        <Text className="text-micro text-clay-primary font-sans-medium">
                                             Tap card to flip back
                                         </Text>
                                     </View>
@@ -983,7 +996,7 @@ export default function ProfileScreen() {
                     {/* Account Settings Section */}
                     <View className="mb-6">
                         <View className="px-6 mb-3">
-                            <Text className="text-lg font-bold text-text-main font-sans-bold">
+                            <Text className="text-card font-bold text-brand-ink font-sans-bold">
                                 Account Settings
                             </Text>
                         </View>
@@ -992,15 +1005,21 @@ export default function ProfileScreen() {
                             {SETTINGS_ITEMS.map((item) => {
                                 const Icon = item.icon;
                                 return (
-                                    <View
+                                    <TouchableOpacity
                                         key={item.id}
-                                        className="flex-row items-center bg-[#FCFBFA] p-3 rounded-2xl border border-[#F2DFD7]"
+                                        // the whole pill is tappable; the notifications row toggles its switch
+                                        onPress={item.isSwitch ? () => handleToggleNotifications(!notificationsEnabled) : item.action}
+                                        activeOpacity={0.7}
+                                        accessibilityRole={item.isSwitch ? 'switch' : 'button'}
+                                        accessibilityLabel={item.title}
+                                        accessibilityState={item.isSwitch ? { checked: notificationsEnabled } : undefined}
+                                        className="flex-row items-center bg-brand-surface p-3 rounded-2xl border border-[#F2DFD7]"
                                     >
                                         <View className="w-10 h-10 bg-[#FFF1EC] rounded-xl items-center justify-center mr-3">
-                                            <Icon size={20} color={item.isLogout ? "#DC2626" : "#BF592B"} />
+                                            <Icon size={20} color={item.isLogout ? "#DC2626" : palette.accent} />
                                         </View>
                                         
-                                        <Text className={`flex-1 text-base font-sans-medium ${item.isLogout ? 'text-red-600 font-bold' : 'text-text-main'}`}>
+                                        <Text className={`flex-1 text-card font-sans-medium ${item.isLogout ? 'text-red-600 font-bold' : 'text-brand-ink'}`}>
                                             {item.title}
                                         </Text>
 
@@ -1009,19 +1028,19 @@ export default function ProfileScreen() {
                                                 value={notificationsEnabled}
                                                 onValueChange={handleToggleNotifications}
                                                 trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
-                                                thumbColor={notificationsEnabled ? '#BF592B' : '#83746E'}
+                                                thumbColor={notificationsEnabled ? palette.accent : palette.muted}
                                                 ios_backgroundColor="#F2DFD7"
                                             />
                                         ) : item.isLogout ? (
-                                            <TouchableOpacity onPress={item.action} className="p-1">
+                                            <View className="p-1">
                                                 <ChevronRight size={18} color="#DC2626" />
-                                            </TouchableOpacity>
+                                            </View>
                                         ) : (
-                                            <TouchableOpacity onPress={item.action} className="p-1">
-                                                <ChevronRight size={18} color="#BF592B" />
-                                            </TouchableOpacity>
+                                            <View className="p-1">
+                                                <ChevronRight size={18} color={palette.accent} />
+                                            </View>
                                         )}
-                                    </View>
+                                    </TouchableOpacity>
                                 );
                             })}
                         </View>
@@ -1030,33 +1049,33 @@ export default function ProfileScreen() {
                     {/* Adinkra Footer */}
                     <View className="items-center justify-center py-8">
                         <Svg width={48} height={48} viewBox="0 0 100 100" fill="none">
-                            <Circle cx="50" cy="50" r="10" stroke="#BF592B" strokeWidth="4" />
+                            <Circle cx="50" cy="50" r="10" stroke={palette.accent} strokeWidth="4" />
                             <Path 
                                 d="M 50 15 C 60 15, 65 30, 50 40 C 35 30, 40 15, 50 15 Z" 
-                                stroke="#BF592B" 
+                                stroke={palette.accent} 
                                 strokeWidth="4" 
                             />
                             <Path 
                                 d="M 50 85 C 60 85, 65 70, 50 60 C 35 70, 40 85, 50 85 Z" 
-                                stroke="#BF592B" 
+                                stroke={palette.accent} 
                                 strokeWidth="4" 
                             />
                             <Path 
                                 d="M 15 50 C 15 60, 30 65, 40 50 C 30 35, 15 40, 15 50 Z" 
-                                stroke="#BF592B" 
+                                stroke={palette.accent} 
                                 strokeWidth="4" 
                             />
                             <Path 
                                 d="M 85 50 C 85 60, 70 65, 60 50 C 70 35, 85 40, 85 50 Z" 
-                                stroke="#BF592B" 
+                                stroke={palette.accent} 
                                 strokeWidth="4" 
                             />
-                            <Circle cx="50" cy="50" r="28" stroke="#BF592B" strokeWidth="4" strokeDasharray="10 6" />
+                            <Circle cx="50" cy="50" r="28" stroke={palette.accent} strokeWidth="4" strokeDasharray="10 6" />
                         </Svg>
-                        <Text className="text-[#83746E]/50 text-[10px] font-sans-medium tracking-widest mt-2 uppercase">
+                        <Text className="text-brand-muted text-micro font-sans-medium tracking-widest mt-2 uppercase">
                             BI NKA BI • UNITY & PEACE
                         </Text>
-                        <Text className="text-[#83746E]/40 text-[9px] font-sans mt-1">Version 1.0.0</Text>
+                        <Text className="text-brand-muted text-micro font-sans mt-1">Version 1.0.0</Text>
                     </View>
                 </ScrollView>
             </View>
@@ -1075,7 +1094,7 @@ export default function ProfileScreen() {
                         zIndex: 99999,
                     }}
                 >
-                    <View className="items-center p-6 rounded-3xl bg-[#BF592B] border border-[#D65A31] shadow-2xl max-w-[70%]">
+                    <View className="items-center p-6 rounded-3xl bg-brand-accent border border-brand-accent shadow-2xl max-w-[70%]">
                         <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 110, marginBottom: 4 }}>
                             {/* Spinning Dashed Ring */}
                             <Animated.View
@@ -1092,10 +1111,10 @@ export default function ProfileScreen() {
                             />
                             {/* Pulsing Inner Circle */}
                             <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                                <View className="bg-surface rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12 }}>
+                                <View className="bg-brand-surface rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12 }}>
                                     {(function() {
                                         const IconComponent = LOADER_ICONS[loaderIconIndex] || Utensils;
-                                        return <IconComponent size={32} color="#BF592B" />;
+                                        return <IconComponent size={32} color={palette.accent} />;
                                     })()}
                                 </View>
                             </Animated.View>
@@ -1103,10 +1122,10 @@ export default function ProfileScreen() {
                         
                         <ActivityIndicator size="small" color="#FFFFFF" className="mb-3" />
                         
-                        <Text className="text-2xl font-bold text-white text-center font-serif tracking-wide" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
+                        <Text className="text-hero font-bold text-white text-center font-serif tracking-wide" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
                             YɛnDidii
                         </Text>
-                        <Text className="text-xs text-white/80 text-center font-sans mt-2 px-3 leading-4">
+                        <Text className="text-meta text-white/80 text-center font-sans mt-2 px-3 leading-4">
                             {isCookMode ? 'Switching to Eating Mode...' : 'Switching to Kitchen Mode...'}
                         </Text>
                     </View>

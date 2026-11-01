@@ -6,6 +6,7 @@ import {
   PlusJakartaSans_500Medium,
   PlusJakartaSans_600SemiBold,
   PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { useFonts } from 'expo-font';
 import { ErrorBoundary, Stack, useRouter, usePathname } from 'expo-router';
@@ -18,6 +19,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/lib/supabase';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import PageTransitionLoader from '@/components/PageTransitionLoader';
+import { palette } from '@/constants/theme';
 import './global.css';
 
 export { ErrorBoundary };
@@ -74,6 +76,7 @@ export default function RootLayout() {
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
   });
 
   useEffect(() => {
@@ -94,18 +97,23 @@ export default function RootLayout() {
       <PaystackProvider publicKey={paystackKey} currency="GHS" defaultChannels={['card', 'mobile_money']}>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <StatusBar style="dark" />
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 6 } }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 6 } }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="login" />
-            <Stack.Screen name="onboarding" />
-            <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 0 } }} />
-            <Stack.Screen name="notifications" options={{ presentation: 'card' }} />
-            <Stack.Screen name="messages" options={{ presentation: 'card' }} />
+            <Stack.Screen name="onboarding" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="notifications" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="messages" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
-            <Stack.Screen name="cook/[id]" />
+            <Stack.Screen name="cook/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="meal/[id]" />
-            <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 0 } }} />
-            <Stack.Screen name="cart" options={{ presentation: 'card' }} />
+            <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="personal-information" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="kitchen-settings" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="address/index" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="payment-methods" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="privacy-security" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="cart" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
           </Stack>
           <PageTransitionLoader visible={showTransitionLoader} />
         </ThemeProvider>

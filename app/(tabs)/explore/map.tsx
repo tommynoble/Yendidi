@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import * as Location from 'expo-location';
+import { palette, type, fonts } from '@/constants/theme';
 
 // Same curated category list used on Home, so search stays consistent across the app
 const CATEGORIES = [
@@ -269,7 +270,7 @@ export default function ExploreMapScreen() {
                             height: isSelected ? 62 : 54,
                             borderRadius: 31,
                             borderWidth: isSelected ? 3 : 2.5,
-                            borderColor: isSelected ? '#BF592B' : '#fff',
+                            borderColor: isSelected ? palette.accent : '#fff',
                             overflow: 'hidden',
                             backgroundColor: '#F3F4F6',
                             shadowColor: '#000',
@@ -287,7 +288,7 @@ export default function ExploreMapScreen() {
                                 />
                             ) : (
                                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF1EC' }}>
-                                    <ChefHat size={22} color="#BF592B" />
+                                    <ChefHat size={22} color={palette.accent} />
                                 </View>
                             )}
                         </View>
@@ -295,7 +296,7 @@ export default function ExploreMapScreen() {
                         {cook.listings[0]?.price !== undefined && (
                             <View style={{
                                 marginTop: 4,
-                                backgroundColor: isSelected ? '#BF592B' : '#231915',
+                                backgroundColor: isSelected ? palette.accent : palette.ink,
                                 paddingHorizontal: 8,
                                 paddingVertical: 3,
                                 borderRadius: 20,
@@ -316,7 +317,7 @@ export default function ExploreMapScreen() {
     }, [filteredCooks, selectedCook]);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#F8E4DD' }}>
+        <View style={{ flex: 1, backgroundColor: palette.canvas }}>
             {/* MAP LAYER */}
             <MapView
                 ref={mapRef}
@@ -347,37 +348,37 @@ export default function ExploreMapScreen() {
                     style={{
                         marginHorizontal: 20,
                         marginBottom: 12,
-                        backgroundColor: '#F7EEE7',
+                        backgroundColor: palette.surface,
                         borderRadius: 9999,
                         flexDirection: 'row',
                         alignItems: 'center',
                         paddingHorizontal: 18,
                         height: 56,
                         gap: 10,
-                        shadowColor: '#231915',
+                        shadowColor: palette.ink,
                         shadowOffset: { width: 0, height: 6 },
                         shadowOpacity: 0.22,
                         shadowRadius: 16,
                         elevation: 6,
                     }}
                 >
-                    <Search size={18} color="#BF592B" />
+                    <Search size={18} color={palette.accent} />
                     <View style={{ flex: 1 }}>
                         <TextInput
                             value={searchQuery}
                             onChangeText={(t) => { setSearchQuery(t); setSelectedCook(null); }}
                             placeholder="Search dishes or hosts"
-                            placeholderTextColor="#8A7269"
-                            style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', padding: 0 }}
+                            placeholderTextColor={palette.muted}
+                            style={{ ...type.card, fontFamily: fonts.bold, color: palette.ink, padding: 0 }}
                             returnKeyType="search"
                         />
-                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#8A7269', marginTop: 1 }}>
+                        <Text style={{ ...type.meta, fontFamily: fonts.regular, color: palette.muted, marginTop: 1 }}>
                             {isLoading ? 'Loading gatherings…' : `${filteredCooks.length} gathering${filteredCooks.length !== 1 ? 's' : ''} near you`}
                         </Text>
                     </View>
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => { setSearchQuery(''); setSelectedCook(null); }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                            <X size={18} color="#8A7269" />
+                            <X size={18} color={palette.muted} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -386,7 +387,7 @@ export default function ExploreMapScreen() {
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 4, gap: 10 }}
+                    contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 4, gap: 6 }}
                 >
                     {CATEGORIES.map(category => {
                         const isActive = selectedCategory === category.name;
@@ -402,26 +403,26 @@ export default function ExploreMapScreen() {
                             style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                gap: 6,
-                                paddingHorizontal: 14,
-                                paddingVertical: 9,
-                                borderRadius: 999,
-                                backgroundColor: isActive ? '#BF592B' : '#FFF1EC',
-                                borderColor: isActive ? '#BF592B' : '#DDC1B6',
+                                gap: 3,
+                                paddingHorizontal: 8,
+                                paddingVertical: 5,
+                                borderRadius: 9999,
+                                backgroundColor: isActive ? palette.accent : palette.surface,
+                                borderColor: isActive ? palette.accent : '#DDC1B6',
                                 borderWidth: 1.5,
-                                shadowColor: '#BF592B',
+                                shadowColor: isActive ? palette.accent : palette.ink,
                                 shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: isActive ? 0.2 : 0,
-                                shadowRadius: 6,
-                                elevation: isActive ? 3 : 0,
+                                shadowOpacity: isActive ? 0.22 : 0.1,
+                                shadowRadius: isActive ? 6 : 4,
+                                elevation: isActive ? 3 : 2,
                             }}
                         >
-                            {IconComponent && <IconComponent size={14} color={isActive ? 'white' : '#BF592B'} />}
+                            {IconComponent && <IconComponent size={10} color={isActive ? 'white' : palette.accent} />}
                             <Text
                                 style={{
-                                    fontFamily: isActive ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium',
-                                    fontSize: 13,
-                                    color: isActive ? 'white' : '#56423B',
+                                    ...type.meta,
+                                    fontFamily: isActive ? fonts.semibold : fonts.medium,
+                                    color: isActive ? 'white' : palette.muted,
                                 }}
                             >
                                 {category.name}
@@ -436,14 +437,14 @@ export default function ExploreMapScreen() {
             {isLoading && (
                 <View style={{
                     position: 'absolute', top: '45%', alignSelf: 'center',
-                    backgroundColor: '#F7EEE7', paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20,
+                    backgroundColor: palette.surface, paddingHorizontal: 24, paddingVertical: 16, borderRadius: 20,
                     flexDirection: 'row', alignItems: 'center', gap: 12,
                     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
                     shadowOpacity: 0.22, shadowRadius: 8, elevation: 6,
                     zIndex: 60,
                 }}>
-                    <ActivityIndicator size="small" color="#BF592B" />
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Finding hosts...</Text>
+                    <ActivityIndicator size="small" color={palette.accent} />
+                    <Text style={{ ...type.cardTitleSmall, color: palette.ink }}>Finding hosts...</Text>
                 </View>
             )}
 
@@ -462,7 +463,7 @@ export default function ExploreMapScreen() {
                             width: 44,
                             height: 44,
                             borderRadius: 22,
-                            backgroundColor: '#F7EEE7',
+                            backgroundColor: palette.surface,
                             alignItems: 'center',
                             justifyContent: 'center',
                             shadowColor: '#000',
@@ -479,7 +480,7 @@ export default function ExploreMapScreen() {
                             }, 500);
                         }}
                     >
-                        <Navigation size={20} color="#BF592B" />
+                        <Navigation size={20} color={palette.accent} />
                     </TouchableOpacity>
                 </View>
             )}
@@ -493,10 +494,10 @@ export default function ExploreMapScreen() {
                         right: 6,
                         bottom: 0,
                         height: EXPANDED_HEIGHT + 40,
-                        backgroundColor: '#F7EEE7',
+                        backgroundColor: palette.canvas,
                         borderTopLeftRadius: 28,
                         borderTopRightRadius: 28,
-                        shadowColor: '#231915',
+                        shadowColor: palette.ink,
                         shadowOffset: { width: 0, height: -6 },
                         shadowOpacity: 0.18,
                         shadowRadius: 20,
@@ -515,19 +516,19 @@ export default function ExploreMapScreen() {
                             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E5D9D3', marginBottom: 4 }} />
                             {selectedCook ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>
+                                    <Text style={{ ...type.cardTitleSmall, color: palette.ink }}>
                                         {selectedCook.name}
                                     </Text>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#BF592B' }}>
+                                    <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.accent }}>
                                         · back to all gatherings
                                     </Text>
                                 </View>
                             ) : filteredCooks.length > 0 ? (
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>
+                                <Text style={{ ...type.cardTitleSmall, color: palette.ink }}>
                                     {filteredCooks.length} gathering{filteredCooks.length !== 1 ? 's' : ''} near you
                                 </Text>
                             ) : (
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>
+                                <Text style={{ ...type.cardTitleSmall, color: palette.ink }}>
                                     No gatherings in this area yet
                                 </Text>
                             )}
@@ -555,37 +556,37 @@ export default function ExploreMapScreen() {
                                     />
                                 ) : (
                                     <View style={{ width: '100%', height: 200, borderRadius: 20, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
-                                        <ChefHat size={40} color="#BF592B" />
+                                        <ChefHat size={40} color={palette.accent} />
                                     </View>
                                 )}
 
                                 <View style={{ marginTop: 14 }}>
                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, color: '#231915', flex: 1 }} numberOfLines={1}>
+                                        <Text style={{ ...type.section, color: palette.ink, flex: 1 }} numberOfLines={1}>
                                             {selectedCook.listings[0]?.title || selectedCook.name}
                                         </Text>
                                         {selectedCook.rating && (
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFF1EC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 }}>
-                                                <Star size={13} color="#BF592B" fill="#BF592B" />
-                                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#BF592B' }}>{selectedCook.rating}</Text>
+                                                <Star size={13} color={palette.accent} fill={palette.accent} />
+                                                <Text style={{ ...type.body, fontFamily: fonts.bold, color: palette.accent }}>{selectedCook.rating}</Text>
                                             </View>
                                         )}
                                     </View>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#56423B', marginTop: 4 }}>
+                                    <Text style={{ ...type.body, color: palette.muted, marginTop: 4 }}>
                                         by {selectedCook.name}
                                     </Text>
 
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}>
                                         {userLocation && (
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                                <Navigation size={13} color="#8A7269" />
-                                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B' }}>
+                                                <Navigation size={13} color={palette.muted} />
+                                                <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.muted }}>
                                                     {getDistance(userLocation.latitude, userLocation.longitude, selectedCook.latitude, selectedCook.longitude)}
                                                 </Text>
                                             </View>
                                         )}
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>{getPriceRange(selectedCook)}</Text>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269' }}>
+                                        <Text style={{ ...type.body, fontFamily: fonts.semibold, color: palette.accent }}>{getPriceRange(selectedCook)}</Text>
+                                        <Text style={{ ...type.body, color: palette.muted }}>
                                             {selectedCook.listing_count} dish{selectedCook.listing_count !== 1 ? 'es' : ''}
                                         </Text>
                                     </View>
@@ -594,7 +595,7 @@ export default function ExploreMapScreen() {
                                 <View
                                     style={{
                                         marginTop: 16,
-                                        backgroundColor: '#BF592B',
+                                        backgroundColor: palette.accent,
                                         borderRadius: 9999,
                                         height: 52,
                                         flexDirection: 'row',
@@ -604,7 +605,7 @@ export default function ExploreMapScreen() {
                                         opacity: selectedCook.listings.length === 0 ? 0.5 : 1,
                                     }}
                                 >
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: 'white' }}>View Food Listing</Text>
+                                    <Text style={{ ...type.card, fontFamily: fonts.bold, color: 'white' }}>View Food Listing</Text>
                                     <ChevronRight size={18} color="white" />
                                 </View>
                             </TouchableOpacity>
@@ -628,7 +629,7 @@ export default function ExploreMapScreen() {
                                         padding: 12,
                                         marginBottom: 12,
                                         borderRadius: 20,
-                                        backgroundColor: '#FCFBFA',
+                                        backgroundColor: palette.surface,
                                         borderWidth: 1.5,
                                         borderColor: '#F2DFD7',
                                     }}
@@ -640,34 +641,34 @@ export default function ExploreMapScreen() {
                                         />
                                     ) : (
                                         <View style={{ width: 78, height: 78, borderRadius: 16, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
-                                            <ChefHat size={30} color="#BF592B" />
+                                            <ChefHat size={30} color={palette.accent} />
                                         </View>
                                     )}
                                     <View style={{ flex: 1, justifyContent: 'center' }}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', flex: 1 }} numberOfLines={1}>
+                                            <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.ink, flex: 1 }} numberOfLines={1}>
                                                 {cook.name}
                                             </Text>
                                             {cook.rating && (
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                                    <Star size={12} color="#BF592B" fill="#BF592B" />
-                                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915' }}>{cook.rating}</Text>
+                                                    <Star size={12} color={palette.accent} fill={palette.accent} />
+                                                    <Text style={{ ...type.meta, fontFamily: fonts.semibold, color: palette.ink }}>{cook.rating}</Text>
                                                 </View>
                                             )}
                                         </View>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#56423B', marginTop: 2 }} numberOfLines={1}>
+                                        <Text style={{ ...type.meta, fontFamily: fonts.regular, color: palette.muted, marginTop: 2 }} numberOfLines={1}>
                                             {cook.listings.length > 0 ? cook.listings.map(l => l.title).slice(0, 2).join(', ') : 'New cook — menu coming soon'}
                                         </Text>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
                                             {userLocation && (
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                                    <Navigation size={11} color="#8A7269" />
-                                                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: '#56423B' }}>
+                                                    <Navigation size={11} color={palette.muted} />
+                                                    <Text style={{ ...type.micro, fontFamily: fonts.medium, color: palette.muted }}>
                                                         {getDistance(userLocation.latitude, userLocation.longitude, cook.latitude, cook.longitude)}
                                                     </Text>
                                                 </View>
                                             )}
-                                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#BF592B' }}>{getPriceRange(cook)}</Text>
+                                            <Text style={{ ...type.meta, fontFamily: fonts.semibold, color: palette.accent }}>{getPriceRange(cook)}</Text>
                                         </View>
                                     </View>
                                     <TouchableOpacity
@@ -678,15 +679,15 @@ export default function ExploreMapScreen() {
                                         style={{ alignSelf: 'center' }}
                                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                     >
-                                        <ChevronRight size={20} color="#BF592B" />
+                                        <ChevronRight size={20} color={palette.accent} />
                                     </TouchableOpacity>
                                 </TouchableOpacity>
                             );
                         })}
                         {filteredCooks.length === 0 && (
                             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-                                <MapPin size={28} color="#BF592B" />
-                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 13, color: '#56423B', marginTop: 8 }}>
+                                <MapPin size={28} color={palette.accent} />
+                                <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.muted, marginTop: 8 }}>
                                     Try a different search or category
                                 </Text>
                             </View>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import MapViewWrapper, { Marker } from './MapViewWrapper';
 import * as Location from 'expo-location';
-import { MaterialIcons } from '@expo/vector-icons';
+import { LocateFixed } from 'lucide-react-native';
+import { palette, type, fonts } from '@/constants/theme';
 
 interface LocationPickerProps {
     onLocationPicked: (location: { lat: number; lng: number; address?: string }) => void;
@@ -101,7 +102,7 @@ export default function LocationPicker({ onLocationPicked }: LocationPickerProps
         <View style={styles.locationPicker}>
             <View style={styles.mapPreview}>
                 {isFetching ? (
-                    <ActivityIndicator size="large" color="#D65A31" />
+                    <ActivityIndicator size="large" color={palette.accent} />
                 ) : mapRegion ? (
                     <MapViewWrapper
                         style={styles.map}
@@ -113,12 +114,12 @@ export default function LocationPicker({ onLocationPicked }: LocationPickerProps
                         <Marker title="Picked Location" coordinate={mapRegion} />
                     </MapViewWrapper>
                 ) : (
-                    <Text>No location chosen yet!</Text>
+                    <Text style={{ ...type.body, color: palette.muted }}>No location chosen yet</Text>
                 )}
             </View>
             <View style={styles.actions}>
                 <TouchableOpacity style={styles.button} onPress={getLocationHandler}>
-                    <MaterialIcons name="my-location" size={24} color="white" />
+                    <LocateFixed size={18} color="white" />
                     <Text style={styles.buttonText}>Use My Location</Text>
                 </TouchableOpacity>
             </View>
@@ -128,18 +129,18 @@ export default function LocationPicker({ onLocationPicked }: LocationPickerProps
 
 const styles = StyleSheet.create({
     locationPicker: {
-        marginBottom: 15,
+        marginBottom: 12,
     },
     mapPreview: {
-        marginBottom: 10,
+        marginBottom: 12,
         width: '100%',
-        height: 200,
-        borderColor: '#ccc',
+        height: 240,
+        borderColor: '#F2DFD7',
         borderWidth: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#eee',
-        borderRadius: 10,
+        backgroundColor: palette.canvas,
+        borderRadius: 16,
         overflow: 'hidden'
     },
     map: {
@@ -148,20 +149,21 @@ const styles = StyleSheet.create({
     },
     actions: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
+        justifyContent: 'center',
         width: '100%',
     },
     button: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#D65A31',
-        paddingVertical: 10,
+        backgroundColor: palette.accent,
+        height: 44,
         paddingHorizontal: 20,
-        borderRadius: 25,
+        borderRadius: 14,
         gap: 8
     },
     buttonText: {
-        color: 'white',
-        fontWeight: '600'
+        ...type.body,
+        fontFamily: fonts.bold,
+        color: 'white'
     }
 });

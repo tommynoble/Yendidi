@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { DAYS, TIME_PRESETS, MIN_GAP_DAYS, MAX_SESSIONS, SESSION_SERVING_CAP, nextDateForWeekday, isTooCloseToExistingSessions } from '@/lib/schedule';
+import { palette } from '@/constants/theme';
 
 export default function CookScheduleScreen() {
     const router = useRouter();
@@ -96,7 +97,7 @@ export default function CookScheduleScreen() {
             <View className="flex-1 bg-warm-cream">
                 <View className="flex-row items-center justify-between px-4 py-4 bg-surface border-b border-gray-100">
                     <TouchableOpacity onPress={() => router.back()} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                        <ChevronLeft size={24} color="#BF592B" />
+                        <ChevronLeft size={24} color={palette.accent} />
                     </TouchableOpacity>
                     <Text className="text-lg font-bold text-text-main font-sans-bold">Weekly Schedule</Text>
                     <View className="w-8" />
@@ -121,7 +122,7 @@ export default function CookScheduleScreen() {
                                 <View key={session.id} className="bg-surface rounded-3xl p-5 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                                     <View className="flex-row items-center justify-between mb-3">
                                         <View className="flex-row items-center gap-2">
-                                            <Calendar size={16} color="#BF592B" />
+                                            <Calendar size={16} color={palette.accent} />
                                             <Text className="font-bold text-text-main font-sans-bold text-base">
                                                 {format(parseISO(session.session_date), 'EEEE, MMM d')}
                                             </Text>
@@ -152,7 +153,7 @@ export default function CookScheduleScreen() {
                             onPress={() => setShowAdd(true)}
                             className="bg-surface rounded-3xl p-5 border-2 border-dashed border-clay-primary/30 items-center flex-row justify-center gap-2"
                         >
-                            <Plus size={18} color="#BF592B" />
+                            <Plus size={18} color={palette.accent} />
                             <Text className="text-clay-primary font-bold font-sans-bold">Add Host Day</Text>
                         </TouchableOpacity>
                     )}

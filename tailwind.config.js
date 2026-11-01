@@ -6,7 +6,7 @@ module.exports = {
       colors: {
         // Legacy tokens — values updated to new design system, names preserved
         // so existing classNames across all screens continue to work.
-        'clay-primary':   '#BF592B', // was #D65A31 → Roasted Clay primary
+        'clay-primary':   '#C25327', // was #D65A31 → Roasted Clay primary
         'brand-cream':    '#FFF8F6', // was #FDFBF7 → design system surface
         surface:          '#F7EEE7', // warm greige replacing pure white card/surface backgrounds
         text: {
@@ -20,14 +20,24 @@ module.exports = {
           cream: '#F8E4DD', // matches Home screen background
         },
         kente: {
-          red:    '#BF592B', // remapped to primary
+          red:    '#C25327', // remapped to primary
           yellow: '#FFCD00',
           green:  '#00A862', // remapped to tertiary
         },
 
+        // YenDidii redesign palette — see constants/theme.ts (new names, not applied to screens yet)
+        brand: {
+          canvas:  '#F8E4DD',
+          skeleton: '#DDC1B6',
+          surface: '#FBF5F2',
+          ink:     '#3D251E',
+          accent:  '#C25327',
+          muted:   '#7A5C53',
+        },
+
         // Ghana's Hearth design system tokens
         primary: {
-          DEFAULT:   '#BF592B',
+          DEFAULT:   '#C25327',
           on:        '#FFFFFF',
           container: '#BC5729',
           'on-container': '#FFFBFF',
@@ -80,6 +90,16 @@ module.exports = {
           'on-container': '#93000A',
         },
         neutral: '#83746E',
+      },
+      fontSize: {
+        // YenDidii type scale — see constants/theme.ts (new names, not applied to screens yet)
+        hero:    ['24px', { lineHeight: '30px' }],
+        section: ['20px', { lineHeight: '26px' }],
+        card:    ['16px', { lineHeight: '22px' }],
+        body:    ['14px', { lineHeight: '20px' }],
+        meta:    ['12px', { lineHeight: '16px' }],
+        micro:   ['11px', { lineHeight: '14px' }],
+        'card-title-small': ['14px', { lineHeight: '20px' }],
       },
       fontFamily: {
         // Mapped to Plus Jakarta Sans — same token names, new font

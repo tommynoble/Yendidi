@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { palette, type, fonts } from '@/constants/theme';
 
 export type Course = {
     title: string;
@@ -25,7 +26,10 @@ export default function CourseList({ courses }: { courses: Course[] }) {
                         gap: 12,
                         padding: 14,
                         borderRadius: 16,
-                        backgroundColor: c.highlight ? 'rgba(191,89,43,0.10)' : '#FFF1EC',
+                        backgroundColor: palette.surface,
+                        // the highlighted course keeps an accent outline so it still stands out
+                        borderWidth: 1,
+                        borderColor: c.highlight ? 'rgba(194, 83, 39,0.45)' : 'transparent',
                     }}
                 >
                     <View
@@ -39,32 +43,32 @@ export default function CourseList({ courses }: { courses: Course[] }) {
                             marginTop: 1,
                         }}
                     >
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: c.highlight ? 'white' : '#944421' }}>{i + 1}</Text>
+                        <Text style={{ ...type.micro, fontFamily: fonts.bold, color: c.highlight ? 'white' : '#944421' }}>{i + 1}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                             <Text
-                                style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: c.highlight ? '#944421' : '#1B1C19', flexShrink: 1 }}
+                                style={{ ...type.cardTitleSmall, color: c.highlight ? '#944421' : palette.ink, flexShrink: 1 }}
                                 numberOfLines={1}
                             >
                                 {c.title}
                             </Text>
                             {!!c.tag && (
-                                <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 11, color: c.highlight ? '#944421' : '#88726B' }} numberOfLines={1}>
+                                <Text style={{ ...type.micro, fontFamily: fonts.medium, color: c.highlight ? '#944421' : palette.muted }} numberOfLines={1}>
                                     {c.tag}
                                 </Text>
                             )}
                         </View>
                         {!!c.description && (
-                            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12.5, lineHeight: 18, color: '#55433C', marginTop: 4 }}>
+                            <Text style={{ ...type.body, color: palette.muted, marginTop: 4 }}>
                                 {c.description}
                             </Text>
                         )}
                         {!!c.chips?.length && (
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                                 {c.chips.map((chip) => (
-                                    <View key={chip} style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: 'rgba(191,89,43,0.2)' }}>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 10.5, color: '#55433C' }}>{chip}</Text>
+                                    <View key={chip} style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: palette.surface, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
+                                        <Text style={{ ...type.micro, fontFamily: fonts.medium, color: palette.muted }}>{chip}</Text>
                                     </View>
                                 ))}
                             </View>

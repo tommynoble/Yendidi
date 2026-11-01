@@ -1,9 +1,10 @@
 import React from 'react';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { palette } from '@/constants/theme';
 
 // Shopping cart in the shape of Container (2).svg (20x20), drawn as a thin outline.
 // `strokeWidth` is in the 20-unit box; lower is thinner.
-export default function CartIcon({ size = 14, color = '#55433C', strokeWidth = 1.4 }: { size?: number; color?: string; strokeWidth?: number }) {
+export default function CartIcon({ size = 14, color = palette.muted, strokeWidth = 1.4 }: { size?: number; color?: string; strokeWidth?: number }) {
     return (
         <Svg width={size} height={size} viewBox="0 0 20 20" fill="none">
             <Path

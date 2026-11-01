@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { usePaystack } from 'react-native-paystack-webview';
 import { getDishImage } from '@/constants/Images';
 import ProcessLoader from '@/components/ProcessLoader';
+import { palette } from '@/constants/theme';
 
 const DINE_IN_IMAGE = require('@/assets/images/dine_in_2.jpg');
 
@@ -302,7 +303,7 @@ export default function CartScreen() {
             {/* Header */}
             <View className="flex-row items-center justify-between px-4 py-4 bg-surface border-b border-gray-100">
                 <TouchableOpacity onPress={() => handleBack()} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <ChevronLeft size={24} color="#BF592B" />
+                    <ChevronLeft size={24} color={palette.accent} />
                 </TouchableOpacity>
                 <Text className="text-headline-md font-headline-md text-text-main font-sans-bold">Secure Your Feast</Text>
                 <View className="w-8" />
@@ -315,7 +316,7 @@ export default function CartScreen() {
                     <View className="bg-surface rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                         <View className="flex-row items-center justify-between mb-5">
                             <View className="flex-row items-center gap-2">
-                                <Receipt size={18} color="#BF592B" />
+                                <Receipt size={18} color={palette.accent} />
                                 <Text className="text-title-lg font-bold text-clay-primary font-sans-bold">Order Summary</Text>
                             </View>
                             <View className="w-6 h-6 rounded-full bg-clay-primary items-center justify-center">
@@ -439,7 +440,7 @@ export default function CartScreen() {
                 <View className="px-6 mt-6">
                     <Text className="text-title-lg font-title-lg text-text-main mb-4 font-sans-bold">How will you get your food?</Text>
                     <View className="flex-row items-center gap-3 bg-clay-primary/5 border-2 border-clay-primary rounded-2xl py-3 px-4 mb-4">
-                        <Home size={20} color="#BF592B" />
+                        <Home size={20} color={palette.accent} />
                         <Text className="text-sm font-sans-bold text-clay-primary">Dine-in — you'll eat at the host's home</Text>
                     </View>
 
@@ -482,9 +483,9 @@ export default function CartScreen() {
                                     </View>
                                     <View
                                         className="w-6 h-6 rounded-full items-center justify-center"
-                                        style={{ borderWidth: 2, borderColor: selected ? '#BF592B' : '#D4D4D4' }}
+                                        style={{ borderWidth: 2, borderColor: selected ? palette.accent : '#D4D4D4' }}
                                     >
-                                        {selected && <View className="w-3 h-3 rounded-full" style={{ backgroundColor: '#BF592B' }} />}
+                                        {selected && <View className="w-3 h-3 rounded-full" style={{ backgroundColor: palette.accent }} />}
                                     </View>
                                 </TouchableOpacity>
 

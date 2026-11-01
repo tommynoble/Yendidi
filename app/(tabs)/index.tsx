@@ -4,7 +4,7 @@ import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, MapPin, Star, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, Plus, Flame, ChefHat, Heart, Leaf, Utensils, Soup, Fish, Cake, Apple, Sprout, Wheat, ShoppingBag, Check, MessageCircle, Calendar as CalendarIcon } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { useRouter, useNavigation } from 'expo-router';
+import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
@@ -16,6 +16,8 @@ import ProcessLoader from '@/components/ProcessLoader';
 import AvatarStack from '@/components/AvatarStack';
 import { formatPotCountdown, isPotCountdownActive } from '@/lib/countdown';
 import SectionHeader from '@/components/SectionHeader';
+import { palette, type, fonts } from '@/constants/theme';
+import HeartButton from '@/components/HeartButton';
 import CartIcon from '@/components/CartIcon';
 import PeopleIcon from '@/components/PeopleIcon';
 import HostRow from '@/components/HostRow';
@@ -100,26 +102,39 @@ const ImageInnerShadow = () => (
 // Gray pulsing placeholder block — standard skeleton-loading pattern, shown
 // in place of cards while their query is still in flight.
 const SkeletonBox = ({ style }: { style?: any }) => {
-  const pulse = useRef(new Animated.Value(0.5)).current;
+  const pulse = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0.5, duration: 650, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0.6, duration: 650, useNativeDriver: true }),
       ])
     );
     loop.start();
     return () => loop.stop();
   }, []);
 
-  return <Animated.View style={[{ backgroundColor: '#E4D4C9', opacity: pulse }, style]} />;
+  return <Animated.View style={[{ backgroundColor: palette.skeleton, opacity: pulse }, style]} />;
 };
 
 const SkeletonGridCard = () => (
-  <View style={{ width: '47%' }}>
-    <View style={{ backgroundColor: '#F7EEE7', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(191,89,43,0.15)' }}>
+  <View style={{ width: '48%' }}>
+    <View style={{ backgroundColor: palette.surface, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.15)' }}>
       <SkeletonBox style={{ width: '100%', height: 155 }} />
+      <View style={{ padding: 12 }}>
+        <SkeletonBox style={{ width: '70%', height: 13, borderRadius: 6, marginBottom: 8 }} />
+        <SkeletonBox style={{ width: '45%', height: 10, borderRadius: 5 }} />
+      </View>
+    </View>
+  </View>
+);
+
+// Narrow card for the horizontal "More Hosts to Discover" row.
+const SkeletonRowCard = ({ width }: { width: number }) => (
+  <View style={{ width }}>
+    <View style={{ backgroundColor: palette.surface, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.15)' }}>
+      <SkeletonBox style={{ width: '100%', height: 130 }} />
       <View style={{ padding: 12 }}>
         <SkeletonBox style={{ width: '70%', height: 13, borderRadius: 6, marginBottom: 8 }} />
         <SkeletonBox style={{ width: '45%', height: 10, borderRadius: 5 }} />
@@ -130,7 +145,7 @@ const SkeletonGridCard = () => (
 
 const SkeletonHeroCard = () => (
   <View style={{ marginHorizontal: 16, marginBottom: 20 }}>
-    <View style={{ backgroundColor: '#F7EEE7', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(191,89,43,0.15)' }}>
+    <View style={{ backgroundColor: palette.surface, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.15)' }}>
       <SkeletonBox style={{ width: '100%', height: 300 }} />
       <View style={{ padding: 16, paddingBottom: 22 }}>
         <SkeletonBox style={{ width: '60%', height: 18, borderRadius: 8, marginBottom: 10 }} />
@@ -190,7 +205,8 @@ export default function HomeScreen() {
 
   const handleSearchFocus = useCallback(() => {
     setSearchFocused(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // The haptics native module is missing from some dev builds; a failed buzz must not break search.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     Animated.spring(searchScale, { toValue: 1.03, useNativeDriver: true, friction: 6 }).start();
   }, [searchScale]);
 
@@ -198,6 +214,13 @@ export default function HomeScreen() {
     setSearchFocused(false);
     Animated.spring(searchScale, { toValue: 1, useNativeDriver: true, friction: 6 }).start();
   }, [searchScale]);
+
+  // Leaving Home (e.g. signing out) can skip the input's onBlur, which left the bar stuck enlarged and highlighted
+  // when the next login came back to this still-mounted screen. Reset it whenever the screen loses focus.
+  useFocusEffect(useCallback(() => () => {
+    Keyboard.dismiss();
+    handleSearchBlur();
+  }, [handleSearchBlur]));
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
@@ -560,15 +583,15 @@ export default function HomeScreen() {
     const ringCircumference = 2 * Math.PI * ringRadius;
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#F8E4DD' }} edges={['bottom']}>
-        <View style={{ flex: 1, backgroundColor: '#F8E4DD' }}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: palette.canvas }} edges={['bottom']}>
+        <View style={{ flex: 1, backgroundColor: palette.canvas }}>
 
           {/* Header */}
-          <View style={{ paddingHorizontal: 24, paddingTop: insets.top + 12, paddingBottom: 16, backgroundColor: '#F8E4DD' }}>
+          <View style={{ paddingHorizontal: 24, paddingTop: insets.top + 12, paddingBottom: 16, backgroundColor: palette.canvas }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View>
-                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: '#8A7269', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Kitchen Dashboard</Text>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', letterSpacing: -0.3 }}>Host {displayName}</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: palette.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Kitchen Dashboard</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: palette.ink, letterSpacing: -0.3 }}>Host {displayName}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FFF8', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#B2DFCC' }}>
@@ -578,7 +601,7 @@ export default function HomeScreen() {
                 {avatarUrl ? (
                   <Image source={{ uri: avatarUrl }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2DFD7', borderWidth: 2, borderColor: 'white' }} />
                 ) : (
-                  <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#BF592B', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' }}>
                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: 'white' }}>{displayName.charAt(0)}</Text>
                   </View>
                 )}
@@ -590,15 +613,15 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
             contentContainerStyle={{ paddingBottom: 120 }}
             showsVerticalScrollIndicator={false}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#BF592B" colors={['#BF592B']} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />}
           >
 
             {/* Business Overview */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 14 }}>
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>Business Overview</Text>
+              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink }}>Business Overview</Text>
               <TouchableOpacity onPress={() => router.push('/(tabs)/orders')} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#BF592B' }}>View Orders</Text>
-                <ChevronRight size={14} color="#BF592B" />
+                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.accent }}>View Orders</Text>
+                <ChevronRight size={14} color={palette.accent} />
               </TouchableOpacity>
             </View>
 
@@ -606,15 +629,15 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 24, marginBottom: 20 }}>
               {[
                 { icon: TrendingUp, color: '#007A33', bg: '#F0FFF8', label: 'REVENUE', value: `₵${chefStats.revenue.toFixed(0)}` },
-                { icon: ClockIcon, color: '#D65A31', bg: '#FFF1EC', label: 'ACTIVE', value: String(chefStats.activeNow) },
+                { icon: ClockIcon, color: palette.accent, bg: '#FFF1EC', label: 'ACTIVE', value: String(chefStats.activeNow) },
                 { icon: UsersIcon, color: '#0066CC', bg: '#EFF6FF', label: 'CUSTOMERS', value: String(chefStats.todayOrders) },
               ].map(({ icon: Icon, color, bg, label, value }) => (
-                <View key={label} style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, padding: 14, shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.11, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F2DFD7' }}>
+                <View key={label} style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, padding: 14, shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.11, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F2DFD7' }}>
                   <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
                     <Icon size={18} color={color} />
                   </View>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: '#231915', marginBottom: 2 }}>{value}</Text>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 9, color: '#8A7269', letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: palette.ink, marginBottom: 2 }}>{value}</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 9, color: palette.muted, letterSpacing: 0.8, textTransform: 'uppercase' }}>{label}</Text>
                 </View>
               ))}
             </View>
@@ -628,16 +651,16 @@ export default function HomeScreen() {
                   onPress={() => router.push('/(tabs)/cook')}
                   activeOpacity={0.85}
                 >
-                  <Plus size={24} color="#BF592B" />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915' }}>New Dish</Text>
+                  <Plus size={24} color={palette.accent} />
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.ink }}>New Dish</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={{ flex: 1, backgroundColor: '#FFCD00', borderRadius: 18, paddingVertical: 20, alignItems: 'center', gap: 10 }}
                   onPress={() => router.push('/(tabs)/cook')}
                   activeOpacity={0.85}
                 >
-                  <Flame size={24} color="#BF592B" fill="#BF592B" />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915' }}>New Session</Text>
+                  <Flame size={24} color={palette.accent} fill={palette.accent} />
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.ink }}>New Session</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
@@ -663,11 +686,11 @@ export default function HomeScreen() {
                     strokeLinecap="round"
                   />
                 </Svg>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }}>{progressPercent}%</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: palette.ink }}>{progressPercent}%</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', marginBottom: 4 }}>Today's Progress</Text>
-                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#56423B', marginBottom: 14 }}>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink, marginBottom: 4 }}>Today's Progress</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: palette.muted, marginBottom: 14 }}>
                   {completedCount} of {chefStats.totalCount} orders completed
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 5 }}>
@@ -681,36 +704,36 @@ export default function HomeScreen() {
             {/* My active Menu */}
             <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915' }}>My active Menu</Text>
+                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink }}>My active Menu</Text>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/cook')}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#BF592B' }}>+ Add Dish</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.accent }}>+ Add Dish</Text>
                 </TouchableOpacity>
               </View>
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 {(myMenu || []).slice(0, 1).map((item: any) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.13, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)' }}
+                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.13, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}
                     onPress={() => router.push(`/listing/${item.id}`)}
                     activeOpacity={0.85}
                   >
                     <Image source={getDishImage(item.title, item.image)} style={{ width: '100%', height: 120 }} resizeMode="cover" />
                     <View style={{ padding: 12 }}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: '#231915', marginBottom: 4 }} numberOfLines={2}>{item.title}</Text>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#BF592B' }}>₵{item.price}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.ink, marginBottom: 4 }} numberOfLines={2}>{item.title}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: palette.accent }}>₵{item.price}</Text>
                     </View>
                   </TouchableOpacity>
                 ))}
                 {(!myMenu || myMenu.length === 0) && (
                   <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.13, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
+                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.13, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
                     onPress={() => router.push('/(tabs)/cook')}
                     activeOpacity={0.85}
                   >
                     <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: '#DDC1B6', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                      <Plus size={20} color="#8A7269" />
+                      <Plus size={20} color={palette.ink} />
                     </View>
-                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', textAlign: 'center' }}>Add your first{'\n'}dish</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add your first{'\n'}dish</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
@@ -719,27 +742,27 @@ export default function HomeScreen() {
                   activeOpacity={0.75}
                 >
                   <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: '#DDC1B6', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-                    <Plus size={18} color="#8A7269" />
+                    <Plus size={18} color={palette.ink} />
                   </View>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#8A7269', textAlign: 'center' }}>Add another{'\n'}dish</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add another{'\n'}dish</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* Recent Activity */}
             <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: '#231915', marginBottom: 14 }}>Recent Activity</Text>
+              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink, marginBottom: 14 }}>Recent Activity</Text>
               {recentActivity && recentActivity.length > 0 ? (
                 recentActivity.map((activity: any) => (
-                  <View key={activity.id} style={{ backgroundColor: '#F7EEE7', borderRadius: 18, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#F2DFD7', shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6, elevation: 1 }}>
+                  <View key={activity.id} style={{ backgroundColor: '#F7EEE7', borderRadius: 18, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#F2DFD7', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6, elevation: 1 }}>
                     <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
-                      <ShoppingBag size={18} color="#BF592B" />
+                      <ShoppingBag size={18} color={palette.accent} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }}>{activity.title}</Text>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#8A7269', marginTop: 2 }}>{activity.subtitle}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.ink }}>{activity.title}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: palette.muted, marginTop: 2 }}>{activity.subtitle}</Text>
                     </View>
-                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: '#8A7269' }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: palette.muted }}>
                       {activity.time ? (() => {
                         try {
                           const d = new Date(activity.time);
@@ -752,7 +775,7 @@ export default function HomeScreen() {
               ) : (
                 <View style={{ backgroundColor: '#F7EEE7', borderRadius: 20, padding: 32, alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#DDC1B6' }}>
                   <ShoppingBag size={32} color="#DDC1B6" />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269', marginTop: 10, textAlign: 'center' }}>No activity yet. Your first order is coming!</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: palette.muted, marginTop: 10, textAlign: 'center' }}>No activity yet. Your first order is coming!</Text>
                 </View>
               )}
             </View>
@@ -766,90 +789,61 @@ export default function HomeScreen() {
   // --- EATER VIEW (DEFAULT) ---
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8E4DD' }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.canvas }} edges={['top']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={{ flex: 1 }}>
 
         {/* Sticky Top Bar */}
-        <View style={{ backgroundColor: '#F8E4DD', paddingHorizontal: 20, paddingVertical: 6, marginBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
-          <View />
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Pressable onPress={() => router.push('/cart')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <View style={{
-                width: 31,
-                height: 31,
-                borderRadius: 15.5,
-                backgroundColor: 'rgba(191, 89, 43, 0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#231915',
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.09,
-                shadowRadius: 6,
-                elevation: 2
-              }}>
-                <CartIcon size={16} color="#BF592B" />
+        <View style={{ backgroundColor: palette.canvas, paddingHorizontal: 20, paddingVertical: 4, marginBottom: 2, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 10 }}>
+          {/* Brand + location */}
+          <View style={{ flexShrink: 1, marginRight: 12 }}>
+            <Text style={{ ...type.micro, color: palette.muted, letterSpacing: 0.8, textTransform: 'uppercase' }} numberOfLines={1}>
+              {(profileData as any)?.location || 'Accra, Ghana'}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ ...type.section, color: palette.ink }}>YenDidii</Text>
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: palette.accent, marginTop: 4 }} />
+            </View>
+          </View>
+
+          {/* Actions */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable onPress={() => router.push('/cart')} style={{ position: 'relative' }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
+                <CartIcon size={15} color={palette.inkSoft} />
               </View>
               {cartCount > 0 && (
-                <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#BF592B', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#BF592B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 2 }}>
-                  <Text style={{ color: 'white', fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold' }}>{cartCount}</Text>
+                <View style={{ position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: 'white', fontSize: 10, lineHeight: 12, fontFamily: 'PlusJakartaSans_700Bold' }}>{cartCount}</Text>
                 </View>
               )}
             </Pressable>
-            <Pressable onPress={() => router.push('/notifications')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <View style={{
-                width: 31,
-                height: 31,
-                borderRadius: 15.5,
-                backgroundColor: 'rgba(191, 89, 43, 0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#231915',
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.09,
-                shadowRadius: 6,
-                elevation: 2
-              }}>
-                <Bell size={15} color="#BF592B" />
+            <Pressable onPress={() => router.push('/notifications')} style={{ position: 'relative' }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
+                <Bell size={15} color={palette.inkSoft} />
               </View>
               {activeOrder && (
-                <View style={{ position: 'absolute', top: -4, right: -4, width: 18, height: 18, borderRadius: 9, backgroundColor: '#BA1A1A', borderWidth: 2, borderColor: 'white', alignItems: 'center', justifyContent: 'center', shadowColor: '#BA1A1A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 2 }}>
-                  <Text style={{ color: 'white', fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold' }}>1</Text>
-                </View>
+                <View style={{ position: 'absolute', top: 5, right: 7, width: 8, height: 8, borderRadius: 5, backgroundColor: palette.accent }} />
               )}
             </Pressable>
-            <Pressable onPress={() => router.push('/messages')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <View style={{
-                width: 31,
-                height: 31,
-                borderRadius: 15.5,
-                backgroundColor: 'rgba(191, 89, 43, 0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                shadowColor: '#231915',
-                shadowOffset: { width: 0, height: 3 },
-                shadowOpacity: 0.09,
-                shadowRadius: 6,
-                elevation: 2
-              }}>
-                <MessageCircle size={15} color="#BF592B" />
+            <Pressable onPress={() => router.push('/messages')} style={{ position: 'relative' }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
+                <MessageCircle size={15} color={palette.inkSoft} />
               </View>
             </Pressable>
-            <Pressable onPress={() => router.push('/(tabs)/profile')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Pressable onPress={() => router.push('/(tabs)/profile')} style={{ position: 'relative' }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               {(profileData as any)?.avatar_url ? (
                 <Image
                   source={{ uri: (profileData as any).avatar_url }}
-                  style={{ width: 31, height: 31, borderRadius: 15.5, borderWidth: 1.5, borderColor: '#DDC1B6' }}
+                  style={{ width: 34, height: 34, borderRadius: 17, borderWidth: 2, borderColor: palette.accent }}
                 />
               ) : (
-                <View style={{ width: 31, height: 31, borderRadius: 15.5, backgroundColor: '#BF592B', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#DDC1B6' }}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: 'white' }}>{displayName.charAt(0)}</Text>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: palette.accent }}>
+                  <Text style={{ ...type.card, fontFamily: fonts.bold, color: 'white' }}>{displayName.charAt(0)}</Text>
                 </View>
               )}
-              <View style={{ position: 'absolute', bottom: -2, right: -2, width: 16, height: 16, borderRadius: 8, backgroundColor: '#BF592B', borderWidth: 1.5, borderColor: '#DDC1B6', alignItems: 'center', justifyContent: 'center' }}>
-                <Check size={9} color="white" strokeWidth={3} />
-              </View>
+              <View style={{ position: 'absolute', bottom: -1, right: -1, width: 10, height: 10, borderRadius: 5, backgroundColor: '#00A862', borderWidth: 2, borderColor: palette.canvas }} />
             </Pressable>
           </View>
         </View>
@@ -860,30 +854,30 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled"
           scrollEventThrottle={16}
           contentContainerStyle={{ paddingBottom: 110 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#BF592B" colors={['#BF592B']} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />}
         >
           {/* Search Bar */}
           <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 20 }}>
             <Animated.View style={{ transform: [{ scale: searchScale }] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F7EEE7', borderRadius: 20, borderWidth: 1.5, borderColor: searchFocused ? '#D9825C' : '#DDC1B6', paddingHorizontal: 14, height: 52, shadowColor: searchFocused ? '#BF592B' : '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: searchFocused ? 0.25 : 0.16, shadowRadius: searchFocused ? 12 : 10, elevation: searchFocused ? 5 : 4 }}>
-                <Search size={18} color="#8A7269" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surface, borderRadius: 20, borderWidth: 1.5, borderColor: searchFocused ? '#D9825C' : '#DDC1B6', paddingHorizontal: 14, height: 52, shadowColor: searchFocused ? palette.accent : palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: searchFocused ? 0.25 : 0.16, shadowRadius: searchFocused ? 12 : 10, elevation: searchFocused ? 5 : 4 }}>
+                <Search size={18} color={palette.ink} />
                 <TextInput
-                  placeholder="What do you want to eat and do?"
-                  placeholderTextColor="#8A7269"
+                  placeholder="Search hosts, dishes, gatherings or locations..."
+                  placeholderTextColor={palette.muted}
                   value={searchQuery}
                   onChangeText={(t) => { setSearchQuery(t); if (t.length > 2) handleSearch(); if (t.length === 0) clearSearch(); }}
                   onSubmitEditing={handleSearch}
                   onFocus={handleSearchFocus}
                   onBlur={handleSearchBlur}
-                  style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: '#231915', paddingHorizontal: 10 }}
+                  style={{ flex: 1, height: 40, paddingVertical: 0, paddingHorizontal: 10, fontFamily: fonts.regular, fontSize: 12, color: palette.ink }}
                 />
                 {searchQuery.length > 0 ? (
                   <TouchableOpacity onPress={clearSearch} style={{ padding: 4 }}>
-                    <X size={16} color="#8A7269" />
+                    <X size={16} color={palette.ink} />
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity onPress={() => router.push('/address')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                    <MapPin size={18} color="#BF592B" />
+                    <MapPin size={18} color={palette.ink} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -902,13 +896,13 @@ export default function HomeScreen() {
                   <ChefHat size={20} color="#006A3C" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }} numberOfLines={1}>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.ink }} numberOfLines={1}>
                     {activeOrder.order_items?.[0]?.listings?.title || 'Your Order'}
                   </Text>
                   <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: '#006A3C', marginTop: 1 }}>{getStatusText(activeOrder.status)}</Text>
                 </View>
                 <TouchableOpacity onPress={() => setDismissedOrderId(activeOrder.id)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <X size={16} color="#8A7269" />
+                  <X size={16} color={palette.ink} />
                 </TouchableOpacity>
               </TouchableOpacity>
             </View>
@@ -924,16 +918,16 @@ export default function HomeScreen() {
                   onPress={() => setActiveCategory(cat.name)}
                   activeOpacity={0.75}
                   hitSlop={{ top: 6, bottom: 6 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 9999, backgroundColor: isActive ? '#BF592B' : '#FFF1EC', borderWidth: 1.5, borderColor: isActive ? '#BF592B' : '#DDC1B6', shadowColor: isActive ? '#BF592B' : '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: isActive ? 0.22 : 0.1, shadowRadius: isActive ? 6 : 4, elevation: isActive ? 3 : 2 }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 9999, backgroundColor: isActive ? palette.accent : palette.surface, borderWidth: 1.5, borderColor: isActive ? palette.accent : '#DDC1B6', shadowColor: isActive ? palette.accent : palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: isActive ? 0.22 : 0.1, shadowRadius: isActive ? 6 : 4, elevation: isActive ? 3 : 2 }}
                 >
                   {(() => {
                     const IconComponent = ICON_MAP[cat.icon];
                     if (IconComponent) {
-                      return <IconComponent size={10} color={isActive ? 'white' : '#BF592B'} />;
+                      return <IconComponent size={10} color={isActive ? 'white' : palette.accent} />;
                     }
                     return null;
                   })()}
-                  <Text style={{ fontFamily: isActive ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium', fontSize: 12, color: isActive ? 'white' : '#56423B' }}>
+                  <Text style={{ fontFamily: isActive ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium', fontSize: 12, color: isActive ? 'white' : palette.muted }}>
                     {cat.name}
                   </Text>
                 </TouchableOpacity>
@@ -947,35 +941,35 @@ export default function HomeScreen() {
               {searchResults.length === 0 ? (
                 <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
                   <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
-                    <Search size={36} color="#BF592B" />
+                    <Search size={36} color={palette.accent} />
                   </View>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: '#231915', marginBottom: 8, textAlign: 'center' }}>Looking around...</Text>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: '#56423B', textAlign: 'center' }}>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: palette.ink, marginBottom: 8, textAlign: 'center' }}>Looking around...</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, color: palette.muted, textAlign: 'center' }}>
                     Scanning nearby kitchens for{' '}
-                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', color: '#BF592B' }}>{searchQuery}</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', color: palette.accent }}>{searchQuery}</Text>
                   </Text>
                 </View>
               ) : (
                 <View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: palette.ink }}>
                       {searchResults.length} {searchResults.length === 1 ? 'dish found' : 'dishes found'}
                     </Text>
                     <TouchableOpacity onPress={clearSearch} style={{ paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F2DFD7', borderRadius: 9999 }}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#56423B' }}>Clear</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.muted }}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                   {searchResults.map((item) => (
                     <TouchableOpacity
                       key={item.id}
-                      style={{ backgroundColor: '#F7EEE7', borderRadius: 20, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#F2DFD7', shadowColor: '#231915', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.11, shadowRadius: 10, elevation: 3 }}
+                      style={{ backgroundColor: '#F7EEE7', borderRadius: 20, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 1, borderColor: '#F2DFD7', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.11, shadowRadius: 10, elevation: 3 }}
                       onPress={() => router.push(`/listing/${item.id}`)}
                     >
                       <Image source={{ uri: (item.image && item.image.includes(',') ? item.image.split(',')[0].trim() : item.image) || 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400' }} style={{ width: 72, height: 72, borderRadius: 14, backgroundColor: '#F2DFD7' }} resizeMode="cover" />
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: '#231915', marginBottom: 4 }} numberOfLines={2}>{item.title}</Text>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: '#56423B' }}>by {item.profiles?.full_name || 'Local Host'}</Text>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#BF592B', marginTop: 4 }}>₵{item.price}</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: palette.ink, marginBottom: 4 }} numberOfLines={2}>{item.title}</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: palette.muted }}>by {item.profiles?.full_name || 'Local Host'}</Text>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: palette.accent, marginTop: 4 }}>₵{item.price}</Text>
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -987,7 +981,7 @@ export default function HomeScreen() {
             <View>
 
               {isLoadingMeals && (
-                <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28, marginTop: 8 }}>
+                <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, marginBottom: 28, marginTop: 8 }}>
                   <SkeletonGridCard />
                   <SkeletonGridCard />
                   <SkeletonGridCard />
@@ -1006,13 +1000,13 @@ export default function HomeScreen() {
                   />
 
                   {/* POPULAR DISHES GRID — four main foods, same real data as Loved Foods */}
-                  <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 }}>
+                  <View style={{ paddingHorizontal: 20, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12, marginBottom: 28 }}>
                     {(featuredMeals || []).slice(0, 4).map((item: any) => (
                       <View
                         key={`popular-wrapper-${item.id}`}
                         style={{
-                          width: '47%',
-                          shadowColor: '#231915',
+                          width: '48%',
+                          shadowColor: palette.ink,
                           shadowOffset: { width: 0, height: 3 },
                           shadowOpacity: 0.16,
                           shadowRadius: 10,
@@ -1022,11 +1016,11 @@ export default function HomeScreen() {
                       <TouchableOpacity
                         style={{
                           flex: 1,
-                          backgroundColor: '#F7EEE7',
+                          backgroundColor: palette.surface,
                           borderRadius: 24,
                           overflow: 'hidden',
                           borderWidth: 1,
-                          borderColor: 'rgba(191,89,43,0.35)',
+                          borderColor: 'rgba(194, 83, 39,0.35)',
                         }}
                         activeOpacity={0.85}
                         onPress={() => handleCardPress(item.id)}
@@ -1034,16 +1028,10 @@ export default function HomeScreen() {
                         <View style={{ height: 155, backgroundColor: '#F2DFD7', position: 'relative' }}>
                           <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                           <ImageInnerShadow />
-                          <TouchableOpacity
-                            onPress={() => toggleSaved(item.id)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={{ position: 'absolute', top: 8, left: 8, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', shadowColor: '#BF592B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 4 }}
-                          >
-                            <Heart size={14} color="#BF592B" fill={savedIds.includes(item.id) ? '#BF592B' : 'rgba(191,89,43,0.25)'} />
-                          </TouchableOpacity>
+                          <HeartButton saved={savedIds.includes(item.id)} onPress={() => toggleSaved(item.id)} size={24} iconSize={12} style={{ position: 'absolute', top: 8, left: 8 }} />
                           <AnimatedHeartOverlay visible={!!animatingLikes[item.id]} />
                           {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
-                            <View style={{ position: 'absolute', top: 42, left: 9, backgroundColor: '#BF592B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
+                            <View style={{ position: 'absolute', top: 42, left: 9, backgroundColor: palette.accent, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
                               <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: 'white' }}>{formatPotCountdown(item.order_deadline)}</Text>
                             </View>
                           )}
@@ -1063,7 +1051,7 @@ export default function HomeScreen() {
                                 gap: 4,
                                 paddingHorizontal: 10,
                                 borderRadius: 9999,
-                                backgroundColor: 'rgba(250,249,244,0.95)',
+                                backgroundColor: 'rgba(251,245,242,0.95)',
                                 shadowColor: '#000',
                                 shadowOffset: { width: 0, height: 1 },
                                 shadowOpacity: 0.05,
@@ -1071,8 +1059,8 @@ export default function HomeScreen() {
                                 elevation: 1,
                               }}
                             >
-                              <CalendarIcon size={12} color="#944421" strokeWidth={2.25} />
-                              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, lineHeight: 16, color: '#944421', flexShrink: 1 }} numberOfLines={1}>
+                              <CalendarIcon size={12} color={palette.accent} strokeWidth={2.25} />
+                              <Text style={{ ...type.micro, color: palette.accent, flexShrink: 1 }} numberOfLines={1}>
                                 {format(new Date(item.order_deadline), "EEE, MMM d '•' h:mm a")}
                               </Text>
                             </View>
@@ -1082,10 +1070,10 @@ export default function HomeScreen() {
                           <View style={{ marginBottom: 4 }}>
                             <HostRow compact showAvatar={false} showName={false} location={item.profiles?.location} />
                           </View>
-                          <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }} numberOfLines={1}>{item.title || item.name}</Text>
+                          <Text style={{ ...type.cardTitleSmall, color: palette.ink }} numberOfLines={1}>{item.title || item.name}</Text>
                           <View style={{ flexGrow: 1, marginTop: 3 }}>
                             {!!item.description?.trim() && (
-                              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, lineHeight: 13, color: '#56423B' }} numberOfLines={3} ellipsizeMode="tail">{item.description.trim()}</Text>
+                              <Text style={{ ...type.meta, color: palette.muted }} numberOfLines={3} ellipsizeMode="tail">{item.description.trim()}</Text>
                             )}
                           </View>
                           {/* Price + reserve footer */}
@@ -1093,16 +1081,16 @@ export default function HomeScreen() {
                             <View style={{ flexShrink: 1 }}>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                                 <PeopleIcon height={8} />
-                                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 9, lineHeight: 12, color: '#55433C', flexShrink: 1 }} numberOfLines={1}>
+                                <Text style={{ ...type.micro, color: palette.muted, flexShrink: 1 }} numberOfLines={1}>
                                   {item.portions_available > 0 ? `${item.portions_available} spot${item.portions_available === 1 ? '' : 's'} left` : 'Fully booked'}
                                 </Text>
                               </View>
                               <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-                                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, lineHeight: 19, color: '#944421' }}>GH₵</Text>
-                                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, lineHeight: 19, color: '#944421' }} numberOfLines={1}>{item.price}</Text>
+                                  <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.accent }}>GH₵</Text>
+                                  <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.accent }} numberOfLines={1}>{item.price}</Text>
                                 </View>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 9, color: '#55433C' }}>/seat</Text>
+                                <Text style={{ ...type.micro, fontFamily: fonts.regular, color: palette.muted }}>/seat</Text>
                               </View>
                             </View>
                             <TouchableOpacity
@@ -1113,7 +1101,7 @@ export default function HomeScreen() {
                                 width: 26,
                                 height: 26,
                                 borderRadius: 7,
-                                backgroundColor: '#944421',
+                                backgroundColor: palette.accent,
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 shadowColor: '#000',
@@ -1154,7 +1142,7 @@ export default function HomeScreen() {
                       style={{
                         marginHorizontal: 16,
                         marginBottom: heroIndex === heroArr.length - 1 ? 34 : 36,
-                        shadowColor: '#231915',
+                        shadowColor: palette.ink,
                         shadowOffset: { width: 0, height: 4 },
                         shadowOpacity: 0.15,
                         shadowRadius: 12,
@@ -1165,23 +1153,17 @@ export default function HomeScreen() {
                         style={({ pressed }) => ({ opacity: pressed ? 0.96 : 1 })}
                         onPress={() => handleCardPress(hero.id)}
                       >
-                        <View style={{ backgroundColor: '#F7EEE7', borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)' }}>
+                        <View style={{ backgroundColor: palette.surface, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
                           <View style={{ position: 'relative', height: 300, backgroundColor: '#F2DFD7' }}>
                             <Image source={getDishImage(hero.title || hero.name, hero.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                             <ImageInnerShadow />
                             <AnimatedHeartOverlay visible={!!animatingLikes[hero.id]} />
                             {hero.order_deadline && isPotCountdownActive(hero.order_deadline) && (
-                              <View style={{ position: 'absolute', top: 12, left: 12, backgroundColor: '#BF592B', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
+                              <View style={{ position: 'absolute', top: 12, left: 12, backgroundColor: palette.accent, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
                                 <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, color: 'white' }}>{formatPotCountdown(hero.order_deadline)}</Text>
                               </View>
                             )}
-                            <TouchableOpacity
-                              onPress={() => toggleSaved(hero.id)}
-                              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                              style={{ position: 'absolute', bottom: 12, right: 12, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.85)', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <Heart size={15} color="#BF592B" fill={savedIds.includes(hero.id) ? '#BF592B' : 'transparent'} />
-                            </TouchableOpacity>
+                            <HeartButton saved={savedIds.includes(hero.id)} onPress={() => toggleSaved(hero.id)} size={28} iconSize={13} style={{ position: 'absolute', bottom: 12, right: 12 }} />
                             <View style={{ position: 'absolute', top: 12, right: 12 }}>
                               <AvatarStack id={hero.id} portionsAvailable={hero.portions_available} size={28} />
                             </View>
@@ -1198,7 +1180,7 @@ export default function HomeScreen() {
                                   gap: 4,
                                   paddingHorizontal: 10,
                                   borderRadius: 9999,
-                                  backgroundColor: 'rgba(250,249,244,0.95)',
+                                  backgroundColor: 'rgba(251,245,242,0.95)',
                                   shadowColor: '#000',
                                   shadowOffset: { width: 0, height: 1 },
                                   shadowOpacity: 0.05,
@@ -1206,8 +1188,8 @@ export default function HomeScreen() {
                                   elevation: 1,
                                 }}
                               >
-                                <CalendarIcon size={12} color="#944421" strokeWidth={2.25} />
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, lineHeight: 16, color: '#944421', flexShrink: 1 }} numberOfLines={1}>
+                                <CalendarIcon size={12} color={palette.accent} strokeWidth={2.25} />
+                                <Text style={{ ...type.micro, color: palette.accent, flexShrink: 1 }} numberOfLines={1}>
                                   {format(new Date(hero.order_deadline), "EEE, MMM d '•' h:mm a")}
                                 </Text>
                               </View>
@@ -1217,25 +1199,25 @@ export default function HomeScreen() {
                             <View style={{ marginBottom: 6 }}>
                               <HostRow showAvatar={false} showName={false} location={hero.profiles?.location} />
                             </View>
-                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }} numberOfLines={1}>{hero.title || hero.name}</Text>
+                            <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.ink }} numberOfLines={1}>{hero.title || hero.name}</Text>
                             {!!hero.description?.trim() && (
-                              <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, lineHeight: 16, color: '#56423B', marginTop: 4 }} numberOfLines={3} ellipsizeMode="tail">{hero.description.trim()}</Text>
+                              <Text style={{ ...type.body, color: palette.muted, marginTop: 4 }} numberOfLines={3} ellipsizeMode="tail">{hero.description.trim()}</Text>
                             )}
                             {/* Price + reserve footer */}
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(219,193,184,0.5)' }}>
                               <View style={{ flexShrink: 1 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                   <PeopleIcon height={10} />
-                                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, lineHeight: 14, color: '#55433C', flexShrink: 1 }} numberOfLines={1}>
+                                  <Text style={{ ...type.micro, color: palette.muted, flexShrink: 1 }} numberOfLines={1}>
                                     {hero.portions_available > 0 ? `${hero.portions_available} spot${hero.portions_available === 1 ? '' : 's'} left` : 'Fully booked'}
                                   </Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3 }}>
                                   <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, lineHeight: 24, color: '#944421' }}>GH₵</Text>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, lineHeight: 24, color: '#944421' }} numberOfLines={1}>{hero.price}</Text>
+                                    <Text style={{ ...type.section, fontFamily: fonts.bold, color: palette.accent }}>GH₵</Text>
+                                    <Text style={{ ...type.section, fontFamily: fonts.bold, color: palette.accent }} numberOfLines={1}>{hero.price}</Text>
                                   </View>
-                                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: '#55433C' }}>/seat</Text>
+                                  <Text style={{ ...type.micro, fontFamily: fonts.regular, color: palette.muted }}>/seat</Text>
                                 </View>
                               </View>
                               <TouchableOpacity
@@ -1248,7 +1230,7 @@ export default function HomeScreen() {
                                   flexDirection: 'row',
                                   gap: 6,
                                   borderRadius: 8,
-                                  backgroundColor: '#944421',
+                                  backgroundColor: palette.accent,
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   shadowColor: '#000',
@@ -1258,7 +1240,7 @@ export default function HomeScreen() {
                                   elevation: 1,
                                 }}
                               >
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: 'white' }} numberOfLines={1}>Reserve Seat</Text>
+                                <Text style={{ ...type.meta, fontFamily: fonts.bold, color: 'white' }} numberOfLines={1}>Reserve Seat</Text>
                               </TouchableOpacity>
                             </View>
                           </View>
@@ -1270,6 +1252,16 @@ export default function HomeScreen() {
               )}
 
               {/* Horizontal swipeable row, right after the big cards — Airbnb-style */}
+              {isLoadingMeals && (
+                <>
+                  <SectionHeader title="More Hosts to Discover" />
+                  <ScrollView horizontal scrollEnabled={false} showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12 }} style={{ marginBottom: 28 }}>
+                    <SkeletonRowCard width={width * 0.42} />
+                    <SkeletonRowCard width={width * 0.42} />
+                    <SkeletonRowCard width={width * 0.42} />
+                  </ScrollView>
+                </>
+              )}
               {featuredMealsMain.length > 2 && (
                 <>
                 <SectionHeader title="More Hosts to Discover" />
@@ -1285,7 +1277,7 @@ export default function HomeScreen() {
                       key={`swipe-wrapper-${item.id}`}
                       style={{
                         width: width * 0.42,
-                        shadowColor: '#231915',
+                        shadowColor: palette.ink,
                         shadowOffset: { width: 0, height: 3 },
                         shadowOpacity: 0.16,
                         shadowRadius: 10,
@@ -1294,11 +1286,11 @@ export default function HomeScreen() {
                     >
                     <TouchableOpacity
                       style={{
-                        backgroundColor: '#F7EEE7',
+                        backgroundColor: palette.surface,
                         borderRadius: 24,
                         overflow: 'hidden',
                         borderWidth: 1,
-                        borderColor: 'rgba(191,89,43,0.35)',
+                        borderColor: 'rgba(194, 83, 39,0.35)',
                       }}
                       activeOpacity={0.85}
                       onPress={() => handleCardPress(item.id)}
@@ -1306,16 +1298,10 @@ export default function HomeScreen() {
                       <View style={{ height: 142, backgroundColor: '#F2DFD7', position: 'relative' }}>
                         <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                         <ImageInnerShadow />
-                        <TouchableOpacity
-                          onPress={() => toggleSaved(item.id)}
-                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                          style={{ position: 'absolute', top: 8, left: 8, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', shadowColor: '#BF592B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.5, shadowRadius: 4, elevation: 4 }}
-                        >
-                          <Heart size={14} color="#BF592B" fill={savedIds.includes(item.id) ? '#BF592B' : 'rgba(191,89,43,0.25)'} />
-                        </TouchableOpacity>
+                        <HeartButton saved={savedIds.includes(item.id)} onPress={() => toggleSaved(item.id)} size={24} iconSize={12} style={{ position: 'absolute', top: 8, left: 8 }} />
                         <AnimatedHeartOverlay visible={!!animatingLikes[item.id]} />
                         {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
-                          <View style={{ position: 'absolute', top: 42, left: 9, backgroundColor: '#BF592B', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
+                          <View style={{ position: 'absolute', top: 42, left: 9, backgroundColor: palette.accent, paddingHorizontal: 9, paddingVertical: 4, borderRadius: 9999, borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: 'white' }}>{formatPotCountdown(item.order_deadline)}</Text>
                           </View>
                         )}
@@ -1324,12 +1310,12 @@ export default function HomeScreen() {
                         </View>
                       </View>
                       <View style={{ padding: 12 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: '#231915' }} numberOfLines={1}>{item.title || item.name}</Text>
+                        <Text style={{ ...type.cardTitleSmall, color: palette.ink }} numberOfLines={1}>{item.title || item.name}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginTop: 3 }}>
-                          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#8A7269', flex: 1 }} numberOfLines={1}>{item.portions_available} seat{item.portions_available === 1 ? '' : 's'} left</Text>
+                          <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: palette.muted, flex: 1 }} numberOfLines={1}>{item.portions_available} seat{item.portions_available === 1 ? '' : 's'} left</Text>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                            <Star size={7} color="#BF592B" fill="#BF592B" />
-                            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#BF592B' }}>{getDisplayRating(item.profiles?.rating, item.id)}</Text>
+                            <Star size={7} color={palette.accent} fill={palette.accent} />
+                            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: palette.accent }}>{getDisplayRating(item.profiles?.rating, item.id)}</Text>
                           </View>
                         </View>
                       </View>
@@ -1404,7 +1390,7 @@ export default function HomeScreen() {
                   {/* Section header */}
                   <SectionHeader
                     title="Liked Meals"
-                    icon={<Heart size={18} color="#BF592B" fill="#BF592B" />}
+                    icon={<Heart size={18} color={palette.accent} fill={palette.accent} />}
                     onActionPress={() => router.push('/(tabs)/explore/map')}
                   />
 
@@ -1427,19 +1413,14 @@ export default function HomeScreen() {
                         >
                           <View style={{ alignItems: 'center', paddingTop: 14, paddingBottom: 10 }}>
                             <View style={{ position: 'relative' }}>
-                              <View style={{ width: 108, height: 108, borderRadius: 54, overflow: 'hidden', borderWidth: 2.5, borderColor: '#BF592B' }}>
+                              <View style={{ width: 108, height: 108, borderRadius: 54, overflow: 'hidden', borderWidth: 2.5, borderColor: palette.accent }}>
                                 <Image source={getDishImage(hItem.title || hItem.name, hItem.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                               </View>
-                              <TouchableOpacity
-                                style={{ position: 'absolute', top: -2, right: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.22, shadowRadius: 4, elevation: 2 }}
-                                onPress={() => toggleSaved(hItem.id)}
-                              >
-                                <Heart size={11} color="#BF592B" fill={savedIds.includes(hItem.id) ? '#BF592B' : 'transparent'} />
-                              </TouchableOpacity>
+                              <HeartButton saved={savedIds.includes(hItem.id)} onPress={() => toggleSaved(hItem.id)} size={22} iconSize={10} style={{ position: 'absolute', top: -2, right: -2 }} />
                               <AnimatedHeartOverlay visible={!!animatingLikes[hItem.id]} />
                             </View>
                             <View style={{ paddingHorizontal: 10, marginTop: 8, alignItems: 'center' }}>
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915', marginBottom: 3, textAlign: 'center' }} numberOfLines={1}>{hItem.title || hItem.name}</Text>
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 3, textAlign: 'center' }} numberOfLines={1}>{hItem.title || hItem.name}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                                 <Flame size={10} color="#BA1A1A" fill="#BA1A1A" />
                                 <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 10, color: '#BA1A1A' }} numberOfLines={1}>
@@ -1472,23 +1453,18 @@ export default function HomeScreen() {
                         >
                           <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 9 }}>
                             <View style={{ position: 'relative' }}>
-                              <View style={{ width: 84, height: 84, borderRadius: 42, overflow: 'hidden', borderWidth: 2, borderColor: '#BF592B' }}>
+                              <View style={{ width: 84, height: 84, borderRadius: 42, overflow: 'hidden', borderWidth: 2, borderColor: palette.accent }}>
                                 <Image source={getDishImage(hItem.title || hItem.name, hItem.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                               </View>
-                              <TouchableOpacity
-                                style={{ position: 'absolute', top: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', shadowColor: '#231915', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.22, shadowRadius: 4, elevation: 2 }}
-                                onPress={() => toggleSaved(hItem.id)}
-                              >
-                                <Heart size={10} color="#BF592B" fill={savedIds.includes(hItem.id) ? '#BF592B' : 'transparent'} />
-                              </TouchableOpacity>
+                              <HeartButton saved={savedIds.includes(hItem.id)} onPress={() => toggleSaved(hItem.id)} size={20} iconSize={9} style={{ position: 'absolute', top: -2, right: -2 }} />
                               <AnimatedHeartOverlay visible={!!animatingLikes[hItem.id]} />
                             </View>
                             <View style={{ paddingHorizontal: 8, marginTop: 7, alignItems: 'center' }}>
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915', marginBottom: 4, textAlign: 'center' }} numberOfLines={1}>{hItem.title || hItem.name}</Text>
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 4, textAlign: 'center' }} numberOfLines={1}>{hItem.title || hItem.name}</Text>
                               {idx === 0 ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFF1EC', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9999 }}>
-                                  <Star size={9} color="#BF592B" fill="#BF592B" />
-                                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: '#BF592B' }}>New</Text>
+                                  <Star size={9} color={palette.accent} fill={palette.accent} />
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: palette.accent }}>New</Text>
                                 </View>
                               ) : (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
@@ -1514,17 +1490,17 @@ export default function HomeScreen() {
                   <SectionHeader
                     title="Popular Near You"
                     subtitle="Home-cooked favorites from kitchens close to you"
-                    icon={<Flame size={18} color="#BF592B" fill="#BF592B" />}
+                    icon={<Flame size={18} color={palette.accent} fill={palette.accent} />}
                     onActionPress={() => router.push('/(tabs)/explore/map')}
                     inset={false}
                   />
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 }}>
                     {featuredMealsMain.slice(6, 12).map((item: any) => (
                       <View
                         key={`grid-wrapper-${item.id}`}
                         style={{
-                          width: '47%',
-                          shadowColor: '#231915', 
+                          width: '48%',
+                          shadowColor: palette.ink, 
                           shadowOffset: { width: 0, height: 3 }, 
                           shadowOpacity: 0.16, 
                           shadowRadius: 10, 
@@ -1535,16 +1511,14 @@ export default function HomeScreen() {
                           style={({ pressed }) => ({ opacity: pressed ? 0.9 : 1 })}
                           onPress={() => handleCardPress(item.id)}
                         >
-                          <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: '#F7EEE7', borderWidth: 1, borderColor: 'rgba(191,89,43,0.35)' }}>
+                          <View style={{ borderRadius: 20, overflow: 'hidden', backgroundColor: palette.surface, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
                             <View style={{ position: 'relative', height: 155 }}>
                               <Image source={getDishImage(item.title || item.name, item.image)} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
                               <ImageInnerShadow />
-                              <TouchableOpacity style={{ position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.85)', alignItems: 'center', justifyContent: 'center' }} onPress={() => toggleSaved(item.id)}>
-                                <Heart size={13} color="#BF592B" fill={savedIds.includes(item.id) ? '#BF592B' : 'transparent'} />
-                              </TouchableOpacity>
+                              <HeartButton saved={savedIds.includes(item.id)} onPress={() => toggleSaved(item.id)} size={24} iconSize={12} style={{ position: 'absolute', top: 8, right: 8 }} />
                               <AnimatedHeartOverlay visible={!!animatingLikes[item.id]} />
                               {item.order_deadline && isPotCountdownActive(item.order_deadline) && (
-                                <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: '#BF592B', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 }}>
+                                <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: palette.accent, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999 }}>
                                   <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 9, color: 'white' }}>{formatPotCountdown(item.order_deadline)}</Text>
                                 </View>
                               )}
@@ -1553,15 +1527,15 @@ export default function HomeScreen() {
                               </View>
                             </View>
                             <View style={{ padding: 10 }}>
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#231915', marginBottom: 4 }} numberOfLines={1}>{item.title || item.name}</Text>
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 4 }} numberOfLines={1}>{item.title || item.name}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                                   <Flame size={10} color="#BA1A1A" fill="#BA1A1A" />
                                   <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 10, color: '#BA1A1A' }}>{item.portions_available} seat{item.portions_available === 1 ? '' : 's'} left</Text>
                                 </View>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                                  <ClockIcon size={10} color="#8A7269" />
-                                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: '#56423B' }}>{item.prep_time_minutes || 30}m</Text>
+                                  <ClockIcon size={10} color={palette.ink} />
+                                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: palette.muted }}>{item.prep_time_minutes || 30}m</Text>
                                 </View>
                               </View>
                             </View>

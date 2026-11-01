@@ -4,8 +4,9 @@ import { View, Text } from 'react-native';
 import { Home, Compass, Plus, User, LayoutDashboard, BookOpen, Heart, ChefHat } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import ForkKnifeIcon from '@/components/ForkKnifeIcon';
+import { palette } from '@/constants/theme';
 
-const fullBleedScene = { backgroundColor: '#F8E4DD', paddingHorizontal: 0 };
+const fullBleedScene = { backgroundColor: palette.canvas, paddingHorizontal: 0 };
 
 export default function TabLayout() {
   const isCookMode = useAppStore(state => state.isCookMode);
@@ -55,11 +56,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        // The 6px page gutter lives on each tab page, so the tab bar itself can span the full screen width.
-        // Explore (map), Watching and Orders are full-bleed layouts and opt out below.
-        sceneStyle: { backgroundColor: '#F8E4DD', paddingHorizontal: 6 },
+        // No outer side margin: each page sets its own padding, and the tab bar spans the full screen width.
+        sceneStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 },
         tabBarStyle: {
-          backgroundColor: '#F8E4DD',
+          backgroundColor: palette.canvas,
           borderTopColor: '#DDC1B6',
           borderTopWidth: 1,
           height: 88,
@@ -76,8 +76,8 @@ export default function TabLayout() {
           shadowRadius: 12,
         },
         tabBarShowLabel: false,
-        tabBarActiveTintColor: '#BF592B',
-        tabBarInactiveTintColor: '#8A7269',
+        tabBarActiveTintColor: palette.accent,
+        tabBarInactiveTintColor: palette.inkSoft,
       }}
     >
       <Tabs.Screen name="index" options={{ tabBarIcon: HomeIcon }} />

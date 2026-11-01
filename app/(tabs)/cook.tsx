@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Image, TextInput, ScrollView, KeyboardAvoidingView, Platform, Modal, Alert, ActivityIndicator, Switch } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { UtensilsCrossed, Clock, Users, Camera, ChevronRight, Heart, ShoppingBag, ArrowRight, Calendar, Plus, Check, Search, X, ArrowLeft, MapPin, Navigation, Lock, Wheat, Soup, Flame, Apple, Fish, Cake, Leaf, Sprout, Utensils, Save } from 'lucide-react-native';
+import { palette } from '@/constants/theme';
 
 const CATEGORY_ICONS: { [key: string]: React.ComponentType<any> } = {
   'Rice Dishes': Wheat,
@@ -14,7 +15,7 @@ const CATEGORY_ICONS: { [key: string]: React.ComponentType<any> } = {
   'Vegetarian': Sprout
 };
 import { useAppStore } from '@/lib/store';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -132,7 +133,7 @@ function SessionPicker({ sessions, selectedId, onSelect, editId, onSessionCreate
               disabled={creating}
               className={`flex-1 py-2.5 rounded-xl items-center ${creating ? 'bg-surface/40' : 'bg-surface'}`}
             >
-              {creating ? <ActivityIndicator color="#BF592B" size="small" /> : (
+              {creating ? <ActivityIndicator color={palette.accent} size="small" /> : (
                 <Text className="text-clay-primary text-xs font-bold font-sans-bold">Create Session</Text>
               )}
             </TouchableOpacity>
@@ -245,11 +246,11 @@ export default function CookScreen() {
   const [savedListings, setSavedListings] = useState<any[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
 
-  // Load favorites on mount
-  useEffect(() => {
+  // Reload favorites every time this tab comes into focus, so a dish hearted on Home shows up right away
+  // (tab screens stay mounted, so a mount-only load never saw new saves).
+  useFocusEffect(useCallback(() => {
     let active = true;
     const loadFavorites = async () => {
-      setSavedLoading(true);
       try {
         const raw = await AsyncStorage.getItem('yendidii_favorites');
         const ids: string[] = raw ? JSON.parse(raw) : [];
@@ -267,7 +268,7 @@ export default function CookScreen() {
     };
     loadFavorites();
     return () => { active = false; };
-  }, []);
+  }, []));
 
   const useCurrentLocation = async () => {
     setLocationFetching(true);
@@ -628,7 +629,7 @@ export default function CookScreen() {
                           activeOpacity={0.8}
                           className="w-48 h-full bg-gray-50 rounded-3xl items-center justify-center border-2 border-dashed border-gray-200"
                         >
-                          <Plus size={24} color="#BF592B" />
+                          <Plus size={24} color={palette.accent} />
                           <Text className="text-text-sub mt-2 font-sans font-medium text-center px-2 text-xs">
                             Add Photo ({images.length}/4)
                           </Text>
@@ -666,12 +667,12 @@ export default function CookScreen() {
                             }
                           }}
                           style={{
-                            backgroundColor: isSelected ? '#BF592B' : '#FFF1EC',
+                            backgroundColor: isSelected ? palette.accent : '#FFF1EC',
                             paddingHorizontal: 16,
                             paddingVertical: 10,
                             borderRadius: 9999,
                             borderWidth: 1,
-                            borderColor: isSelected ? '#BF592B' : '#DDC1B6',
+                            borderColor: isSelected ? palette.accent : '#DDC1B6',
                             flexDirection: 'row',
                             alignItems: 'center',
                             gap: 6
@@ -679,7 +680,7 @@ export default function CookScreen() {
                           activeOpacity={0.8}
                         >
                           {IconComponent && (
-                            <IconComponent size={14} color={isSelected ? 'white' : '#BF592B'} />
+                            <IconComponent size={14} color={isSelected ? 'white' : palette.accent} />
                           )}
                           <Text style={{
                             fontFamily: isSelected ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium',
@@ -716,7 +717,7 @@ export default function CookScreen() {
                           key={cat}
                           onPress={() => setSelectedCategories(selectedCategories.filter(c => c !== cat))}
                           style={{
-                            backgroundColor: '#BF592B',
+                            backgroundColor: palette.accent,
                             paddingHorizontal: 16,
                             paddingVertical: 10,
                             borderRadius: 9999,
@@ -762,7 +763,7 @@ export default function CookScreen() {
                           }}
                           activeOpacity={0.8}
                         >
-                          {IconComponent && <IconComponent size={14} color="#BF592B" />}
+                          {IconComponent && <IconComponent size={14} color={palette.accent} />}
                           <Text style={{
                             fontFamily: 'PlusJakartaSans_500Medium',
                             fontSize: 13,
@@ -780,7 +781,7 @@ export default function CookScreen() {
                         height: 36,
                         borderRadius: 18,
                         borderWidth: 1,
-                        borderColor: '#BF592B',
+                        borderColor: palette.accent,
                         borderStyle: 'dashed',
                         backgroundColor: '#FFF1EC',
                         alignItems: 'center',
@@ -788,7 +789,7 @@ export default function CookScreen() {
                       }}
                       activeOpacity={0.8}
                     >
-                      <Plus size={16} color="#BF592B" />
+                      <Plus size={16} color={palette.accent} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -825,7 +826,7 @@ export default function CookScreen() {
                   <View className="flex-1 bg-surface border border-[#F2DFD7] rounded-3xl p-4 justify-between">
                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: '#8A7269', marginBottom: 8 }}>Price (GHS)</Text>
                     <View className="flex-row items-center">
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#BF592B', marginRight: 8 }}>₵</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: palette.accent, marginRight: 8 }}>₵</Text>
                       <TextInput
                         keyboardType="numeric"
                         style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915', flex: 1, padding: 0 }}
@@ -844,7 +845,7 @@ export default function CookScreen() {
                       <TouchableOpacity
                         key={time}
                         onPress={() => setPrepTime(time)}
-                        className={`flex-1 py-2.5 rounded-xl border items-center ${prepTime === time ? 'bg-[#BF592B] border-[#BF592B]' : 'bg-surface border-[#F2DFD7]'}`}
+                        className={`flex-1 py-2.5 rounded-xl border items-center ${prepTime === time ? 'bg-brand-accent border-brand-accent' : 'bg-surface border-[#F2DFD7]'}`}
                       >
                         <Text className={`text-xs font-bold ${prepTime === time ? 'text-white' : 'text-text-sub'}`}>{time}</Text>
                       </TouchableOpacity>
@@ -856,7 +857,7 @@ export default function CookScreen() {
                 <View className="bg-[#FFF1EC] rounded-2xl p-4 flex-row items-center justify-between mb-4 border border-[#F2DFD7]">
                   <View className="flex-row items-center gap-3 flex-1 mr-4">
                     <View className="w-10 h-10 bg-surface rounded-xl items-center justify-center border border-[#F2DFD7]">
-                      <Calendar size={20} color="#BF592B" />
+                      <Calendar size={20} color={palette.accent} />
                     </View>
                     <View className="flex-1">
                       <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#231915' }}>Available for Sessions</Text>
@@ -867,7 +868,7 @@ export default function CookScreen() {
                     value={isAvailable}
                     onValueChange={setIsAvailable}
                     trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
-                    thumbColor={isAvailable ? '#BF592B' : '#83746E'}
+                    thumbColor={isAvailable ? palette.accent : '#83746E'}
                     ios_backgroundColor="#F2DFD7"
                   />
                 </View>
@@ -887,8 +888,8 @@ export default function CookScreen() {
                 <TouchableOpacity
                   onPress={handlePublish}
                   disabled={loading}
-                  className={`bg-[#BF592B] py-4 rounded-2xl flex-row items-center justify-center gap-3 ${loading ? 'opacity-70' : ''}`}
-                  style={{ shadowColor: '#BF592B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
+                  className={`bg-brand-accent py-4 rounded-2xl flex-row items-center justify-center gap-3 ${loading ? 'opacity-70' : ''}`}
+                  style={{ shadowColor: palette.accent, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5 }}
                 >
                   {loading ? (
                     <ActivityIndicator color="white" size="small" />
@@ -936,9 +937,9 @@ export default function CookScreen() {
                           }}
                           className="w-full bg-surface rounded-2xl border border-gray-100 p-4 flex-row items-center justify-between shadow-sm active:bg-clay-primary/5"
                         >
-                          <Text className={`font-bold text-lg font-sans-bold ${isSelected ? 'text-[#BF592B]' : 'text-text-main'}`}>{cat}</Text>
+                          <Text className={`font-bold text-lg font-sans-bold ${isSelected ? 'text-brand-accent' : 'text-text-main'}`}>{cat}</Text>
                           <View className="w-10 h-10 bg-gray-50 rounded-full items-center justify-center">
-                            {isSelected ? <Check size={20} color="#BF592B" /> : <ChevronRight size={20} color="#9CA3AF" />}
+                            {isSelected ? <Check size={20} color={palette.accent} /> : <ChevronRight size={20} color="#9CA3AF" />}
                           </View>
                         </TouchableOpacity>
                       );
@@ -961,7 +962,7 @@ export default function CookScreen() {
               <Text className="text-2xl font-bold text-text-main font-sans-bold">{edit_id ? 'Edit Your Dish' : 'Post a New Dish'}</Text>
               <Text className="text-text-sub text-sm font-sans">{edit_id ? 'Update the details for your listing' : 'Share your culinary creation with the community'}</Text>
               <TouchableOpacity onPress={() => router.push('/cook-schedule')} className="flex-row items-center gap-1 mt-1.5">
-                <Calendar size={12} color="#BF592B" />
+                <Calendar size={12} color={palette.accent} />
                 <Text className="text-clay-primary text-xs font-bold font-sans-bold">Manage Weekly Schedule</Text>
               </TouchableOpacity>
             </View>
@@ -998,7 +999,7 @@ export default function CookScreen() {
                   onPress={pickImage}
                   className="bg-[#FEEAE2] rounded-2xl h-60 items-center justify-center mb-6 border-2 border-dashed border-[#DDC1B6] overflow-hidden"
                 >
-                  <Camera size={32} color="#BF592B" />
+                  <Camera size={32} color={palette.accent} />
                   <Text className="text-text-sub mt-2 font-sans font-medium text-center px-4">Tap to take or choose photos of your dish (up to 4)</Text>
                 </TouchableOpacity>
               ) : (
@@ -1025,7 +1026,7 @@ export default function CookScreen() {
                         activeOpacity={0.8}
                         className="w-48 h-full bg-[#FEEAE2] rounded-2xl items-center justify-center border-2 border-dashed border-[#DDC1B6]"
                       >
-                        <Plus size={24} color="#BF592B" />
+                        <Plus size={24} color={palette.accent} />
                         <Text className="text-text-sub mt-2 font-sans font-medium text-center px-2 text-xs">
                           Add Photo ({images.length}/4)
                         </Text>
@@ -1063,12 +1064,12 @@ export default function CookScreen() {
                           }
                         }}
                         style={{
-                          backgroundColor: isSelected ? '#BF592B' : '#FFF1EC',
+                          backgroundColor: isSelected ? palette.accent : '#FFF1EC',
                           paddingHorizontal: 16,
                           paddingVertical: 10,
                           borderRadius: 9999,
                           borderWidth: 1,
-                          borderColor: isSelected ? '#BF592B' : '#DDC1B6',
+                          borderColor: isSelected ? palette.accent : '#DDC1B6',
                           flexDirection: 'row',
                           alignItems: 'center',
                           gap: 6
@@ -1076,7 +1077,7 @@ export default function CookScreen() {
                         activeOpacity={0.8}
                       >
                         {IconComponent && (
-                          <IconComponent size={14} color={isSelected ? 'white' : '#BF592B'} />
+                          <IconComponent size={14} color={isSelected ? 'white' : palette.accent} />
                         )}
                         <Text style={{
                           fontFamily: isSelected ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium',
@@ -1267,9 +1268,9 @@ export default function CookScreen() {
                         }}
                         className="w-full bg-surface rounded-2xl border border-gray-100 p-4 flex-row items-center justify-between shadow-sm active:bg-clay-primary/5"
                       >
-                        <Text className={`font-bold text-lg font-sans-bold ${isSelected ? 'text-[#BF592B]' : 'text-text-main'}`}>{cat}</Text>
+                        <Text className={`font-bold text-lg font-sans-bold ${isSelected ? 'text-brand-accent' : 'text-text-main'}`}>{cat}</Text>
                         <View className="w-10 h-10 bg-gray-50 rounded-full items-center justify-center">
-                          {isSelected ? <Check size={20} color="#BF592B" /> : <ChevronRight size={20} color="#9CA3AF" />}
+                          {isSelected ? <Check size={20} color={palette.accent} /> : <ChevronRight size={20} color="#9CA3AF" />}
                         </View>
                       </TouchableOpacity>
                     );
@@ -1292,7 +1293,7 @@ export default function CookScreen() {
   return (
     <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
       <View className="flex-1 bg-warm-cream">
-      <View className="px-6 pb-4 bg-surface border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
+      <View className="px-6 pb-4 border-b border-gray-100" style={{ backgroundColor: palette.surface, paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
         <Text className="text-2xl font-bold text-text-main font-sans-bold">Watching</Text>
         <Text className="text-sm text-text-sub font-sans">Meals and hosts you're keeping an eye on</Text>
       </View>

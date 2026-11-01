@@ -7,6 +7,7 @@ import { Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame,
 import { useAppStore } from '@/lib/store';
 import { getDishImage } from '@/constants/Images';
 import ProcessLoader from '@/components/ProcessLoader';
+import { palette } from '@/constants/theme';
 
 // Types for our order structure
 type Order = {
@@ -470,7 +471,7 @@ export default function OrdersScreen() {
         <SafeAreaView className="flex-1 bg-warm-cream" edges={['bottom']}>
             <View className="flex-1 bg-warm-cream">
             {/* Header */}
-            <View className="px-6 pb-4 bg-surface border-b border-gray-100" style={{ paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
+            <View className="px-6 pb-4 border-b border-gray-100" style={{ backgroundColor: palette.surface, paddingTop: insets.top + 48, shadowColor: '#2D241E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 20, elevation: 10, zIndex: 10 }}>
                 <View className="mb-4">
                     <Text className="text-2xl font-bold text-text-main font-sans-bold">
                         {isCookMode ? 'Incoming Orders' : 'Your Orders'}
@@ -481,22 +482,22 @@ export default function OrdersScreen() {
                 </View>
 
                 {/* Tabs */}
-                <View className="flex-row bg-gray-100 p-1 rounded-xl">
+                <View className="flex-row p-1 rounded-xl" style={{ backgroundColor: palette.canvas }}>
                     <TouchableOpacity
-                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'active' ? 'bg-surface' : ''}`}
+                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'active' ? 'bg-brand-surface' : ''}`}
                         style={activeTab === 'active' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.22, shadowRadius: 1.5, elevation: 1 } : {}}
                         onPress={() => setActiveTab('active')}
                     >
-                        <Text className={`font-bold font-sans-bold ${activeTab === 'active' ? 'text-text-main' : 'text-gray-400'}`}>
+                        <Text className={`font-bold font-sans-bold ${activeTab === 'active' ? 'text-text-main' : ''}`} style={activeTab === 'active' ? undefined : { color: palette.muted }}>
                             {isCookMode ? 'Pending' : 'Active'}
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'history' ? 'bg-surface' : ''}`}
+                        className={`flex-1 py-2 rounded-lg items-center ${activeTab === 'history' ? 'bg-brand-surface' : ''}`}
                         style={activeTab === 'history' ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.22, shadowRadius: 1.5, elevation: 1 } : {}}
                         onPress={() => setActiveTab('history')}
                     >
-                        <Text className={`font-bold font-sans-bold ${activeTab === 'history' ? 'text-text-main' : 'text-gray-400'}`}>History</Text>
+                        <Text className={`font-bold font-sans-bold ${activeTab === 'history' ? 'text-text-main' : ''}`} style={activeTab === 'history' ? undefined : { color: palette.muted }}>History</Text>
                     </TouchableOpacity>
                 </View>
             </View>

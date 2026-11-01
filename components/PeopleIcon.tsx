@@ -1,8 +1,9 @@
 import React from 'react';
 import Svg, { Path } from 'react-native-svg';
+import { palette } from '@/constants/theme';
 
 // "Group" icon from Container (1).svg (native 15x11). Width is derived from height to keep the ratio.
-export default function PeopleIcon({ height = 9, color = '#944421' }: { height?: number; color?: string }) {
+export default function PeopleIcon({ height = 9, color = palette.accent }: { height?: number; color?: string }) {
     return (
         <Svg width={(height * 15) / 11} height={height} viewBox="0 0 15 11" fill="none">
             <Path

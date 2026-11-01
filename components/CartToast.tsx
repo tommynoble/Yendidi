@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, TouchableOpacity, View } from 'react-native';
 import { ShoppingCart, ChevronRight } from 'lucide-react-native';
+import { palette } from '@/constants/theme';
 
 interface CartToastProps {
     visible: boolean;
@@ -73,14 +74,14 @@ export default function CartToast({ visible, message, onPress, onHide, bottomOff
                 style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 8 }}
             >
                 <View className="w-10 h-10 rounded-full bg-clay-primary/10 items-center justify-center">
-                    <ShoppingCart size={18} color="#BF592B" />
+                    <ShoppingCart size={18} color={palette.accent} />
                 </View>
                 <Text className="flex-1 text-sm text-text-main font-sans-semibold" numberOfLines={2}>
                     {message}
                 </Text>
                 <View className="flex-row items-center gap-0.5">
                     <Text className="text-xs text-clay-primary font-sans-bold">View Cart</Text>
-                    <ChevronRight size={14} color="#BF592B" />
+                    <ChevronRight size={14} color={palette.accent} />
                 </View>
             </TouchableOpacity>
         </Animated.View>

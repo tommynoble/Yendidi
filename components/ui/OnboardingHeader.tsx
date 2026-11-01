@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { palette } from '@/constants/theme';
 
 type Props = {
   currentStep: number;
@@ -27,7 +28,7 @@ export function OnboardingHeader({ currentStep, totalSteps = 3 }: Props) {
               width: i === currentStep - 1 ? 20 : 8,
               height: 4,
               borderRadius: 9999,
-              backgroundColor: i === currentStep - 1 ? '#BF592B' : '#DDC1B6',
+              backgroundColor: i === currentStep - 1 ? palette.accent : '#DDC1B6',
             }}
           />
         ))}

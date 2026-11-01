@@ -7,6 +7,8 @@ import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { formatDistanceToNow, format } from 'date-fns';
+import { palette, type, fonts } from '@/constants/theme';
+import SectionHeader from '@/components/SectionHeader';
 
 const FAVORITE_COOKS_KEY = 'yendidii_favorite_cooks';
 
@@ -120,18 +122,18 @@ export default function CookProfileScreen() {
 
     if (isLoading) {
         return (
-            <View className="flex-1 items-center justify-center bg-warm-cream">
-                <ActivityIndicator size="large" color="#D65A31" />
+            <View className="flex-1 items-center justify-center bg-brand-canvas">
+                <ActivityIndicator size="large" color={palette.accent} />
             </View>
         );
     }
 
     if (!cook) {
         return (
-            <View className="flex-1 items-center justify-center bg-warm-cream px-6">
-                <Text className="text-lg text-text-sub font-sans text-center">Host not found.</Text>
+            <View className="flex-1 items-center justify-center bg-brand-canvas px-6">
+                <Text className="text-card text-brand-muted font-sans text-center">Host not found.</Text>
                 <TouchableOpacity onPress={() => router.back()} className="mt-4">
-                    <Text className="text-clay-primary font-bold font-sans-bold">Go Back</Text>
+                    <Text className="text-brand-accent font-bold font-sans-bold">Go Back</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -160,7 +162,7 @@ export default function CookProfileScreen() {
     };
 
     return (
-        <View className="flex-1 bg-warm-cream">
+        <View className="flex-1 bg-brand-canvas">
             <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
                 {/* Cover Hero & Action Bar */}
                 <View className="h-72 w-full relative overflow-hidden">
@@ -180,34 +182,34 @@ export default function CookProfileScreen() {
                             className="w-10 h-10 rounded-full bg-surface/85 items-center justify-center shadow-md active:scale-95"
                             onPress={() => router.back()}
                         >
-                            <ArrowLeft size={20} color="#231915" />
+                            <ArrowLeft size={20} color={palette.ink} />
                         </TouchableOpacity>
                         <View className="flex-row items-center gap-2">
                             <TouchableOpacity
                                 className="w-10 h-10 rounded-full bg-surface/85 items-center justify-center shadow-md active:scale-95"
                                 onPress={handleShare}
                             >
-                                <Share2 size={18} color="#231915" />
+                                <Share2 size={18} color={palette.ink} />
                             </TouchableOpacity>
                             <TouchableOpacity
                                 className="w-10 h-10 rounded-full bg-surface/85 items-center justify-center shadow-md active:scale-95"
                                 onPress={toggleFavorite}
                             >
-                                <Heart size={18} color="#BF592B" fill={isFavorite ? '#BF592B' : 'transparent'} />
+                                <Heart size={18} color={palette.accent} fill={isFavorite ? palette.accent : 'transparent'} />
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     {/* Floating status pill */}
                     <View className="absolute bottom-10 left-5 flex-row items-center gap-1.5 px-3 py-1 rounded-full bg-kente-yellow/90 shadow-sm">
-                        <Leaf size={14} color="#231915" fill="#231915" />
-                        <Text className="text-[11px] font-semibold text-text-main font-sans-semibold tracking-wide">Home Kitchen</Text>
+                        <Leaf size={14} color={palette.ink} fill={palette.ink} />
+                        <Text className="text-micro font-semibold text-brand-ink font-sans-semibold tracking-wide">Home Kitchen</Text>
                     </View>
                 </View>
 
                 <View className="px-5 -mt-7 pb-10 gap-4">
                     {/* Host Profile Header Card (overlapping) */}
-                    <View className="bg-surface-lowest rounded-2xl p-5 shadow-lg gap-2">
+                    <View className="bg-brand-surface rounded-2xl p-5 shadow-lg gap-2">
                         <View className="flex-row items-start justify-between gap-3">
                             {/* Avatar with verified badge */}
                             <View>
@@ -217,7 +219,7 @@ export default function CookProfileScreen() {
                                 />
                                 {cook.verified && (
                                     <View className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-kente-yellow items-center justify-center shadow-md">
-                                        <BadgeCheck size={16} color="#231915" />
+                                        <BadgeCheck size={16} color={palette.ink} />
                                     </View>
                                 )}
                             </View>
@@ -227,14 +229,14 @@ export default function CookProfileScreen() {
                                 {cook.verified && (
                                     <View className="flex-row items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary-fixed">
                                         <BadgeCheck size={12} color="#7E2C00" />
-                                        <Text className="text-[11px] font-bold text-[#7E2C00] uppercase tracking-wider font-sans-bold">Verified Host</Text>
+                                        <Text className="text-micro font-bold text-[#7E2C00] uppercase tracking-wider font-sans-bold">Verified Host</Text>
                                     </View>
                                 )}
                                 <View className="flex-row items-center gap-1 pt-1">
-                                    <Star size={16} color="#BF592B" fill="#BF592B" />
-                                    <Text className="text-sm font-bold text-text-main font-sans-bold">{cook.rating || 'New'}</Text>
+                                    <Star size={16} color={palette.accent} fill={palette.accent} />
+                                    <Text className="text-body font-bold text-brand-ink font-sans-bold">{cook.rating || 'New'}</Text>
                                     {(reviews?.length || 0) > 0 && (
-                                        <Text className="text-sm text-outline font-sans">({reviews?.length} {reviews?.length === 1 ? 'review' : 'reviews'})</Text>
+                                        <Text className="text-body text-brand-muted font-sans">({reviews?.length} {reviews?.length === 1 ? 'review' : 'reviews'})</Text>
                                     )}
                                 </View>
                             </View>
@@ -242,23 +244,23 @@ export default function CookProfileScreen() {
 
                         {/* Identity */}
                         <View className="mt-1">
-                            <Text className="text-[28px] leading-9 font-bold text-text-main font-sans-bold tracking-tight">
+                            <Text className="text-hero font-bold text-brand-ink font-sans-bold">
                                 {kitchenName || cook.full_name || 'Cook'}
                             </Text>
                             {kitchenName && cook.full_name && (
-                                <Text className="text-lg text-clay-primary font-medium font-sans-medium">by {cook.full_name}</Text>
+                                <Text className="text-card text-brand-accent font-medium font-sans-medium">by {cook.full_name}</Text>
                             )}
                         </View>
 
                         {/* Setting & meta chips */}
                         <View className="flex-row flex-wrap items-center gap-2 pt-2">
-                            <View className="flex-row items-center gap-1 bg-surface-low px-2.5 py-1 rounded-full">
-                                <MapPin size={16} color="#BF592B" />
-                                <Text className="text-sm font-semibold text-text-sub font-sans-semibold">{cookLocation || 'Ghana'}</Text>
+                            <View className="flex-row items-center gap-1 bg-brand-canvas px-2.5 py-1 rounded-full">
+                                <MapPin size={16} color={palette.accent} />
+                                <Text className="text-body font-semibold text-brand-muted font-sans-semibold">{cookLocation || 'Ghana'}</Text>
                             </View>
                             {specialties.map((spec: string, i: number) => (
-                                <View key={i} className="bg-surface-low px-2.5 py-1 rounded-full">
-                                    <Text className="text-sm font-semibold text-text-sub font-sans-semibold">{spec}</Text>
+                                <View key={i} className="bg-brand-canvas px-2.5 py-1 rounded-full">
+                                    <Text className="text-body font-semibold text-brand-muted font-sans-semibold">{spec}</Text>
                                 </View>
                             ))}
                         </View>
@@ -267,61 +269,61 @@ export default function CookProfileScreen() {
                     {/* Hospitality bar */}
                     <View className="flex-row gap-2">
                         {capacity ? (
-                            <View className="flex-1 bg-surface-low rounded-xl p-2.5 items-center gap-1 shadow-sm">
-                                <Users size={20} color="#BF592B" fill="#BF592B" />
-                                <Text className="text-[11px] font-semibold text-text-main font-sans-semibold text-center">Max {capacity} Seats</Text>
-                                <Text className="text-[11px] text-outline font-sans text-center">Per Gathering</Text>
+                            <View className="flex-1 bg-brand-surface rounded-xl p-2.5 items-center gap-1 shadow-sm">
+                                <Users size={20} color={palette.accent} fill={palette.accent} />
+                                <Text className="text-micro font-semibold text-brand-ink font-sans-semibold text-center">Max {capacity} Seats</Text>
+                                <Text className="text-micro text-brand-muted font-sans text-center">Per Gathering</Text>
                             </View>
                         ) : null}
                         {frequencyLabel ? (
-                            <View className="flex-1 bg-surface-low rounded-xl p-2.5 items-center gap-1 shadow-sm">
+                            <View className="flex-1 bg-brand-surface rounded-xl p-2.5 items-center gap-1 shadow-sm">
                                 <Clock size={20} color="#006A3C" />
-                                <Text className="text-[11px] font-semibold text-text-main font-sans-semibold text-center">{frequencyLabel}</Text>
-                                <Text className="text-[11px] text-outline font-sans text-center">Hosting Rhythm</Text>
+                                <Text className="text-micro font-semibold text-brand-ink font-sans-semibold text-center">{frequencyLabel}</Text>
+                                <Text className="text-micro text-brand-muted font-sans text-center">Hosting Rhythm</Text>
                             </View>
                         ) : null}
-                        <View className="flex-1 bg-surface-low rounded-xl p-2.5 items-center gap-1 shadow-sm">
+                        <View className="flex-1 bg-brand-surface rounded-xl p-2.5 items-center gap-1 shadow-sm">
                             <ChefHat size={20} color="#84523C" />
-                            <Text className="text-[11px] font-semibold text-text-main font-sans-semibold text-center">{cook.served_count || 0}+ Served</Text>
-                            <Text className="text-[11px] text-outline font-sans text-center">{meals?.length || 0} {meals?.length === 1 ? 'Dish' : 'Dishes'}</Text>
+                            <Text className="text-micro font-semibold text-brand-ink font-sans-semibold text-center">{cook.served_count || 0}+ Served</Text>
+                            <Text className="text-micro text-brand-muted font-sans text-center">{meals?.length || 0} {meals?.length === 1 ? 'Dish' : 'Dishes'}</Text>
                         </View>
                     </View>
 
                     {/* About the Kitchen */}
                     {cookBio && (
-                        <View className="bg-surface-low rounded-2xl p-5 shadow-sm gap-4">
+                        <View className="bg-brand-surface rounded-2xl p-5 shadow-sm gap-4">
                             <View className="flex-row items-center justify-between">
                                 <View className="flex-row items-center gap-2">
-                                    <ChefHat size={20} color="#BF592B" />
-                                    <Text className="text-lg font-bold text-text-main font-sans-bold">About the Kitchen</Text>
+                                    <ChefHat size={20} color={palette.accent} />
+                                    <Text className="text-card font-bold text-brand-ink font-sans-bold">About the Kitchen</Text>
                                 </View>
                                 {!isNaN(joinedDate.getTime()) && (
                                     <View className="px-2 py-0.5 rounded-full bg-tertiary-fixed">
-                                        <Text className="text-[11px] font-semibold text-tertiary font-sans-semibold">Joined {format(joinedDate, 'MMM yyyy')}</Text>
+                                        <Text className="text-micro font-semibold text-tertiary font-sans-semibold">Joined {format(joinedDate, 'MMM yyyy')}</Text>
                                     </View>
                                 )}
                             </View>
                             <View className="gap-2">
-                                <Text className="text-base text-text-sub leading-relaxed font-sans" numberOfLines={bioExpanded ? undefined : 3}>
+                                <Text className="text-body text-brand-muted leading-relaxed font-sans" numberOfLines={bioExpanded ? undefined : 3}>
                                     {cookBio}
                                 </Text>
                                 {cookBio.length > 140 && (
                                     <TouchableOpacity className="flex-row items-center gap-1 self-start active:opacity-75" onPress={() => setBioExpanded(!bioExpanded)}>
-                                        <Text className="text-sm font-bold text-clay-primary font-sans-bold">{bioExpanded ? 'Read less' : 'Read more'}</Text>
-                                        {bioExpanded ? <ChevronUp size={14} color="#BF592B" /> : <ChevronDown size={14} color="#BF592B" />}
+                                        <Text className="text-body font-bold text-brand-accent font-sans-bold">{bioExpanded ? 'Read less' : 'Read more'}</Text>
+                                        {bioExpanded ? <ChevronUp size={14} color={palette.accent} /> : <ChevronDown size={14} color={palette.accent} />}
                                     </TouchableOpacity>
                                 )}
                             </View>
 
                             {/* Find the kitchen card */}
                             {cookLandmark && (
-                                <View className="bg-surface-highest/60 rounded-xl p-3 flex-row items-center gap-3">
+                                <View className="bg-brand-canvas rounded-xl p-3 flex-row items-center gap-3">
                                     <View className="w-9 h-9 rounded-full bg-tertiary/15 items-center justify-center">
                                         <Navigation size={18} color="#006A3C" fill="#006A3C" />
                                     </View>
                                     <View className="flex-1">
-                                        <Text className="text-[11px] text-tertiary uppercase font-bold tracking-wider font-sans-bold">Find the Kitchen</Text>
-                                        <Text className="text-sm text-text-main font-semibold font-sans-semibold" numberOfLines={2}>Near: {cookLandmark}</Text>
+                                        <Text className="text-micro text-tertiary uppercase font-bold tracking-wider font-sans-bold">Find the Kitchen</Text>
+                                        <Text className="text-body text-brand-ink font-semibold font-sans-semibold" numberOfLines={2}>Near: {cookLandmark}</Text>
                                     </View>
                                 </View>
                             )}
@@ -331,15 +333,7 @@ export default function CookProfileScreen() {
                     {/* Upcoming Gatherings */}
                     {gatherings.length > 0 && (
                         <View className="gap-4 pt-2">
-                            <View className="flex-row items-end justify-between">
-                                <View>
-                                    <Text className="text-[11px] text-clay-primary uppercase font-bold tracking-wider font-sans-bold">Join The Table</Text>
-                                    <Text className="text-[22px] leading-7 font-bold text-text-main font-sans-bold">Upcoming Gatherings</Text>
-                                </View>
-                                <View className="bg-primary-fixed px-2.5 py-1 rounded-full">
-                                    <Text className="text-[11px] font-bold text-[#7E2C00] font-sans-bold">{gatherings.length} Active</Text>
-                                </View>
-                            </View>
+                            <SectionHeader inset={false} spacing={0} title="Upcoming Gatherings" subtitle="Join the table" badge={`${gatherings.length} Active`} />
 
                             {gatherings.map((g: any, idx: number) => {
                                 const start = new Date(g.order_deadline);
@@ -350,11 +344,11 @@ export default function CookProfileScreen() {
                                 const total = remaining + booked;
                                 const almostFull = remaining > 0 && remaining <= Math.max(2, Math.ceil(total * 0.25));
                                 const soldOut = remaining === 0;
-                                const accent = idx % 2 === 0 ? '#BF592B' : '#006A3C';
-                                const accentText = idx % 2 === 0 ? 'text-clay-primary' : 'text-tertiary';
+                                const accent = idx % 2 === 0 ? palette.accent : '#006A3C';
+                                const accentText = idx % 2 === 0 ? 'text-brand-accent' : 'text-tertiary';
 
                                 return (
-                                    <View key={g.id} className="bg-surface-lowest rounded-2xl p-5 shadow-md gap-4 overflow-hidden">
+                                    <View key={g.id} className="bg-brand-surface rounded-2xl p-5 shadow-md gap-4 overflow-hidden">
                                         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, backgroundColor: accent }} />
 
                                         <View className="flex-row items-start justify-between gap-3 pt-1">
@@ -362,52 +356,52 @@ export default function CookProfileScreen() {
                                                 <View className="flex-row items-center gap-2">
                                                     <View className="flex-row items-center gap-1">
                                                         {hour < 17 ? <Sun size={14} color={accent} /> : <Moon size={14} color={accent} />}
-                                                        <Text className={`text-[11px] font-bold uppercase tracking-wider font-sans-bold ${accentText}`}>{partOfDay} Gathering</Text>
+                                                        <Text className={`text-micro font-bold uppercase tracking-wider font-sans-bold ${accentText}`}>{partOfDay} Gathering</Text>
                                                     </View>
                                                     {almostFull && (
                                                         <View className="bg-error-container px-2 rounded-full">
-                                                            <Text className="text-[11px] font-bold text-error-on-container font-sans-bold">Almost Full</Text>
+                                                            <Text className="text-micro font-bold text-error-on-container font-sans-bold">Almost Full</Text>
                                                         </View>
                                                     )}
                                                 </View>
-                                                <Text className="text-lg font-bold text-text-main font-sans-bold">{g.title}</Text>
+                                                <Text className="text-card font-bold text-brand-ink font-sans-bold">{g.title}</Text>
                                                 <View className="flex-row items-center gap-1.5 pt-0.5">
-                                                    <Calendar size={16} color="#8A7269" />
-                                                    <Text className="text-sm text-text-sub font-sans">{format(start, "EEE, MMM d '@' h:mm a")}</Text>
+                                                    <Calendar size={16} color={palette.muted} />
+                                                    <Text className="text-body text-brand-muted font-sans">{format(start, "EEE, MMM d '@' h:mm a")}</Text>
                                                 </View>
                                             </View>
                                             <View className="items-end">
-                                                <Text className="text-[22px] leading-7 font-bold text-clay-primary font-sans-bold">GH₵ {g.price}</Text>
-                                                <Text className="text-[11px] text-outline font-sans">per seat</Text>
+                                                <Text className="text-section font-bold text-brand-accent font-sans-bold">GH₵ {g.price}</Text>
+                                                <Text className="text-micro text-brand-muted font-sans">per seat</Text>
                                             </View>
                                         </View>
 
                                         {/* Menu highlights */}
                                         {g.description ? (
-                                            <View className="bg-surface-low rounded-xl p-3 gap-1.5">
-                                                <Text className="text-[11px] text-tertiary uppercase font-bold tracking-wider font-sans-bold">Menu Highlights</Text>
-                                                <Text className="text-sm text-text-main leading-snug font-sans" numberOfLines={4}>{g.description}</Text>
+                                            <View className="bg-brand-canvas rounded-xl p-3 gap-1.5">
+                                                <Text className="text-micro text-tertiary uppercase font-bold tracking-wider font-sans-bold">Menu Highlights</Text>
+                                                <Text className="text-body text-brand-ink leading-snug font-sans" numberOfLines={4}>{g.description}</Text>
                                             </View>
                                         ) : null}
 
                                         {/* Seat tracker */}
                                         <View className="gap-1.5">
                                             <View className="flex-row items-center justify-between">
-                                                <Text className="text-[11px] text-text-sub font-medium font-sans-medium">Availability</Text>
+                                                <Text className="text-micro text-brand-muted font-medium font-sans-medium">Availability</Text>
                                                 {soldOut || almostFull ? (
                                                     <View className="flex-row items-center gap-1">
                                                         <Hourglass size={12} color="#BA1A1A" />
-                                                        <Text className="text-[11px] text-error font-bold font-sans-bold">
+                                                        <Text className="text-micro text-error font-bold font-sans-bold">
                                                             {soldOut ? 'Fully booked' : `Only ${remaining} of ${total} remaining`}
                                                         </Text>
                                                     </View>
                                                 ) : (
-                                                    <Text className="text-[11px] text-clay-primary font-bold font-sans-bold">{remaining} of {total} remaining</Text>
+                                                    <Text className="text-micro text-brand-accent font-bold font-sans-bold">{remaining} of {total} remaining</Text>
                                                 )}
                                             </View>
-                                            <View className="w-full h-2 rounded-full bg-surface-high overflow-hidden">
+                                            <View className="w-full h-2 rounded-full bg-brand-canvas overflow-hidden">
                                                 <View
-                                                    style={{ width: `${total > 0 ? (booked / total) * 100 : 0}%`, backgroundColor: soldOut || almostFull ? '#BA1A1A' : '#BF592B' }}
+                                                    style={{ width: `${total > 0 ? (booked / total) * 100 : 0}%`, backgroundColor: soldOut || almostFull ? '#BA1A1A' : palette.accent }}
                                                     className="h-full rounded-full"
                                                 />
                                             </View>
@@ -417,10 +411,10 @@ export default function CookProfileScreen() {
                                         <TouchableOpacity
                                             disabled={soldOut}
                                             onPress={() => router.push(`/listing/${g.id}`)}
-                                            className={`w-full py-3 px-6 rounded-full flex-row items-center justify-center gap-2 shadow-md active:scale-[0.98] ${soldOut ? 'bg-outline-variant' : 'bg-clay-primary'}`}
+                                            className={`w-full h-12 px-6 rounded-2xl flex-row items-center justify-center gap-2 active:scale-[0.98] ${soldOut ? 'bg-outline-variant' : 'bg-brand-accent'}`}
                                         >
                                             <Utensils size={16} color="white" />
-                                            <Text className="text-white text-sm font-bold font-sans-bold">{soldOut ? 'Fully Booked' : 'Reserve a Seat'}</Text>
+                                            <Text style={{ ...type.card, fontFamily: fonts.extrabold, color: 'white' }}>{soldOut ? 'Fully Booked' : 'Reserve a Seat'}</Text>
                                         </TouchableOpacity>
                                     </View>
                                 );
@@ -430,10 +424,7 @@ export default function CookProfileScreen() {
 
                     {/* Explore Menu */}
                     <View className="gap-4 pt-2">
-                        <View>
-                            <Text className="text-[11px] text-clay-primary uppercase font-bold tracking-wider font-sans-bold">On The Menu</Text>
-                            <Text className="text-[22px] leading-7 font-bold text-text-main font-sans-bold">Explore Menu</Text>
-                        </View>
+                        <SectionHeader inset={false} spacing={0} title="Explore Menu" subtitle="Everything this kitchen is cooking" badge={menuMeals.length > 0 ? `${menuMeals.length} ${menuMeals.length === 1 ? 'Dish' : 'Dishes'}` : undefined} />
 
                         {menuMeals.length > 0 ? (
                             <View className="flex-row flex-wrap justify-between">
@@ -446,7 +437,7 @@ export default function CookProfileScreen() {
                                             <TouchableOpacity
                                                 activeOpacity={0.9}
                                                 onPress={() => router.push(`/listing/${meal.id}`)}
-                                                className="bg-surface-lowest rounded-2xl overflow-hidden shadow-md"
+                                                style={{ backgroundColor: palette.surface, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(194, 83, 39, 0.15)' }}
                                             >
                                                 <View className={`relative aspect-[4/3] bg-gray-100 ${!isReady ? 'opacity-80' : ''}`}>
                                                     <Image
@@ -455,15 +446,18 @@ export default function CookProfileScreen() {
                                                     />
                                                     {!isReady && (
                                                         <View className="absolute inset-0 bg-black/40 items-center justify-center shadow-sm">
-                                                            <Text className="text-white text-sm font-bold font-sans-bold px-2 text-center drop-shadow-md">Paused</Text>
+                                                            <Text className="text-white text-body font-bold font-sans-bold px-2 text-center drop-shadow-md">Paused</Text>
                                                         </View>
                                                     )}
                                                 </View>
-                                                <View className="p-3">
-                                                    <Text className="font-bold text-text-main font-sans-bold text-base leading-tight mb-1" numberOfLines={2}>{meal.title}</Text>
-                                                    <Text className="text-base font-bold text-clay-primary font-sans-bold">₵{meal.price}</Text>
+                                                <View style={{ padding: 12, gap: 6 }}>
+                                                    <Text style={{ ...type.cardTitleSmall, color: palette.ink }} numberOfLines={2}>{meal.title}</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 2 }}>
+                                                        <Text style={{ ...type.card, fontFamily: fonts.extrabold, color: palette.accent }}>GH₵{meal.price}</Text>
+                                                        <Text style={{ ...type.micro, fontFamily: fonts.regular, color: palette.muted }}>/seat</Text>
+                                                    </View>
                                                     {!isReady && (
-                                                        <Text className="text-clay-primary text-[11px] font-bold font-sans-bold mt-1">
+                                                        <Text style={{ ...type.micro, fontFamily: fonts.bold, color: palette.accent }}>
                                                             🕒 Ready {readyTime}
                                                         </Text>
                                                     )}
@@ -474,11 +468,11 @@ export default function CookProfileScreen() {
                                 })}
                             </View>
                         ) : (
-                            <View className="w-full items-center justify-center py-10 bg-surface-low rounded-2xl">
-                                <Text className="text-text-main font-bold mb-2 font-sans-bold text-lg">
+                            <View className="w-full items-center justify-center py-10 bg-brand-surface rounded-2xl">
+                                <Text className="text-brand-ink font-bold mb-2 font-sans-bold text-card">
                                     {gatherings.length > 0 ? 'No other dishes yet' : 'No meals available'}
                                 </Text>
-                                <Text className="text-text-sub text-base font-sans text-center px-6">
+                                <Text className="text-brand-muted text-body font-sans text-center px-6">
                                     {gatherings.length > 0 ? 'Join an upcoming gathering above.' : "This cook hasn't added any meals to their menu yet."}
                                 </Text>
                             </View>
@@ -487,72 +481,61 @@ export default function CookProfileScreen() {
 
                     {/* Guest Reviews */}
                     <View className="gap-4 pt-2">
-                        <View className="flex-row items-center justify-between">
-                            <View>
-                                <Text className="text-[11px] text-tertiary uppercase font-bold tracking-wider font-sans-bold">Stories From The Hearth</Text>
-                                <Text className="text-[22px] leading-7 font-bold text-text-main font-sans-bold">What Guests Are Saying</Text>
-                            </View>
-                            {cook.rating ? (
-                                <View className="flex-row items-center gap-1">
-                                    <Star size={16} color="#BF592B" fill="#BF592B" />
-                                    <Text className="text-sm font-bold text-clay-primary font-sans-bold">{cook.rating}</Text>
-                                </View>
-                            ) : null}
-                        </View>
+                        <SectionHeader inset={false} spacing={0} title="What Guests Are Saying" subtitle="Stories from the hearth" badge={cook.rating ? `★ ${cook.rating}` : undefined} />
 
                         {isReviewsLoading ? (
                             <View className="py-10 items-center justify-center">
-                                <ActivityIndicator size="small" color="#D65A31" />
+                                <ActivityIndicator size="small" color={palette.accent} />
                             </View>
                         ) : visibleReviews && visibleReviews.length > 0 ? (
                             <>
                                 {visibleReviews.map((review: any, idx: number) => (
-                                    <View key={review.id} className="bg-surface-low rounded-2xl p-4 shadow-sm gap-2">
+                                    <View key={review.id} className="bg-brand-surface rounded-2xl p-4 shadow-sm gap-2">
                                         <View className="flex-row items-center justify-between">
                                             <View className="flex-row items-center gap-3 flex-1">
                                                 {review.profiles?.avatar_url ? (
                                                     <Image source={{ uri: review.profiles.avatar_url }} className="w-9 h-9 rounded-full bg-gray-100" />
                                                 ) : (
                                                     <View className={`w-9 h-9 rounded-full items-center justify-center ${idx % 2 === 0 ? 'bg-primary-container' : 'bg-tertiary'}`}>
-                                                        <Text className="text-white font-bold font-sans-bold text-sm">
+                                                        <Text className="text-white font-bold font-sans-bold text-body">
                                                             {(review.profiles?.full_name || 'E')[0].toUpperCase()}
                                                         </Text>
                                                     </View>
                                                 )}
                                                 <View className="flex-1">
-                                                    <Text className="text-sm font-bold text-text-main font-sans-bold">{review.profiles?.full_name || 'Eater'}</Text>
-                                                    <Text className="text-[11px] text-outline font-sans">
+                                                    <Text className="text-body font-bold text-brand-ink font-sans-bold">{review.profiles?.full_name || 'Eater'}</Text>
+                                                    <Text className="text-micro text-brand-muted font-sans">
                                                         Verified Guest · {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
                                                     </Text>
                                                 </View>
                                             </View>
                                             <View className="flex-row items-center">
                                                 {[1, 2, 3, 4, 5].map((n) => (
-                                                    <Star key={n} size={14} color="#BF592B" fill={n <= review.rating ? '#BF592B' : 'transparent'} />
+                                                    <Star key={n} size={14} color={palette.accent} fill={n <= review.rating ? palette.accent : 'transparent'} />
                                                 ))}
                                             </View>
                                         </View>
                                         {review.comment && (
-                                            <Text className="text-sm text-text-sub font-sans italic leading-relaxed pt-1">“{review.comment}”</Text>
+                                            <Text className="text-body text-brand-muted font-sans italic leading-relaxed pt-1">“{review.comment}”</Text>
                                         )}
                                     </View>
                                 ))}
                                 {(reviews?.length || 0) > 2 && (
                                     <TouchableOpacity
-                                        className="w-full py-2.5 rounded-xl bg-surface-high/60 flex-row items-center justify-center gap-1 active:bg-surface-high"
+                                        className="w-full h-11 rounded-2xl bg-brand-surface flex-row items-center justify-center gap-1 active:opacity-80"
                                         onPress={() => setShowAllReviews(!showAllReviews)}
                                     >
-                                        <Text className="text-sm font-bold text-clay-primary font-sans-bold">
+                                        <Text className="text-body font-bold text-brand-accent font-sans-bold">
                                             {showAllReviews ? 'Show fewer stories' : `View all ${reviews?.length} guest stories`}
                                         </Text>
-                                        {showAllReviews ? <ChevronUp size={16} color="#BF592B" /> : <ArrowRight size={16} color="#BF592B" />}
+                                        {showAllReviews ? <ChevronUp size={16} color={palette.accent} /> : <ArrowRight size={16} color={palette.accent} />}
                                     </TouchableOpacity>
                                 )}
                             </>
                         ) : (
-                            <View className="py-6 items-center justify-center bg-surface-low rounded-2xl">
-                                <Text className="font-bold text-text-main text-lg font-sans-bold mb-2">No reviews yet</Text>
-                                <Text className="text-text-sub text-center font-sans">Be the first to order and leave a review.</Text>
+                            <View className="py-6 items-center justify-center bg-brand-surface rounded-2xl">
+                                <Text className="font-bold text-brand-ink text-card font-sans-bold mb-2">No reviews yet</Text>
+                                <Text className="text-brand-muted text-center font-sans">Be the first to order and leave a review.</Text>
                             </View>
                         )}
                     </View>
@@ -560,10 +543,7 @@ export default function CookProfileScreen() {
                     {/* Kitchen Photos */}
                     {photos.length > 1 && (
                         <View className="gap-4 pt-2">
-                            <View>
-                                <Text className="text-[11px] text-clay-primary uppercase font-bold tracking-wider font-sans-bold">Inside The Kitchen</Text>
-                                <Text className="text-[22px] leading-7 font-bold text-text-main font-sans-bold">Kitchen Photos</Text>
-                            </View>
+                            <SectionHeader inset={false} spacing={0} title="Kitchen Photos" subtitle="Inside the kitchen" />
                             <View className="flex-row flex-wrap gap-2">
                                 {photos.map((uri, i) => (
                                     <Image key={i} source={{ uri }} style={{ width: '32%', aspectRatio: 1, borderRadius: 12 }} className="bg-gray-100" />

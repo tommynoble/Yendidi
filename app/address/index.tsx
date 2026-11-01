@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, MapPin } from 'lucide-react-native';
+import { ArrowLeft, MapPin } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import LocationPicker from '@/components/LocationPicker';
 import { supabase } from '@/lib/supabase';
+import { palette, type, fonts } from '@/constants/theme';
 
 export default function AddressScreen() {
     const router = useRouter();
@@ -98,71 +99,92 @@ export default function AddressScreen() {
         }
     };
 
+    const insets = useSafeAreaInsets();
+    const canSave = !!location && !isSaving;
+    const selectedText = resolvedAddress || (location ? `Lat: ${location.lat.toFixed(4)}, Lng: ${location.lng.toFixed(4)}` : '');
+
     return (
-        <SafeAreaView className="flex-1 bg-warm-cream" edges={['top']}>
-            {/* Header */}
-            <View className="px-6 pt-3 pb-4 bg-surface border-b border-gray-100 flex-row items-center gap-3" style={{ zIndex: 100 }}>
-                <TouchableOpacity
-                    onPress={() => router.back()}
-                    className="w-10 h-10 bg-gray-50 rounded-full items-center justify-center"
-                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-                >
-                    <ChevronLeft size={24} color="#2D241E" />
-                </TouchableOpacity>
-                <Text className="text-xl font-bold text-text-main font-sans-bold">Delivery Address</Text>
-            </View>
-
-            <ScrollView className="flex-1 p-6">
-                {!loadingSaved && savedAddress && (
-                    <View className="bg-[#FFF1EC] border border-[#F2DFD7] p-4 rounded-2xl mb-6 flex-row items-start gap-3">
-                        <MapPin size={18} color="#BF592B" style={{ marginTop: 2 }} />
-                        <View className="flex-1">
-                            <Text className="text-xs text-clay-primary font-sans-bold mb-0.5">Current Address</Text>
-                            <Text className="text-text-main font-sans">{savedAddress}</Text>
-                        </View>
+        <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
+            <View className="flex-1 bg-warm-cream">
+                {/* Header — same layout as Notifications / Messages */}
+                <View className="bg-surface px-6 py-4 flex-row items-center gap-4 border-b border-gray-100">
+                    <TouchableOpacity onPress={() => router.back()} className="p-1" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                        <ArrowLeft size={24} color={palette.ink} />
+                    </TouchableOpacity>
+                    <View className="flex-1">
+                        <Text className="text-xl font-bold text-text-main font-sans-bold">Your Location</Text>
+                        <Text style={{ ...type.meta, fontFamily: fonts.regular, color: palette.muted }}>So we can show hosts and gatherings near you</Text>
                     </View>
-                )}
-
-                <View className="bg-surface p-6 rounded-3xl shadow-sm mb-6">
-                    <Text className="text-lg font-bold text-text-main mb-2 font-sans-bold">Set Location</Text>
-                    <Text className="text-text-sub mb-6 font-sans">Tap the map or use your current location to set where you want your food delivered.</Text>
-
-                    <LocationPicker onLocationPicked={handleLocationPicked} />
-
-                    {location && (
-                        <View className="flex-row items-center gap-2 mt-2 px-1">
-                            {resolving ? (
-                                <>
-                                    <ActivityIndicator size="small" color="#BF592B" />
-                                    <Text className="text-text-sub font-sans text-sm">Finding address…</Text>
-                                </>
-                            ) : (
-                                <>
-                                    <MapPin size={14} color="#BF592B" />
-                                    <Text className="text-text-main font-sans text-sm flex-1" numberOfLines={2}>
-                                        {resolvedAddress || `Lat: ${location.lat.toFixed(4)}, Lng: ${location.lng.toFixed(4)}`}
-                                    </Text>
-                                </>
-                            )}
-                        </View>
-                    )}
                 </View>
 
-                <TouchableOpacity
-                    className={`bg-clay-primary p-4 rounded-xl flex-row items-center justify-center gap-2 ${isSaving ? 'opacity-70' : ''}`}
-                    onPress={saveAddressHandler}
-                    disabled={isSaving}
+                <ScrollView
+                    contentContainerStyle={{ padding: 20, paddingBottom: 130 }}
+                    showsVerticalScrollIndicator={false}
                 >
-                    {isSaving ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <>
-                            <MapPin size={20} color="white" />
-                            <Text className="text-white font-bold font-sans-bold text-lg">Save Address</Text>
-                        </>
+                    {/* Current saved address */}
+                    {!loadingSaved && savedAddress && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: palette.surface, borderRadius: 16, padding: 14, marginBottom: 16, borderWidth: 1, borderColor: 'rgba(194, 83, 39, 0.35)' }}>
+                            <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(194, 83, 39, 0.10)', alignItems: 'center', justifyContent: 'center' }}>
+                                <MapPin size={18} color={palette.accent} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ ...type.micro, color: palette.muted, textTransform: 'uppercase', letterSpacing: 0.6 }}>You're currently in</Text>
+                                <Text style={{ ...type.cardTitleSmall, color: palette.ink, marginTop: 1 }} numberOfLines={2}>{savedAddress}</Text>
+                            </View>
+                        </View>
                     )}
-                </TouchableOpacity>
-            </ScrollView>
+
+                    {/* Pick a new location */}
+                    <View style={{ backgroundColor: palette.surface, borderRadius: 16, padding: 16 }}>
+                        <Text style={{ ...type.section, color: palette.ink }}>Where are you?</Text>
+                        <Text style={{ ...type.body, color: palette.muted, marginTop: 2, marginBottom: 14 }}>
+                            Tap the map or use your current location so we can find hosts and gatherings close to you.
+                        </Text>
+
+                        <LocationPicker onLocationPicked={handleLocationPicked} />
+
+                        {location && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: palette.canvas, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10 }}>
+                                {resolving ? (
+                                    <>
+                                        <ActivityIndicator size="small" color={palette.accent} />
+                                        <Text style={{ ...type.body, color: palette.muted }}>Finding address…</Text>
+                                    </>
+                                ) : (
+                                    <>
+                                        <MapPin size={16} color={palette.accent} />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ ...type.micro, color: palette.muted, textTransform: 'uppercase', letterSpacing: 0.6 }}>Selected</Text>
+                                            <Text style={{ ...type.cardTitleSmall, color: palette.ink }} numberOfLines={2}>{selectedText}</Text>
+                                        </View>
+                                    </>
+                                )}
+                            </View>
+                        )}
+                    </View>
+                </ScrollView>
+
+                {/* Save bar */}
+                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: palette.surface, borderTopWidth: 1, borderTopColor: '#F2DFD7', paddingHorizontal: 20, paddingTop: 12, paddingBottom: insets.bottom + 12 }}>
+                    <TouchableOpacity
+                        onPress={saveAddressHandler}
+                        disabled={!canSave}
+                        activeOpacity={0.9}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !canSave }}
+                        style={{ height: 52, borderRadius: 16, backgroundColor: palette.accent, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: canSave ? 1 : 0.5 }}
+                    >
+                        {isSaving ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <>
+                                <MapPin size={18} color="white" />
+                                <Text style={{ ...type.card, fontFamily: fonts.extrabold, color: 'white' }}>Save location</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </View>
         </SafeAreaView>
     );
 }

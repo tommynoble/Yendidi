@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Animated, Easing } from 'react-native';
+import { palette } from '@/constants/theme';
 
 const Dot = ({ delay }: { delay: number }) => {
   const bounce = useRef(new Animated.Value(0)).current;
@@ -23,7 +24,7 @@ const Dot = ({ delay }: { delay: number }) => {
         width: 7,
         height: 7,
         borderRadius: 3.5,
-        backgroundColor: '#BF592B',
+        backgroundColor: palette.accent,
         marginHorizontal: 3,
         transform: [{ translateY: bounce }],
       }}

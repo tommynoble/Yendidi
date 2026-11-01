@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button } from '@/components/ui/Button';
 import ProcessLoader from '@/components/ProcessLoader';
 import { hasPrimedPermissions } from '@/lib/permissionsOnboarding';
+import { palette, type, fonts } from '@/constants/theme';
 
 const COUNTRIES = [
     { code: '+233', flag: '🇬🇭', name: 'Ghana' },
@@ -242,20 +243,20 @@ export default function AuthScreen() {
 
     return (
         <>
-            <SafeAreaView style={{ flex: 1, backgroundColor: '#F8E4DD' }} edges={['top', 'bottom']}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: palette.canvas }} edges={['top', 'bottom']}>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <Pressable style={{ flex: 1 }} onPress={Keyboard.dismiss}>
 
                         {mode === 'phone' ? (
                             <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}>
                                 <TouchableOpacity style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }} onPress={() => router.back()}>
-                                    <ChevronLeft size={22} color="#231915" />
+                                    <ChevronLeft size={22} color={palette.ink} />
                                 </TouchableOpacity>
 
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>
+                                <Text style={{ ...type.hero, color: palette.ink, marginBottom: 6, letterSpacing: -0.3 }}>
                                     {authMethod === 'phone' ? 'Enter your number' : 'Enter your email'}
                                 </Text>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 20 }}>We'll send you a verification code</Text>
+                                <Text style={{ ...type.card, fontFamily: fonts.regular, color: palette.muted, marginBottom: 20 }}>We'll send you a verification code</Text>
 
                                 <View style={{ flexDirection: 'row', backgroundColor: '#F2DFD7', borderRadius: 14, padding: 4, marginBottom: 20 }}>
                                     {(['phone', 'email'] as const).map((methodOption) => (
@@ -264,12 +265,12 @@ export default function AuthScreen() {
                                             onPress={() => setAuthMethod(methodOption)}
                                             style={{
                                                 flex: 1, height: 42, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
-                                                backgroundColor: authMethod === methodOption ? '#F7EEE7' : 'transparent',
+                                                backgroundColor: authMethod === methodOption ? palette.surface : 'transparent',
                                             }}
                                         >
                                             <Text style={{
-                                                fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14,
-                                                color: authMethod === methodOption ? '#231915' : '#8A7269',
+                                                ...type.body, fontFamily: fonts.semibold,
+                                                color: authMethod === methodOption ? palette.ink : palette.muted,
                                             }}>
                                                 {methodOption === 'phone' ? 'Phone' : 'Email'}
                                             </Text>
@@ -280,42 +281,42 @@ export default function AuthScreen() {
                                 {authMethod === 'phone' ? (
                                     <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
                                         <TouchableOpacity
-                                            style={{ height: 54, paddingHorizontal: 14, backgroundColor: '#F7EEE7', borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#DDC1B6' }}
+                                            style={{ height: 54, paddingHorizontal: 14, backgroundColor: palette.surface, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1.5, borderColor: '#DDC1B6' }}
                                             onPress={() => setShowCountryPicker(true)}
                                         >
                                             <Text style={{ fontSize: 18 }}>{selectedCountry.flag}</Text>
-                                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 15, color: '#231915' }}>{selectedCountry.code}</Text>
-                                            <Text style={{ color: '#8A7269', fontSize: 11 }}>▼</Text>
+                                            <Text style={{ ...type.card, color: palette.ink }}>{selectedCountry.code}</Text>
+                                            <Text style={{ color: palette.muted, fontSize: 11 }}>▼</Text>
                                         </TouchableOpacity>
 
-                                        <View style={{ flex: 1, height: 54, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{ flex: 1, height: 54, backgroundColor: palette.surface, borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center' }}>
                                             <TextInput
                                                 placeholder="24 123 4567"
-                                                placeholderTextColor="#8A7269"
+                                                placeholderTextColor={palette.muted}
                                                 keyboardType="phone-pad"
                                                 value={formatPhoneDisplay(phoneNumber)}
                                                 onChangeText={(text) => setPhoneNumber(text.replace(/\s/g, ''))}
                                                 maxLength={15}
-                                                style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, color: '#231915' }}
+                                                style={{ flex: 1, ...type.card, fontFamily: fonts.regular, color: palette.ink }}
                                             />
                                         </View>
                                     </View>
                                 ) : (
-                                    <View style={{ height: 54, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                                    <View style={{ height: 54, backgroundColor: palette.surface, borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: '#DDC1B6', flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
                                         <TextInput
                                             placeholder="you@example.com"
-                                            placeholderTextColor="#8A7269"
+                                            placeholderTextColor={palette.muted}
                                             keyboardType="email-address"
                                             autoCapitalize="none"
                                             autoCorrect={false}
                                             value={email}
                                             onChangeText={setEmail}
-                                            style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, color: '#231915' }}
+                                            style={{ flex: 1, ...type.card, fontFamily: fonts.regular, color: palette.ink }}
                                         />
                                     </View>
                                 )}
 
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: '#8A7269', marginBottom: 20 }}>
+                                <Text style={{ ...type.body, color: palette.muted, marginBottom: 20 }}>
                                     {authMethod === 'phone' ? 'Standard SMS rates may apply' : "We'll email you a 6-digit code"}
                                 </Text>
 
@@ -333,15 +334,15 @@ export default function AuthScreen() {
                         ) : mode === 'otp' ? (
                             <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}>
                                 <TouchableOpacity style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }} onPress={() => setMode('phone')}>
-                                    <ChevronLeft size={22} color="#231915" />
+                                    <ChevronLeft size={22} color={palette.ink} />
                                 </TouchableOpacity>
 
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>
+                                <Text style={{ ...type.hero, color: palette.ink, marginBottom: 6, letterSpacing: -0.3 }}>
                                     {authMethod === 'phone' ? 'Verify your number' : 'Verify your email'}
                                 </Text>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 32, lineHeight: 22 }}>
+                                <Text style={{ ...type.card, fontFamily: fonts.regular, color: palette.muted, marginBottom: 32, lineHeight: 22 }}>
                                     Enter the 6-digit code sent to{'\n'}
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', color: '#231915' }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', color: palette.ink }}>
                                         {authMethod === 'phone' ? `${selectedCountry.code} ${formatPhoneDisplay(phoneNumber)}` : email}
                                     </Text>
                                 </Text>
@@ -349,14 +350,14 @@ export default function AuthScreen() {
                                 {/* OTP Grid */}
                                 <View style={{ flexDirection: 'row', gap: 8, marginBottom: 28 }}>
                                     {otp.map((digit, index) => (
-                                        <View key={index} style={{ flex: 1, height: 56, backgroundColor: digit ? '#FFF1EC' : '#F7EEE7', borderRadius: 14, borderWidth: 1.5, borderColor: digit ? '#BF592B' : '#DDC1B6', alignItems: 'center', justifyContent: 'center' }}>
+                                        <View key={index} style={{ flex: 1, height: 56, backgroundColor: digit ? palette.surface : palette.surface, borderRadius: 14, borderWidth: 1.5, borderColor: digit ? palette.accent : '#DDC1B6', alignItems: 'center', justifyContent: 'center' }}>
                                             <TextInput
                                                 ref={ref => { otpRefs.current[index] = ref; }}
                                                 value={digit}
                                                 onChangeText={(value) => handleOtpChange(value, index)}
                                                 keyboardType="number-pad"
                                                 maxLength={index === 0 ? 6 : 1}
-                                                style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 22, color: '#231915', textAlign: 'center', width: '100%', height: '100%' }}
+                                                style={{ ...type.section, color: palette.ink, textAlign: 'center', width: '100%', height: '100%' }}
                                                 textContentType="oneTimeCode"
                                                 autoComplete="one-time-code"
                                                 onKeyPress={({ nativeEvent }) => {
@@ -368,7 +369,7 @@ export default function AuthScreen() {
                                 </View>
 
                                 <TouchableOpacity onPress={handleSendCode} disabled={loading || resendCooldown > 0} style={{ marginBottom: 32 }}>
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: resendCooldown > 0 ? '#8A7269' : '#BF592B', textAlign: 'center' }}>
+                                    <Text style={{ ...type.body, fontFamily: fonts.semibold, color: resendCooldown > 0 ? palette.muted : palette.accent, textAlign: 'center' }}>
                                         {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : 'Resend Code'}
                                     </Text>
                                 </TouchableOpacity>
@@ -391,7 +392,7 @@ export default function AuthScreen() {
                                 loading={loading}
                             />
                         ) : mode === 'splash' ? (
-                            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#BF592B' }}>
+                            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.accent }}>
                                 <Animated.View style={{ opacity: splashOpacity, transform: [{ scale: splashScale }], alignItems: 'center' }}>
                                     <Text style={{ fontSize: 72, marginBottom: 16 }}>🍽️</Text>
                                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 32, color: 'white', marginBottom: 10, letterSpacing: -0.5 }}>Let's Eat!</Text>
@@ -409,22 +410,22 @@ export default function AuthScreen() {
             <Modal visible={showCountryPicker} animationType="slide" transparent>
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                     <View style={{ flex: 1, backgroundColor: 'rgba(35,25,21,0.5)', justifyContent: 'flex-end' }}>
-                        <View style={{ backgroundColor: '#FFF8F6', borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '80%' }}>
+                        <View style={{ backgroundColor: palette.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, height: '80%' }}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12 }}>
-                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }}>Select Country</Text>
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: palette.ink }}>Select Country</Text>
                                 <TouchableOpacity onPress={() => { setShowCountryPicker(false); setCountrySearch(''); }} style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center' }}>
-                                    <X size={18} color="#231915" />
+                                    <X size={18} color={palette.ink} />
                                 </TouchableOpacity>
                             </View>
 
-                            <View style={{ marginHorizontal: 20, marginBottom: 12, height: 48, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: '#DDC1B6' }}>
-                                <Search size={16} color="#8A7269" />
+                            <View style={{ marginHorizontal: 20, marginBottom: 12, height: 48, backgroundColor: palette.surface, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1.5, borderColor: '#DDC1B6' }}>
+                                <Search size={16} color={palette.muted} />
                                 <TextInput
                                     placeholder="Search country..."
-                                    placeholderTextColor="#8A7269"
+                                    placeholderTextColor={palette.muted}
                                     value={countrySearch}
                                     onChangeText={setCountrySearch}
-                                    style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#231915' }}
+                                    style={{ flex: 1, ...type.card, fontFamily: fonts.regular, color: palette.ink }}
                                     autoCorrect={false}
                                 />
                             </View>
@@ -435,12 +436,12 @@ export default function AuthScreen() {
                                 keyboardShouldPersistTaps="handled"
                                 renderItem={({ item }) => (
                                     <TouchableOpacity
-                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14, backgroundColor: item.code === selectedCountry.code ? '#FFF1EC' : 'transparent' }}
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 20, paddingVertical: 14, backgroundColor: item.code === selectedCountry.code ? palette.surface : 'transparent' }}
                                         onPress={() => { setSelectedCountry(item); setShowCountryPicker(false); setCountrySearch(''); }}
                                     >
                                         <Text style={{ fontSize: 22 }}>{item.flag}</Text>
-                                        <Text style={{ flex: 1, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#231915' }}>{item.name}</Text>
-                                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14, color: '#56423B' }}>{item.code}</Text>
+                                        <Text style={{ flex: 1, ...type.card, fontFamily: fonts.regular, color: palette.ink }}>{item.name}</Text>
+                                        <Text style={{ ...type.body, fontFamily: fonts.semibold, color: palette.muted }}>{item.code}</Text>
                                     </TouchableOpacity>
                                 )}
                             />
@@ -470,24 +471,24 @@ const UserProfileForm = React.memo(({ onBack, onSubmit, loading }: { onBack: () 
     return (
         <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32 }}>
             <TouchableOpacity style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', marginBottom: 28 }} onPress={onBack}>
-                <ChevronLeft size={22} color="#231915" />
+                <ChevronLeft size={22} color={palette.ink} />
             </TouchableOpacity>
 
-            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: '#231915', marginBottom: 6, letterSpacing: -0.3 }}>What's your name?</Text>
-            <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 15, color: '#56423B', marginBottom: 32 }}>So hosts know who's ordering</Text>
+            <Text style={{ ...type.hero, color: palette.ink, marginBottom: 6, letterSpacing: -0.3 }}>What's your name?</Text>
+            <Text style={{ ...type.card, fontFamily: fonts.regular, color: palette.muted, marginBottom: 32 }}>So hosts know who's ordering</Text>
 
             <View style={{ gap: 12, marginBottom: 32 }}>
                 {[
                     { value: firstName, setter: setFirstName, placeholder: 'First name' },
                     { value: lastName, setter: setLastName, placeholder: 'Last name' },
                 ].map(({ value, setter, placeholder }) => (
-                    <View key={placeholder} style={{ height: 54, backgroundColor: '#F7EEE7', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: value ? '#BF592B' : '#DDC1B6', justifyContent: 'center' }}>
+                    <View key={placeholder} style={{ height: 54, backgroundColor: palette.surface, borderRadius: 14, paddingHorizontal: 16, borderWidth: 1.5, borderColor: value ? palette.accent : '#DDC1B6', justifyContent: 'center' }}>
                         <TextInput
                             placeholder={placeholder}
-                            placeholderTextColor="#8A7269"
+                            placeholderTextColor={palette.muted}
                             value={value}
                             onChangeText={setter}
-                            style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 16, color: '#231915' }}
+                            style={{ ...type.card, fontFamily: fonts.regular, color: palette.ink }}
                         />
                     </View>
                 ))}

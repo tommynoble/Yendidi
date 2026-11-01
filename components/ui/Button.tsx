@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, ViewStyle } from 'react-native';
 import { ArrowRight } from 'lucide-react-native';
+import { palette } from '@/constants/theme';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'outlined';
 
@@ -15,9 +16,9 @@ type Props = {
 };
 
 const STYLES: Record<Variant, { bg: string; text: string; border?: string }> = {
-  primary:  { bg: '#BF592B', text: '#FFFFFF' },
-  secondary:{ bg: '#F2DFD7', text: '#BF592B' },
-  outlined: { bg: 'transparent', text: '#BF592B', border: '#BF592B' },
+  primary:  { bg: palette.accent, text: '#FFFFFF' },
+  secondary:{ bg: '#F2DFD7', text: palette.accent },
+  outlined: { bg: 'transparent', text: palette.accent, border: palette.accent },
   ghost:    { bg: 'transparent', text: '#231915' },
 };
 
@@ -40,7 +41,7 @@ export function Button({ label, onPress, variant = 'primary', showArrow, loading
           gap: 8,
           borderWidth: s.border ? 1.5 : 0,
           borderColor: s.border ?? 'transparent',
-          shadowColor: variant === 'primary' && !disabled ? '#BF592B' : 'transparent',
+          shadowColor: variant === 'primary' && !disabled ? palette.accent : 'transparent',
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.28,
           shadowRadius: 10,

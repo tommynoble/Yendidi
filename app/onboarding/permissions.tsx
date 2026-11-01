@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { supabase } from '@/lib/supabase';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import { markPermissionsPrimed } from '@/lib/permissionsOnboarding';
+import { palette } from '@/constants/theme';
 
 type Step = 'location' | 'notifications';
 
@@ -93,7 +94,7 @@ export default function PermissionsOnboardingScreen() {
                             key={i}
                             style={{
                                 flex: 1, height: 4, borderRadius: 2,
-                                backgroundColor: i <= stepIndex ? '#BF592B' : '#F2DFD7',
+                                backgroundColor: i <= stepIndex ? palette.accent : '#F2DFD7',
                             }}
                         />
                     ))}
@@ -104,7 +105,7 @@ export default function PermissionsOnboardingScreen() {
                         width: 88, height: 88, borderRadius: 44, backgroundColor: '#FFF1EC',
                         alignItems: 'center', justifyContent: 'center', marginBottom: 28,
                     }}>
-                        <Icon size={36} color="#BF592B" />
+                        <Icon size={36} color={palette.accent} />
                     </View>
                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 24, color: '#231915', textAlign: 'center', marginBottom: 10, letterSpacing: -0.3 }}>
                         {step.title}
@@ -119,7 +120,7 @@ export default function PermissionsOnboardingScreen() {
                         onPress={handleEnable}
                         disabled={working}
                         style={{
-                            backgroundColor: '#BF592B', borderRadius: 16, paddingVertical: 16,
+                            backgroundColor: palette.accent, borderRadius: 16, paddingVertical: 16,
                             flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
                             opacity: working ? 0.7 : 1,
                         }}

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { ArrowLeft, CreditCard, Smartphone, ShieldCheck, Receipt, Wallet, Mail, Check } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
+import { palette } from '@/constants/theme';
 
 const ACCEPTED_METHODS = [
     { label: 'Card', sub: 'Visa, Mastercard', icon: CreditCard },
@@ -293,7 +294,7 @@ export default function PaymentMethodsScreen() {
                                     {ACCEPTED_METHODS.map((m) => (
                                         <View key={m.label} className="flex-row items-center gap-3">
                                             <View className="w-10 h-10 bg-[#FFF1EC] rounded-xl items-center justify-center">
-                                                <m.icon size={18} color="#BF592B" />
+                                                <m.icon size={18} color={palette.accent} />
                                             </View>
                                             <View>
                                                 <Text className="text-text-main font-sans-bold text-sm">{m.label}</Text>

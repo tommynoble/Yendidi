@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { palette, type, fonts } from '@/constants/theme';
 
 // Equal space above and below, so a heading sits evenly between the content before it
 // and the cards after it. Change this once to retune every section heading.
@@ -8,7 +9,7 @@ export const SECTION_HEADER_SPACING = 8;
 type SectionHeaderProps = {
     title: string;
     subtitle?: string;
-    /** Optional leading icon, e.g. <Heart size={18} color="#BF592B" /> */
+    /** Optional leading icon, e.g. <Heart size={18} color={palette.accent} /> */
     icon?: React.ReactNode;
     /** Small pill on the right, e.g. "5 Courses". Takes the place of the action link. */
     badge?: string;
@@ -39,21 +40,21 @@ export default function SectionHeader({
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
                     {icon}
-                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: '#231915' }} numberOfLines={1}>{title}</Text>
+                    <Text style={{ ...type.section, color: palette.ink }} numberOfLines={1}>{title}</Text>
                 </View>
                 {!!badge && (
                     <View style={{ backgroundColor: 'rgba(0,106,60,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: '#006A3C' }} numberOfLines={1}>{badge}</Text>
+                        <Text style={{ ...type.micro, color: '#006A3C' }} numberOfLines={1}>{badge}</Text>
                     </View>
                 )}
                 {!badge && onActionPress && (
                     <TouchableOpacity onPress={onActionPress} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                        <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11, color: '#BF592B' }}>{actionLabel}</Text>
+                        <Text style={{ ...type.micro, color: palette.accent }}>{actionLabel}</Text>
                     </TouchableOpacity>
                 )}
             </View>
             {!!subtitle && (
-                <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11.5, color: '#56423B', marginTop: 2 }} numberOfLines={1}>{subtitle}</Text>
+                <Text style={{ ...type.meta, fontFamily: fonts.regular, color: palette.muted, marginTop: 2 }} numberOfLines={1}>{subtitle}</Text>
             )}
         </View>
     );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Animated, ActivityIndicator } from 'react-native';
 import { ChefHat, Flame, Soup, Fish, Utensils } from 'lucide-react-native';
+import { palette } from '@/constants/theme';
 
 interface ProcessLoaderProps {
   visible: boolean;
@@ -85,7 +86,7 @@ export default function ProcessLoader({ visible, message = 'Processing...' }: Pr
         zIndex: 99999,
       }}
     >
-      <View className="items-center p-6 rounded-3xl bg-[#BF592B] border border-[#D65A31] shadow-2xl max-w-[70%]">
+      <View className="items-center p-6 rounded-3xl bg-brand-accent border border-[#D65A31] shadow-2xl max-w-[70%]">
         <View style={{ justifyContent: 'center', alignItems: 'center', width: 110, height: 110, marginBottom: 4 }}>
           {/* Spinning Dashed Ring */}
           <Animated.View
@@ -105,7 +106,7 @@ export default function ProcessLoader({ visible, message = 'Processing...' }: Pr
             <View className="bg-surface rounded-full items-center justify-center border-4 border-white/20 shadow-xl" style={{ width: 76, height: 76, borderRadius: 38, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.22, shadowRadius: 12 }}>
               {(() => {
                 const IconComponent = LOADER_ICONS[loaderIconIndex] || Utensils;
-                return <IconComponent size={32} color="#BF592B" />;
+                return <IconComponent size={32} color={palette.accent} />;
               })()}
             </View>
           </Animated.View>

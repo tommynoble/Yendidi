@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { getDishImage } from '@/constants/Images';
 import { formatPotCountdown } from '@/lib/countdown';
+import { palette } from '@/constants/theme';
 
 const STATUS_STEPS = [
     { key: 'New', label: 'Placed', icon: Package },
@@ -255,7 +256,7 @@ export default function OrderDetailScreen() {
             {/* Header */}
             <View className="flex-row items-center justify-between px-4 py-4 bg-surface border-b border-gray-100">
                 <TouchableOpacity onPress={() => router.back()} className="p-2" hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <ChevronLeft size={24} color="#BF592B" />
+                    <ChevronLeft size={24} color={palette.accent} />
                 </TouchableOpacity>
                 <Text className="text-lg font-bold text-text-main font-sans-bold">Order Details</Text>
                 <View className="w-8" />
@@ -288,7 +289,7 @@ export default function OrderDetailScreen() {
                 <View className="bg-surface mx-6 mt-4 rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                     <View className="flex-row items-center justify-between mb-5">
                         <View className="flex-row items-center gap-2">
-                            <Package size={18} color="#BF592B" />
+                            <Package size={18} color={palette.accent} />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Order Status</Text>
                         </View>
                         <View className="px-3 py-1.5 rounded-full" style={{ backgroundColor: `${getStatusColor(order.status)}18` }}>
@@ -400,7 +401,7 @@ export default function OrderDetailScreen() {
                 <View className="bg-surface mx-6 mt-4 rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                     <View className="flex-row items-center justify-between mb-4">
                         <View className="flex-row items-center gap-2">
-                            <Receipt size={18} color="#BF592B" />
+                            <Receipt size={18} color={palette.accent} />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Your Order</Text>
                         </View>
                         <View className="w-6 h-6 rounded-full bg-clay-primary items-center justify-center">
@@ -450,7 +451,7 @@ export default function OrderDetailScreen() {
                 {(order.delivery_method || order.delivery_address || order.notes) && (
                     <View className="bg-surface mx-6 mt-4 rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                         <View className="flex-row items-center gap-2 mb-4">
-                            <MapPin size={18} color="#BF592B" />
+                            <MapPin size={18} color={palette.accent} />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Delivery</Text>
                         </View>
                         {order.delivery_method && (
@@ -477,7 +478,7 @@ export default function OrderDetailScreen() {
                 {/* Payment Info */}
                 <View className="bg-surface mx-6 mt-4 rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                     <View className="flex-row items-center gap-2 mb-4">
-                        <CreditCard size={18} color="#BF592B" />
+                        <CreditCard size={18} color={palette.accent} />
                         <Text className="text-lg font-bold text-text-main font-sans-bold">Payment</Text>
                     </View>
 
@@ -519,7 +520,7 @@ export default function OrderDetailScreen() {
                 {cook && (
                     <View className="bg-surface mx-6 mt-4 rounded-3xl p-5" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
                         <View className="flex-row items-center gap-2 mb-4">
-                            <ChefHat size={18} color="#BF592B" />
+                            <ChefHat size={18} color={palette.accent} />
                             <Text className="text-lg font-bold text-text-main font-sans-bold">Your Host</Text>
                         </View>
                         <View className="flex-row items-center gap-4 mb-4">
@@ -602,7 +603,7 @@ export default function OrderDetailScreen() {
                                     <Text className="text-lg font-bold text-text-main font-sans-bold">Rate your experience</Text>
                                     <Text className="text-sm text-text-sub font-sans mt-0.5">Let {cookKitchenName || cook.full_name || 'the host'} know how it went</Text>
                                 </View>
-                                <Star size={22} color="#BF592B" />
+                                <Star size={22} color={palette.accent} />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -657,7 +658,7 @@ export default function OrderDetailScreen() {
                             onPress={handleSubmitReview}
                             disabled={reviewRating === 0 || submittingReview}
                             className="bg-clay-primary rounded-2xl py-4 flex-row items-center justify-center gap-2"
-                            style={{ opacity: reviewRating === 0 || submittingReview ? 0.5 : 1, shadowColor: '#BF592B', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+                            style={{ opacity: reviewRating === 0 || submittingReview ? 0.5 : 1, shadowColor: palette.accent, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
                         >
                             {submittingReview
                                 ? <ActivityIndicator size="small" color="white" />
