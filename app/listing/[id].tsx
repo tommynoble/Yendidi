@@ -648,37 +648,41 @@ export default function ListingDetailScreen() {
                         );
                     })()}
 
-                    {/* Thin Divider */}
-                    <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 20 }} />
-
-                    {/* Section heading */}
-                    <SectionHeader
-                        inset={false}
-                        title="Dine-In Courses"
-                        subtitle={`Four slow courses, led by ${(listing.title || 'the main dish').trim()}`}
-                        badge="4 Courses"
-                        extraBottom={12}
-                    />
-
-                    {/* Sample UI copy — real courses will come from the cook later. The main course uses the dish's own data. */}
+                    {/* Courses come only from what the host entered. No main dish entered means no Main Course card. */}
                     {(() => {
+                        const drinks = (listing.drinks || '').trim();
+                        const starter = (listing.starter || '').trim();
+                        const mainDish = (listing.main_dish || '').trim();
+                        const sides = (listing.sides_dessert || '').trim();
                         const cats = listing.category ? listing.category.split(',').map((c: string) => c.trim()).filter(Boolean) : [];
                         const courses: Course[] = [
-                            { title: 'Welcome Elixir', tag: 'Arrival', description: 'Chilled hibiscus sobolo infused with fresh ginger & cloves, served as you settle in at the table.' },
-                            { title: 'Kelewele & Peanuts', tag: 'Starters', description: 'Spiced fried plantain tossed with roasted groundnuts, to share while the pots finish.' },
-                            {
-                                title: listing.title,
+                            ...(drinks ? [{ title: drinks, tag: 'Drinks' }] : []),
+                            ...(starter ? [{ title: starter, tag: 'Starter' }] : []),
+                            ...(mainDish ? [{
+                                title: mainDish,
                                 tag: 'Main Course',
                                 highlight: true,
-                                description: listing.description?.trim() || `${listing.title}, cooked from scratch and served fresh at the table.`,
-                                chips: cats.length > 0 ? cats : ['Cooked fresh'],
-                            },
-                            { title: 'Sweet Finale', tag: 'Dessert', description: 'Warm toasted coconut with a drizzle of honey to close the meal.' },
+                                description: listing.description?.trim() || undefined,
+                                chips: cats.length > 0 ? cats : undefined,
+                            }] : []),
+                            ...(sides ? [{ title: sides, tag: 'Sides & Dessert' }] : []),
                         ];
+                        if (courses.length === 0) return null;
                         return (
-                            <View style={{ marginBottom: 24 }}>
-                                <CourseList courses={courses} />
-                            </View>
+                            <>
+                                {/* Thin Divider */}
+                                <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 20 }} />
+                                <SectionHeader
+                                    inset={false}
+                                    title="On the Table"
+                                    subtitle={mainDish ? (courses.length === 1 ? `Led by ${mainDish}` : `${courses.length} courses, led by ${mainDish}`) : `${courses.length} ${courses.length === 1 ? 'course' : 'courses'} from the host`}
+                                    badge={courses.length > 1 ? `${courses.length} Courses` : undefined}
+                                    extraBottom={12}
+                                />
+                                <View style={{ marginBottom: 24 }}>
+                                    <CourseList courses={courses} />
+                                </View>
+                            </>
                         );
                     })()}
 
@@ -707,96 +711,68 @@ export default function ListingDetailScreen() {
                         />
                     </View>
 
-                    {/* Thin Divider */}
-                    <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 14 }} />
-
-                    {/* Gathering notes heading */}
-                    <SectionHeader
-                        inset={false}
-                        title="Gathering Notes"
-                        subtitle="Attire, drinks and dietary details to know before you come"
-                        extraBottom={12}
-                    />
-
-                    {/* Sample UI copy — real notes will come from the cook later. */}
-                    <View style={{ marginBottom: 24 }}>
-                        <GatheringNotes
-                            notes={[
-                                { label: 'Attire', text: 'Smart casual or colorful African wax prints; comfortable garden seating.' },
-                                { label: 'BYOB', text: 'Palm wine & artisanal Sobolo provided. Guests welcome to bring favorite wines.' },
-                                { label: 'Dietary', text: `${(listing.title || 'The main dish').trim()} is the centerpiece. Tell the host about any allergies or vegetarian needs at booking.` },
-                            ]}
-                        />
-                    </View>
+                    {/* Gathering notes: the atmosphere and dietary tags the host picked. Hidden when none. */}
+                    {(() => {
+                        const atmosphere: string[] = listing.atmosphere_tags || [];
+                        const dietary: string[] = listing.dietary_tags || [];
+                        return (
+                            <>
+                                {/* Thin Divider */}
+                                <View style={{ height: 1, backgroundColor: 'rgba(86,66,59,0.15)', marginBottom: 14 }} />
+                                <SectionHeader
+                                    inset={false}
+                                    title="Gathering Notes"
+                                    subtitle="Atmosphere and dietary details to know before you come"
+                                    extraBottom={12}
+                                />
+                                <View style={{ marginBottom: 24 }}>
+                                    <GatheringNotes
+                                        notes={[
+                                            ...(atmosphere.length > 0 ? [{ label: 'Atmosphere', text: atmosphere.join(', ') }] : []),
+                                            ...(dietary.length > 0
+                                                ? [{ label: 'Dietary', text: `${dietary.join(', ')}. Stated by the host, so please confirm any allergies with them before booking.` }]
+                                                : [{ label: 'Allergies', text: 'Tell the host about any allergies or dietary needs when you book.' }]),
+                                        ]}
+                                    />
+                                </View>
+                            </>
+                        );
+                    })()}
 
                     {/* Thin Divider */}
                     <View style={{ height: 1, backgroundColor: '#F2DFD7', marginTop: 4, marginBottom: 8 }} />
 
-                    {/* Dine-In Experience Preview */}
-                    <View style={{ marginBottom: 20 }}>
-                        <SectionHeader
-                            inset={false}
-                            title="Step Into the Hearth"
-                            subtitle="A first look at the table, the setting and the fire before you arrive"
-                            extraBottom={8}
-                        />
-                        <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={{ gap: 12, paddingRight: 20 }}
-                        >
-                            {/* Card 1: Eating Kenkey */}
-                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
-                                <Image 
-                                    source={DINE_IN_3} 
-                                    style={{ width: '100%', height: '100%' }} 
-                                    resizeMode="cover" 
+                    {/* The host's own photos. Heading is the drinks they included; hidden when they added no photos. */}
+                    {(() => {
+                        const hostPhotos: string[] = listing.image ? listing.image.split(',').map((x: string) => x.trim()).filter(Boolean) : [];
+                        if (hostPhotos.length === 0) return null;
+                        const drinks = (listing.drinks || '').trim();
+                        return (
+                            <View style={{ marginBottom: 20 }}>
+                                <SectionHeader
+                                    inset={false}
+                                    title={drinks || 'Step Into the Hearth'}
+                                    subtitle="See what dining at this home looks and feels like"
+                                    extraBottom={8}
                                 />
-                                <LinearGradient
-                                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
+                                <ScrollView
+                                    horizontal
+                                    showsHorizontalScrollIndicator={false}
+                                    contentContainerStyle={{ gap: 12, paddingRight: 20 }}
                                 >
-                                    <Text style={{ ...type.micro, color: 'white', lineHeight: 14 }}>
-                                        True local flavors
-                                    </Text>
-                                </LinearGradient>
+                                    {hostPhotos.map((img, i) => (
+                                        <View key={`${img}-${i}`} style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
+                                            <Image
+                                                source={getDishImage(listing.title, img)}
+                                                style={{ width: '100%', height: '100%' }}
+                                                resizeMode="cover"
+                                            />
+                                        </View>
+                                    ))}
+                                </ScrollView>
                             </View>
-
-                            {/* Card 2: Group Dining */}
-                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
-                                <Image 
-                                    source={DINE_IN_2} 
-                                    style={{ width: '100%', height: '100%' }} 
-                                    resizeMode="cover" 
-                                />
-                                <LinearGradient
-                                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
-                                >
-                                    <Text style={{ ...type.micro, color: 'white', lineHeight: 14 }}>
-                                        Authentic dining seating
-                                    </Text>
-                                </LinearGradient>
-                            </View>
-
-                            {/* Card 3: Preparation */}
-                            <View style={{ width: 220, height: 140, borderRadius: 18, overflow: 'hidden', position: 'relative', shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.14, shadowRadius: 8, elevation: 3 }}>
-                                <Image 
-                                    source={DINE_IN_1} 
-                                    style={{ width: '100%', height: '100%' }} 
-                                    resizeMode="cover" 
-                                />
-                                <LinearGradient
-                                    colors={['transparent', 'rgba(0,0,0,0.85)']}
-                                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 55, paddingHorizontal: 10, paddingBottom: 10, justifyContent: 'flex-end' }}
-                                >
-                                    <Text style={{ ...type.micro, color: 'white', lineHeight: 14 }}>
-                                        Traditional food preparation
-                                    </Text>
-                                </LinearGradient>
-                            </View>
-                        </ScrollView>
-                    </View>
+                        );
+                    })()}
 
 
                 </View>
@@ -846,7 +822,7 @@ export default function ListingDetailScreen() {
                             activeOpacity={0.9}
                         >
                             <Pencil size={16} color="white" />
-                            <Text style={{ ...type.cardTitleSmall, color: 'white' }}>Edit Dish</Text>
+                            <Text style={{ ...type.cardTitleSmall, color: 'white' }}>Edit Event</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (

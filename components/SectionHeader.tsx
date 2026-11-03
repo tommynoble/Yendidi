@@ -16,6 +16,8 @@ type SectionHeaderProps = {
     /** Right-aligned link, e.g. "See All". Only shown when onActionPress is also set. */
     actionLabel?: string;
     onActionPress?: () => void;
+    /** Small icon after the action link, e.g. a chevron for an expand/collapse toggle. */
+    actionIcon?: React.ReactNode;
     /** Set false when the parent already applies the 20px side padding. */
     inset?: boolean;
     /** Override the default top/bottom space (applied equally to both). */
@@ -31,6 +33,7 @@ export default function SectionHeader({
     badge,
     actionLabel = 'See All',
     onActionPress,
+    actionIcon,
     inset = true,
     spacing = SECTION_HEADER_SPACING,
     extraBottom = 0,
@@ -48,8 +51,9 @@ export default function SectionHeader({
                     </View>
                 )}
                 {!badge && onActionPress && (
-                    <TouchableOpacity onPress={onActionPress} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                    <TouchableOpacity onPress={onActionPress} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                         <Text style={{ ...type.micro, color: palette.accent }}>{actionLabel}</Text>
+                        {actionIcon}
                     </TouchableOpacity>
                 )}
             </View>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Share as RNShare } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Share as RNShare, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, Share2, Heart, BadgeCheck, MapPin, Star, ChefHat, Clock, Users, Navigation, ChevronDown, ChevronUp, ArrowRight, Leaf, Sun, Moon, Calendar, Utensils, Hourglass } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Share2, Heart, BadgeCheck, MapPin, Star, ChefHat, Clock, Users, Navigation, ChevronDown, ChevronUp, ArrowRight, Leaf, Sun, Moon, Calendar, Utensils, Hourglass } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase';
 import { formatDistanceToNow, format } from 'date-fns';
 import { palette, type, fonts } from '@/constants/theme';
 import SectionHeader from '@/components/SectionHeader';
+import { openConversationWithHost } from '@/lib/messaging';
+import { useCurrentUserId } from '@/lib/useCurrentUserId';
 
 const FAVORITE_COOKS_KEY = 'yendidii_favorite_cooks';
 
@@ -18,6 +20,8 @@ export default function CookProfileScreen() {
     const [bioExpanded, setBioExpanded] = useState(false);
     const [showAllReviews, setShowAllReviews] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [openingChat, setOpeningChat] = useState(false);
+    const me = useCurrentUserId();
 
     useEffect(() => {
         if (!id) return;
@@ -157,6 +161,23 @@ export default function CookProfileScreen() {
             .filter(Boolean)
     ));
 
+    const handleMessage = async () => {
+        if (openingChat) return;
+        if (!me) {
+            router.push('/login');
+            return;
+        }
+        setOpeningChat(true);
+        try {
+            const conversationId = await openConversationWithHost(id as string);
+            router.push(`/messages/${conversationId}`);
+        } catch (e) {
+            Alert.alert("Couldn't open the chat", 'Please check your connection and try again.');
+        } finally {
+            setOpeningChat(false);
+        }
+    };
+
     const handleShare = () => {
         RNShare.share({ message: `Check out ${kitchenName || cook.full_name || 'this kitchen'} on YenDidii!` });
     };
@@ -265,6 +286,22 @@ export default function CookProfileScreen() {
                             ))}
                         </View>
                     </View>
+
+                    {/* Ask the host a question (not shown on your own kitchen) */}
+                    {me !== id && (
+                        <TouchableOpacity
+                            onPress={handleMessage}
+                            disabled={openingChat}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: palette.surface, borderRadius: 16, paddingVertical: 14, borderWidth: 1, borderColor: palette.accent, opacity: openingChat ? 0.6 : 1 }}
+                        >
+                            {openingChat ? <ActivityIndicator color={palette.accent} /> : <MessageCircle size={18} color={palette.accent} />}
+                            <Text style={{ ...type.card, fontFamily: fonts.bold, color: palette.accent }}>
+                                Message {kitchenName || cook.full_name || 'the host'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
 
                     {/* Hospitality bar */}
                     <View className="flex-row gap-2">

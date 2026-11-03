@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
-import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, Animated, RefreshControl, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, Animated, LayoutAnimation, RefreshControl, Dimensions, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Search, MapPin, Star, ChevronRight, X, Bell, LayoutDashboard, TrendingUp, Users as UsersIcon, Clock as ClockIcon, Plus, Flame, ChefHat, Heart, Leaf, Utensils, Soup, Fish, Cake, Apple, Sprout, Wheat, ShoppingBag, Check, MessageCircle, Calendar as CalendarIcon } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -8,7 +8,9 @@ import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
-import { formatDistanceToNow, format } from 'date-fns';
+import { unreadMessageCount, fetchConversations, otherPersonId } from '@/lib/messaging';
+import { useCurrentUserId } from '@/lib/useCurrentUserId';
+import { formatDistanceToNow, format, parseISO } from 'date-fns';
 import { getDishImage } from '@/constants/Images';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,6 +18,7 @@ import ProcessLoader from '@/components/ProcessLoader';
 import AvatarStack from '@/components/AvatarStack';
 import { formatPotCountdown, isPotCountdownActive } from '@/lib/countdown';
 import SectionHeader from '@/components/SectionHeader';
+import LiveBadge from '@/components/LiveBadge';
 import { palette, type, fonts } from '@/constants/theme';
 import HeartButton from '@/components/HeartButton';
 import CartIcon from '@/components/CartIcon';
@@ -197,6 +200,13 @@ export default function HomeScreen() {
   const cartItems = useAppStore(state => state.cartItems);
   const cartCount = cartItems.reduce((sum, ci) => sum + ci.quantity, 0);
   const queryClient = useQueryClient();
+  const currentUserId = useCurrentUserId();
+  const { data: unreadChats = 0 } = useQuery({
+    queryKey: ['unread-chats', currentUserId],
+    queryFn: () => unreadMessageCount(currentUserId as string),
+    enabled: !!currentUserId,
+    refetchInterval: 60000,
+  });
 
   // -- State --
   const [searchQuery, setSearchQuery] = useState('');
@@ -365,6 +375,34 @@ export default function HomeScreen() {
     };
   }, [user, isCookMode, queryClient]);
 
+  // Live feed: when a host pauses or resumes an event, or it fills up, the guest feed updates without a pull-to-refresh.
+  useEffect(() => {
+    if (isCookMode) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const channel = supabase
+      .channel(`feed:listings:${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, (payload: any) => {
+        const row = payload.new;
+        // Paused: it leaves the feed straight away, easing out, before the refetch confirms it.
+        if (payload.eventType === 'UPDATE' && row && row.available === false) {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          const drop = (old: any) => (Array.isArray(old) ? old.filter((l: any) => l.id !== row.id) : old);
+          queryClient.setQueriesData({ queryKey: ['featured-meals'] }, drop);
+          queryClient.setQueryData(['all-listings-profiles'], drop);
+        }
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['featured-meals'] });
+          queryClient.invalidateQueries({ queryKey: ['all-listings-profiles'] });
+        }, 300);
+      })
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [isCookMode, queryClient]);
+
   // --- QUERIES ---
 
   // Fetch Featured Meals (Cooking Now) — Real listings from cooks
@@ -455,6 +493,36 @@ export default function HomeScreen() {
     refetchOnWindowFocus: false,
   });
  
+  // The cook's next upcoming host day, for the dashboard shortcut.
+  const { data: nextHostDay, refetch: refetchNextHostDay } = useQuery({
+    queryKey: ['kitchen-schedule', 'next', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('cook_sessions')
+        .select('session_date, start_time')
+        .eq('cook_id', user.id)
+        .gte('session_date', format(new Date(), 'yyyy-MM-dd'))
+        .order('session_date', { ascending: true })
+        .limit(1);
+      if (data && data[0]) return data[0];
+      // No host day: fall back to the soonest event that carries its own date.
+      const { data: loose } = await supabase
+        .from('listings')
+        .select('order_deadline')
+        .eq('cook_id', user.id)
+        .is('session_id', null)
+        .or('archived.eq.false,archived.is.null')
+        .gte('order_deadline', new Date().toISOString())
+        .order('order_deadline', { ascending: true })
+        .limit(1);
+      const when = loose && loose[0]?.order_deadline ? new Date(loose[0].order_deadline) : null;
+      return when ? { session_date: format(when, 'yyyy-MM-dd'), start_time: format(when, 'HH:mm:ss') } : null;
+    },
+    enabled: !!user && isCookMode,
+    staleTime: 60 * 1000,
+  });
+
   // Fetch Cook's own Menu (Listings)
   const { data: myMenu, refetch: refetchMyMenu } = useQuery({
     queryKey: ['my-menu', user?.id],
@@ -473,6 +541,14 @@ export default function HomeScreen() {
     refetchOnWindowFocus: false,
   });
 
+  // The tab stays mounted, so refresh the events summary each time the dashboard is opened (e.g. after posting, pausing or moving an event).
+  useFocusEffect(useCallback(() => {
+    if (user && isCookMode) {
+      refetchMyMenu();
+      refetchNextHostDay();
+    }
+  }, [user?.id, isCookMode]));
+
   const chefStats = chefStatsData || {
     todayOrders: 0,
     revenue: 0,
@@ -481,46 +557,87 @@ export default function HomeScreen() {
     totalCount: 0
   };
 
-  // Fetch Recent Activity (Cook)
+  // Recent Activity (Cook): orders, messages from guests and events the host created, newest first.
   const { data: recentActivity, refetch: refetchRecentActivity } = useQuery({
     queryKey: ['recent-activity', user?.id],
     queryFn: async () => {
       if (!user) return [];
 
-      const { data: orders } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          status,
-          created_at,
-          profiles:user_id (full_name),
-          order_items (listings (title))
-        `)
-        .eq('cook_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(4);
+      const [ordersRes, convoRes, eventsRes] = await Promise.all([
+        supabase
+          .from('orders')
+          .select(`
+            id,
+            status,
+            created_at,
+            profiles:user_id (full_name),
+            order_items (listings (title))
+          `)
+          .eq('cook_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        fetchConversations(user.id).catch(() => null),
+        supabase
+          .from('listings')
+          .select('id, title, created_at')
+          .eq('cook_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(3),
+      ]);
 
-      return (orders || []).map(o => {
+      const orderItems = (ordersRes.data || []).map((o: any) => {
         // Handle joined data which might be array or object
         const profile = Array.isArray(o.profiles) ? o.profiles[0] : o.profiles;
         const firstItem = Array.isArray(o.order_items) ? o.order_items[0] : o.order_items;
         const listing = firstItem?.listings;
         const actualListing = Array.isArray(listing) ? listing[0] : listing;
-
         return {
-          id: o.id,
+          id: `order-${o.id}`,
           type: 'order',
-          title: o.status === 'New' ? 'New Order!' : `Order #${o.id.slice(0, 4)}`,
+          title: o.status === 'New' ? 'New Booking!' : `Booking #${o.id.slice(0, 4)}`,
           subtitle: `${profile?.full_name || 'Customer'} • ${actualListing?.title || 'Meal'}`,
-          time: o.created_at
+          time: o.created_at,
+          route: '/(tabs)/orders',
         };
       });
+
+      const messageItems = convoRes
+        ? convoRes.conversations
+            .filter(c => c.last_sender_id && c.last_sender_id !== user.id && !convoRes.blockedIds.includes(otherPersonId(c, user.id)))
+            .slice(0, 3)
+            .map(c => ({
+              id: `message-${c.id}`,
+              type: 'message',
+              title: `${convoRes.people[otherPersonId(c, user.id)]?.name || 'A guest'} sent you a message`,
+              subtitle: c.last_message || '',
+              time: c.last_message_at,
+              route: `/messages/${c.id}`,
+            }))
+        : [];
+
+      const eventItems = (eventsRes.data || []).map((l: any) => ({
+        id: `event-${l.id}`,
+        type: 'event',
+        title: 'You created an event',
+        subtitle: l.title,
+        time: l.created_at,
+        route: `/listing/${l.id}`,
+      }));
+
+      return [...orderItems, ...messageItems, ...eventItems]
+        .sort((x, y) => new Date(y.time).getTime() - new Date(x.time).getTime())
+        .slice(0, 5);
     },
     enabled: !!user && isCookMode,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
+
+  // Same as the events summary: reload when the dashboard is opened so new messages and events show up.
+  useFocusEffect(useCallback(() => {
+    if (user && isCookMode) refetchRecentActivity();
+  }, [user?.id, isCookMode]));
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -579,6 +696,17 @@ export default function HomeScreen() {
     const completedCount = chefStats.completedCount;
     const totalCount = Math.max(chefStats.totalCount, 1);
     const progressPercent = Math.min(Math.round((completedCount / totalCount) * 100), 100);
+    const hasEvents = (myMenu || []).length > 0;
+    const liveCount = (myMenu || []).filter((l: any) => l.available !== false).length;
+    // Says what is true right now instead of a fixed slogan.
+    const eventsSubtitle = !hasEvents
+      ? 'Nothing live yet. Create one to start taking bookings'
+      : [
+          liveCount > 0 ? `${liveCount} live` : 'None live right now',
+          nextHostDay ? `next host day ${format(parseISO(nextHostDay.session_date), 'EEE, MMM d')}` : null,
+        ].filter(Boolean).join(' · ');
+    // Thin accent-tint rule between dashboard sections.
+    const sectionDivider = <View style={{ height: 1, marginHorizontal: 24, marginBottom: 16, backgroundColor: 'rgba(194, 83, 39,0.22)' }} />;
     const ringRadius = 36;
     const ringCircumference = 2 * Math.PI * ringRadius;
 
@@ -594,17 +722,27 @@ export default function HomeScreen() {
                 <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 26, color: palette.ink, letterSpacing: -0.3 }}>Host {displayName}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Pressable onPress={() => router.push('/messages')} style={{ position: 'relative' }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Messages">
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
+                    <MessageCircle size={15} color={palette.inkSoft} />
+                  </View>
+                  {unreadChats > 0 && (
+                    <View style={{ position: 'absolute', top: 5, right: 7, width: 8, height: 8, borderRadius: 5, backgroundColor: palette.accent }} />
+                  )}
+                </Pressable>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FFF8', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#B2DFCC' }}>
                   <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#006A3C' }} />
                   <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#006A3C', letterSpacing: 1 }}>OPEN</Text>
                 </View>
+                <Pressable onPress={() => router.push('/account')} accessibilityRole="button" accessibilityLabel="Profile and settings" hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2DFD7', borderWidth: 2, borderColor: 'white' }} />
+                  <Image source={{ uri: avatarUrl }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2DFD7', borderWidth: 2, borderColor: palette.accent }} />
                 ) : (
-                  <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' }}>
+                  <View style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: palette.accent }}>
                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: 'white' }}>{displayName.charAt(0)}</Text>
                   </View>
                 )}
+                </Pressable>
               </View>
             </View>
           </View>
@@ -617,12 +755,16 @@ export default function HomeScreen() {
           >
 
             {/* Business Overview */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, marginBottom: 14 }}>
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink }}>Business Overview</Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/orders')} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.accent }}>View Orders</Text>
-                <ChevronRight size={14} color={palette.accent} />
-              </TouchableOpacity>
+            <View style={{ paddingHorizontal: 24, paddingTop: 12 }}>
+              <SectionHeader
+                title="Business Overview"
+                subtitle="Revenue, active orders and customers at a glance"
+                inset={false}
+                actionLabel="View Details"
+                actionIcon={<ChevronRight size={13} color={palette.accent} />}
+                onActionPress={() => router.push('/business-overview')}
+                extraBottom={4}
+              />
             </View>
 
             {/* Stats Cards */}
@@ -632,7 +774,7 @@ export default function HomeScreen() {
                 { icon: ClockIcon, color: palette.accent, bg: '#FFF1EC', label: 'ACTIVE', value: String(chefStats.activeNow) },
                 { icon: UsersIcon, color: '#0066CC', bg: '#EFF6FF', label: 'CUSTOMERS', value: String(chefStats.todayOrders) },
               ].map(({ icon: Icon, color, bg, label, value }) => (
-                <View key={label} style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, padding: 14, shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.11, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F2DFD7' }}>
+                <View key={label} style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, padding: 14, shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
                   <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
                     <Icon size={18} color={color} />
                   </View>
@@ -642,39 +784,96 @@ export default function HomeScreen() {
               ))}
             </View>
 
+            {sectionDivider}
+
             {/* Quick Actions */}
-            <View style={{ marginHorizontal: 24, backgroundColor: '#84523C', borderRadius: 28, padding: 20, marginBottom: 20 }}>
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: 'white', textAlign: 'center', marginBottom: 16 }}>Quick Actions</Text>
-              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+            <View style={{ marginHorizontal: 24, marginBottom: 20, borderRadius: 26, backgroundColor: palette.accent, shadowColor: palette.accent, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.32, shadowRadius: 14, elevation: 5 }}>
+              <View style={{ borderRadius: 26, padding: 18, overflow: 'hidden' }}>
+                {/* Soft tonal circles for depth */}
+                <View pointerEvents="none" style={{ position: 'absolute', top: -46, right: -36, width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.10)' }} />
+                <View pointerEvents="none" style={{ position: 'absolute', top: 18, right: 38, width: 56, height: 56, borderRadius: 28, backgroundColor: 'rgba(255,255,255,0.08)' }} />
+                <View pointerEvents="none" style={{ position: 'absolute', bottom: -60, left: -44, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(0,0,0,0.06)' }} />
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 10, color: 'rgba(255,255,255,0.8)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 3 }}>Your kitchen</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 20, color: 'white' }}>Quick Actions</Text>
+                  </View>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' }}>
+                    <ChefHat size={22} color="white" />
+                  </View>
+                </View>
+
+                {/* Primary action: light on the orange so it reads first */}
                 <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 18, paddingVertical: 20, alignItems: 'center', gap: 10 }}
-                  onPress={() => router.push('/(tabs)/cook')}
+                  style={{ backgroundColor: palette.surface, borderRadius: 20, paddingVertical: 14, paddingLeft: 14, paddingRight: 16, flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12, shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 3 }}
+                  onPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={hasEvents ? 'Create an event' : 'Create your first event'}
                 >
-                  <Plus size={24} color={palette.accent} />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.ink }}>New Dish</Text>
+                  <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center' }}>
+                    <Plus size={24} color="white" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 16, color: palette.ink }}>{hasEvents ? 'Create an Event' : 'Create Your First Event'}</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: palette.muted, marginTop: 1 }}>{hasEvents ? 'Post a dish for a host day' : 'Post a dish and pick your host day'}</Text>
+                  </View>
+                  <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
+                    <ChevronRight size={16} color={palette.accent} />
+                  </View>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: '#FFCD00', borderRadius: 18, paddingVertical: 20, alignItems: 'center', gap: 10 }}
-                  onPress={() => router.push('/(tabs)/cook')}
-                  activeOpacity={0.85}
-                >
-                  <Flame size={24} color={palette.accent} fill={palette.accent} />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.ink }}>New Session</Text>
-                </TouchableOpacity>
+
+                {/* Shortcuts with live info */}
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  {[
+                    {
+                      icon: CalendarIcon, label: 'Schedule', route: '/(tabs)/profile', badge: 0,
+                      sub: nextHostDay
+                        ? `${format(parseISO(nextHostDay.session_date), 'EEE, MMM d')} · ${format(new Date(`2000-01-01T${nextHostDay.start_time}`), 'h:mm a')}`
+                        : 'Set a host day',
+                      eyebrow: nextHostDay ? 'Next host day' : 'No host day yet',
+                    },
+                    {
+                      icon: ShoppingBag, label: 'Bookings', route: '/(tabs)/orders', badge: chefStats.activeNow,
+                      sub: chefStats.activeNow > 0 ? `${chefStats.activeNow} active now` : 'All caught up',
+                      eyebrow: 'Guest seats',
+                    },
+                  ].map(({ icon: Icon, label, sub, eyebrow, route, badge }) => (
+                    <TouchableOpacity
+                      key={label}
+                      style={{ flex: 1, backgroundColor: '#FFF1EC', borderRadius: 20, padding: 14, shadowColor: palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.16, shadowRadius: 6, elevation: 2 }}
+                      onPress={() => router.push(route as any)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={label}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'white', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
+                          <Icon size={19} color={palette.accent} />
+                        </View>
+                        {badge > 0 ? (
+                          <View style={{ minWidth: 24, height: 24, paddingHorizontal: 7, borderRadius: 12, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: 'white' }}>{badge}</Text>
+                          </View>
+                        ) : (
+                          <ChevronRight size={16} color={palette.accent} />
+                        )}
+                      </View>
+                      {/* Reads top to bottom: what it is, the live detail, then a quiet caption */}
+                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17, color: palette.ink }}>{label}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.accent, marginTop: 3 }} numberOfLines={1}>{sub}</Text>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, color: palette.muted, marginTop: 3 }}>{eyebrow}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <TouchableOpacity
-                style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 14, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                onPress={() => router.push('/(tabs)/explore/map')}
-                activeOpacity={0.8}
-              >
-                <LayoutDashboard size={18} color="white" />
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: 'white' }}>Manage Menu</Text>
-              </TouchableOpacity>
             </View>
 
+            {sectionDivider}
+
             {/* Today's Progress */}
-            <View style={{ marginHorizontal: 24, backgroundColor: '#FFF1EC', borderRadius: 24, padding: 20, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: 1, borderColor: '#F2DFD7' }}>
+            <View style={{ marginHorizontal: 24, backgroundColor: '#FFF1EC', borderRadius: 24, padding: 20, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 16, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
               <View style={{ alignItems: 'center', justifyContent: 'center', width: 90, height: 90 }}>
                 <Svg width={90} height={90} style={{ position: 'absolute', transform: [{ rotate: '-90deg' }] }}>
                   <Circle cx={45} cy={45} r={ringRadius} stroke="#F2DFD7" strokeWidth={9} fill="none" />
@@ -701,81 +900,96 @@ export default function HomeScreen() {
               </View>
             </View>
 
+            {sectionDivider}
+
             {/* My active Menu */}
             <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink }}>My active Menu</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/cook')}>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.accent }}>+ Add Dish</Text>
-                </TouchableOpacity>
-              </View>
+              <SectionHeader title="Your Events" subtitle={eventsSubtitle} inset={false} actionLabel="Add Event" onActionPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)} extraBottom={4} />
               <View style={{ flexDirection: 'row', gap: 12 }}>
                 {(myMenu || []).slice(0, 1).map((item: any) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.13, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}
+                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}
                     onPress={() => router.push(`/listing/${item.id}`)}
                     activeOpacity={0.85}
                   >
                     <Image source={getDishImage(item.title, item.image)} style={{ width: '100%', height: 120 }} resizeMode="cover" />
                     <View style={{ padding: 12 }}>
                       <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13, color: palette.ink, marginBottom: 4 }} numberOfLines={2}>{item.title}</Text>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: palette.accent }}>₵{item.price}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: palette.accent }}>₵{item.price}</Text>
+                        <LiveBadge live={item.available !== false} />
+                      </View>
                     </View>
                   </TouchableOpacity>
                 ))}
                 {(!myMenu || myMenu.length === 0) && (
                   <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.13, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
-                    onPress={() => router.push('/(tabs)/cook')}
+                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
+                    onPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)}
                     activeOpacity={0.85}
                   >
                     <View style={{ width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: '#DDC1B6', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                       <Plus size={20} color={palette.ink} />
                     </View>
-                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add your first{'\n'}dish</Text>
+                    <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add your first{'\n'}event</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, borderWidth: 2, borderStyle: 'dashed', borderColor: '#DDC1B6', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
-                  onPress={() => router.push('/(tabs)/cook')}
+                  style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(194, 83, 39,0.5)', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
+                  onPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)}
                   activeOpacity={0.75}
                 >
                   <View style={{ width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: '#DDC1B6', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
                     <Plus size={18} color={palette.ink} />
                   </View>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add another{'\n'}dish</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add another{'\n'}event</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
+            {sectionDivider}
+
             {/* Recent Activity */}
             <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
-              <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 15, color: palette.ink, marginBottom: 14 }}>Recent Activity</Text>
+              <SectionHeader title="Recent Activity" inset={false} extraBottom={4} />
               {recentActivity && recentActivity.length > 0 ? (
-                recentActivity.map((activity: any) => (
-                  <View key={activity.id} style={{ backgroundColor: '#F7EEE7', borderRadius: 18, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#F2DFD7', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.09, shadowRadius: 6, elevation: 1 }}>
-                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFF1EC', alignItems: 'center', justifyContent: 'center' }}>
-                      <ShoppingBag size={18} color={palette.accent} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.ink }}>{activity.title}</Text>
-                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: palette.muted, marginTop: 2 }}>{activity.subtitle}</Text>
-                    </View>
-                    <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: palette.muted }}>
-                      {activity.time ? (() => {
-                        try {
-                          const d = new Date(activity.time);
-                          return isNaN(d.getTime()) ? 'Recently' : formatDistanceToNow(d) + ' ago';
-                        } catch { return 'Recently'; }
-                      })() : 'Recently'}
-                    </Text>
-                  </View>
-                ))
+                recentActivity.map((activity: any) => {
+                  const look = activity.type === 'message'
+                    ? { Icon: MessageCircle, color: '#0066CC', bg: '#EFF6FF' }
+                    : activity.type === 'event'
+                      ? { Icon: CalendarIcon, color: palette.accent, bg: '#FFF1EC' }
+                      : { Icon: ShoppingBag, color: '#007A33', bg: '#F0FFF8' };
+                  return (
+                    <TouchableOpacity
+                      key={activity.id}
+                      onPress={() => router.push(activity.route as any)}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      style={{ backgroundColor: '#F7EEE7', borderRadius: 18, padding: 14, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 1 }}
+                    >
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: look.bg, alignItems: 'center', justifyContent: 'center' }}>
+                        <look.Icon size={18} color={look.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text numberOfLines={1} style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.ink }}>{activity.title}</Text>
+                        <Text numberOfLines={1} style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 12, color: palette.muted, marginTop: 2 }}>{activity.subtitle}</Text>
+                      </View>
+                      <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 11, color: palette.muted }}>
+                        {activity.time ? (() => {
+                          try {
+                            const d = new Date(activity.time);
+                            return isNaN(d.getTime()) ? 'Recently' : formatDistanceToNow(d) + ' ago';
+                          } catch { return 'Recently'; }
+                        })() : 'Recently'}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
               ) : (
-                <View style={{ backgroundColor: '#F7EEE7', borderRadius: 20, padding: 32, alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#DDC1B6' }}>
+                <View style={{ backgroundColor: '#F7EEE7', borderRadius: 20, padding: 32, alignItems: 'center', borderWidth: 1.5, borderStyle: 'dashed', borderColor: 'rgba(194, 83, 39,0.5)' }}>
                   <ShoppingBag size={32} color="#DDC1B6" />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: palette.muted, marginTop: 10, textAlign: 'center' }}>No activity yet. Your first order is coming!</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, color: palette.muted, marginTop: 10, textAlign: 'center' }}>Nothing yet. Orders, guest messages and new events will show up here.</Text>
                 </View>
               )}
             </View>
@@ -831,6 +1045,9 @@ export default function HomeScreen() {
               <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
                 <MessageCircle size={15} color={palette.inkSoft} />
               </View>
+              {unreadChats > 0 && (
+                <View style={{ position: 'absolute', top: 5, right: 7, width: 8, height: 8, borderRadius: 5, backgroundColor: palette.accent }} />
+              )}
             </Pressable>
             <Pressable onPress={() => router.push('/(tabs)/profile')} style={{ position: 'relative' }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               {(profileData as any)?.avatar_url ? (

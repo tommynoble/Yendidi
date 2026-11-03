@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, Phone, MapPin, Clock, Star, Check, ChefHat, Navigation, ShieldCheck, CreditCard, Package, Receipt, X } from 'lucide-react-native';
+import { ChevronLeft, MessageCircle, Phone, MapPin, Clock, Star, Check, ChefHat, Navigation, ShieldCheck, CreditCard, Package, Receipt, X } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { getDishImage } from '@/constants/Images';
 import { formatPotCountdown } from '@/lib/countdown';
-import { palette } from '@/constants/theme';
+import { palette, type, fonts } from '@/constants/theme';
+import { openConversationWithHost } from '@/lib/messaging';
 
 const STATUS_STEPS = [
     { key: 'New', label: 'Placed', icon: Package },
@@ -27,6 +28,7 @@ export default function OrderDetailScreen() {
     const [reviewRating, setReviewRating] = useState(0);
     const [reviewComment, setReviewComment] = useState('');
     const [submittingReview, setSubmittingReview] = useState(false);
+    const [openingChat, setOpeningChat] = useState(false);
 
     // Fetch real order data from Supabase
     const { data: order, isLoading, error, refetch } = useQuery({
@@ -243,6 +245,19 @@ export default function OrderDetailScreen() {
     const cookLng = cook?.longitude;
     const currentStepIndex = STATUS_ORDER.indexOf(order.status);
     const isActive = ['New', 'Accepted', 'Cooking', 'Ready'].includes(order.status);
+
+    const handleMessageHost = async () => {
+        if (!cook?.id || openingChat) return;
+        setOpeningChat(true);
+        try {
+            const conversationId = await openConversationWithHost(cook.id);
+            router.push(`/messages/${conversationId}`);
+        } catch (e) {
+            Alert.alert("Couldn't open the chat", 'Please check your connection and try again.');
+        } finally {
+            setOpeningChat(false);
+        }
+    };
     const isCompleted = order.status === 'Completed';
     const isCancelled = order.status === 'Cancelled';
 
@@ -552,6 +567,18 @@ export default function OrderDetailScreen() {
                                 )}
                             </View>
                         </View>
+
+                        {/* Message the host */}
+                        <TouchableOpacity
+                            onPress={handleMessageHost}
+                            disabled={openingChat}
+                            activeOpacity={0.8}
+                            accessibilityRole="button"
+                            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderColor: palette.accent, marginBottom: 12, opacity: openingChat ? 0.6 : 1 }}
+                        >
+                            {openingChat ? <ActivityIndicator size="small" color={palette.accent} /> : <MessageCircle size={16} color={palette.accent} />}
+                            <Text style={{ ...type.body, fontFamily: fonts.bold, color: palette.accent }}>Message {cookKitchenName || cook.full_name || 'host'}</Text>
+                        </TouchableOpacity>
 
                         {/* Call + Directions */}
                         {(cook.phone || (cookLat && cookLng)) && (

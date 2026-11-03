@@ -6,6 +6,7 @@ import { ArrowLeft, CreditCard, Smartphone, ShieldCheck, Receipt, Wallet, Mail, 
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/constants/theme';
+import { PLATFORM_FEE_PERCENT, MIN_PAYOUT } from '@/lib/earnings';
 
 const ACCEPTED_METHODS = [
     { label: 'Card', sub: 'Visa, Mastercard', icon: CreditCard },
@@ -16,8 +17,6 @@ const ACCEPTED_METHODS = [
 
 // Platform takes this cut before a payout is requested. Payoneer handles the
 // actual transfer to the cook — this screen only tracks balance + requests.
-const PLATFORM_FEE_PERCENT = 10;
-const MIN_PAYOUT = 30;
 
 const getPaymentLabel = (method: string | null) => {
     switch (method) {

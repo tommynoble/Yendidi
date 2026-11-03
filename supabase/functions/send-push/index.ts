@@ -1,8 +1,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
 
-// Fired by three Database Webhooks (orders/UPDATE, cook_applications/UPDATE,
-// meal_sessions/INSERT) configured in the Supabase dashboard — this is why
+// Fired by four Database Webhooks (orders/UPDATE, cook_applications/UPDATE,
+// meal_sessions/INSERT, messages/INSERT) configured in the Supabase dashboard — this is why
 // the payload shape is the generic { table, type, record, old_record } that
 // Supabase webhooks send, rather than something custom per caller.
 const supabase = createClient(
@@ -91,6 +91,26 @@ Deno.serve(async (req) => {
                     : (record.rejection_reason || 'Your cook application needs a few changes.'),
                 { screen: 'profile' }
             );
+        }
+
+        if (table === 'messages' && type === 'INSERT') {
+            const { data: conv } = await supabase
+                .from('conversations')
+                .select('id, guest_id, cook_id')
+                .eq('id', record.conversation_id)
+                .single();
+
+            if (conv) {
+                const recipientId = record.sender_id === conv.guest_id ? conv.cook_id : conv.guest_id;
+                const { data: sender } = await supabase
+                    .from('profiles')
+                    .select('full_name, kitchen_name')
+                    .eq('id', record.sender_id)
+                    .single();
+                // record.body was already stripped of phone numbers / emails / links by the database trigger.
+                const senderName = (record.sender_id === conv.cook_id && sender?.kitchen_name) || sender?.full_name || 'New message';
+                await sendToUsers([recipientId], senderName, String(record.body).slice(0, 140), { conversationId: conv.id });
+            }
         }
 
         if (table === 'meal_sessions' && type === 'INSERT') {

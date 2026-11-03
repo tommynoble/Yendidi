@@ -17,11 +17,33 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import { supabase } from '@/lib/supabase';
+import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import { clearUserData, claimDeviceForUser } from '@/lib/session';
 import PageTransitionLoader from '@/components/PageTransitionLoader';
 import { palette } from '@/constants/theme';
 import './global.css';
+
+// Crash and error reporting. Only starts when a DSN is set (and never in development), so it is off until you add
+// EXPO_PUBLIC_SENTRY_DSN. Errors only: no performance tracing, and no personal data (email, phone, IP) is attached.
+const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+if (sentryDsn && !__DEV__) {
+  try {
+    const Sentry = require('@sentry/react-native');
+    Sentry.init({
+      dsn: sentryDsn,
+      sendDefaultPii: false,
+      tracesSampleRate: 0,
+      beforeSend(event: any) {
+        // Drop anything that identifies the person; keep the error itself.
+        if (event.user) event.user = { id: event.user.id };
+        return event;
+      },
+    });
+  } catch (e) {
+    console.warn('Sentry failed to start:', e);
+  }
+}
 
 export { ErrorBoundary };
 
@@ -78,6 +100,15 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Tapping a "new message" notification opens that conversation.
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const conversationId = response.notification.request.content.data?.conversationId;
+      if (typeof conversationId === 'string') router.push(`/messages/${conversationId}`);
+    });
+    return () => sub.remove();
+  }, []);
+
   const [loaded, error] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -110,11 +141,14 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="notifications" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
-            <Stack.Screen name="messages" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="messages/index" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="messages/[id]" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="cook/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="meal/[id]" />
             <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="account" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="business-overview" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="personal-information" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="kitchen-settings" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="address/index" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
