@@ -7,12 +7,8 @@
     "icon": "./assets/images/icon.png",
     "scheme": "yendidii",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#C25327",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
@@ -40,6 +36,15 @@
       "expo-font",
       "expo-web-browser",
       "expo-video",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#C25327",
+          "dark": {
+            "backgroundColor": "#C25327"
+          }
+        }
+      ],
       [
         "expo-notifications",
         {

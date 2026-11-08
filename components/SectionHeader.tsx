@@ -6,6 +6,9 @@ import { palette, type, fonts } from '@/constants/theme';
 // and the cards after it. Change this once to retune every section heading.
 export const SECTION_HEADER_SPACING = 8;
 
+// Between the muted and body-text browns: readable, but a touch softer than the paragraph text beneath it.
+const SUBTITLE_COLOR = '#6B4F46';
+
 type SectionHeaderProps = {
     title: string;
     subtitle?: string;
@@ -13,7 +16,7 @@ type SectionHeaderProps = {
     icon?: React.ReactNode;
     /** Small pill on the right, e.g. "5 Courses". Takes the place of the action link. */
     badge?: string;
-    /** Right-aligned link, e.g. "See All". Only shown when onActionPress is also set. */
+    /** Right-aligned link, e.g. "See All". Only shown when onActionPress is also set. Pass '' for an icon-only action. */
     actionLabel?: string;
     onActionPress?: () => void;
     /** Small icon after the action link, e.g. a chevron for an expand/collapse toggle. */
@@ -46,19 +49,19 @@ export default function SectionHeader({
                     <Text style={{ ...type.section, color: palette.ink }} numberOfLines={1}>{title}</Text>
                 </View>
                 {!!badge && (
-                    <View style={{ backgroundColor: 'rgba(0,106,60,0.1)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
-                        <Text style={{ ...type.micro, color: '#006A3C' }} numberOfLines={1}>{badge}</Text>
+                    <View style={{ backgroundColor: 'rgba(194, 83, 39,0.12)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999 }}>
+                        <Text style={{ ...type.micro, color: palette.accent }} numberOfLines={1}>{badge}</Text>
                     </View>
                 )}
                 {!badge && onActionPress && (
                     <TouchableOpacity onPress={onActionPress} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Text style={{ ...type.micro, color: palette.accent }}>{actionLabel}</Text>
+                        {!!actionLabel && <Text style={{ ...type.micro, color: palette.accent }}>{actionLabel}</Text>}
                         {actionIcon}
                     </TouchableOpacity>
                 )}
             </View>
             {!!subtitle && (
-                <Text style={{ ...type.meta, fontFamily: fonts.regular, color: palette.muted, marginTop: 2 }} numberOfLines={1}>{subtitle}</Text>
+                <Text style={{ ...type.body, fontFamily: fonts.medium, color: SUBTITLE_COLOR, marginTop: 2 }}>{subtitle}</Text>
             )}
         </View>
     );

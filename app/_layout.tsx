@@ -21,6 +21,7 @@ import * as Notifications from 'expo-notifications';
 import { registerForPushNotificationsAsync } from '@/lib/notifications';
 import { clearUserData, claimDeviceForUser } from '@/lib/session';
 import PageTransitionLoader from '@/components/PageTransitionLoader';
+import IntroOverlay from '@/components/IntroOverlay';
 import { palette } from '@/constants/theme';
 import './global.css';
 
@@ -136,10 +137,11 @@ export default function RootLayout() {
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <StatusBar style="dark" />
           <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 6 } }}>
-            <Stack.Screen name="index" />
+            {/* the intro screen: edge to edge (no 6px side padding); its own orange covers the first moments, so this is the page colour */}
+            <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="login" />
-            <Stack.Screen name="onboarding" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
-            <Stack.Screen name="(tabs)" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="onboarding" options={{ animation: 'none', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'none', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="notifications" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="messages/index" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="messages/[id]" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
@@ -147,6 +149,7 @@ export default function RootLayout() {
             <Stack.Screen name="cook/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="meal/[id]" />
             <Stack.Screen name="listing/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
+            <Stack.Screen name="pass/[id]" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="account" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="business-overview" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
             <Stack.Screen name="personal-information" options={{ contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
@@ -157,6 +160,8 @@ export default function RootLayout() {
             <Stack.Screen name="cart" options={{ presentation: 'card', contentStyle: { backgroundColor: palette.canvas, paddingHorizontal: 0 } }} />
           </Stack>
           <PageTransitionLoader visible={showTransitionLoader} />
+          {/* the intro video sits on top of the whole app until its first screen has opened and painted */}
+          <IntroOverlay />
         </ThemeProvider>
       </PaystackProvider>
     </QueryClientProvider>

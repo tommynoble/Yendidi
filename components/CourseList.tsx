@@ -4,7 +4,7 @@ import { palette, type, fonts } from '@/constants/theme';
 
 export type Course = {
     title: string;
-    /** short label on the right, e.g. "Starters" */
+    /** small label above the title, e.g. "Starter" */
     tag?: string;
     description?: string;
     /** small pills under the description (ingredients, categories…) */
@@ -46,21 +46,16 @@ export default function CourseList({ courses }: { courses: Course[] }) {
                         <Text style={{ ...type.micro, fontFamily: fonts.bold, color: c.highlight ? 'white' : '#944421' }}>{i + 1}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                            <Text
-                                style={{ ...type.cardTitleSmall, color: c.highlight ? '#944421' : palette.ink, flexShrink: 1 }}
-                                numberOfLines={1}
-                            >
-                                {c.title}
+                        {!!c.tag && (
+                            <Text style={{ ...type.micro, color: c.highlight ? '#944421' : palette.muted, letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 2 }} numberOfLines={1}>
+                                {c.tag}
                             </Text>
-                            {!!c.tag && (
-                                <Text style={{ ...type.micro, fontFamily: fonts.medium, color: c.highlight ? '#944421' : palette.muted }} numberOfLines={1}>
-                                    {c.tag}
-                                </Text>
-                            )}
-                        </View>
+                        )}
+                        <Text style={{ fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, color: c.highlight ? '#944421' : palette.ink }}>
+                            {c.title}
+                        </Text>
                         {!!c.description && (
-                            <Text style={{ ...type.body, color: palette.muted, marginTop: 4 }}>
+                            <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.bodyText, marginTop: 4 }}>
                                 {c.description}
                             </Text>
                         )}
@@ -68,7 +63,7 @@ export default function CourseList({ courses }: { courses: Course[] }) {
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                                 {c.chips.map((chip) => (
                                     <View key={chip} style={{ paddingHorizontal: 8, paddingVertical: 3, borderRadius: 9999, backgroundColor: palette.surface, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
-                                        <Text style={{ ...type.micro, fontFamily: fonts.medium, color: palette.muted }}>{chip}</Text>
+                                        <Text style={{ ...type.micro, fontFamily: fonts.medium, color: palette.bodyText }}>{chip}</Text>
                                     </View>
                                 ))}
                             </View>

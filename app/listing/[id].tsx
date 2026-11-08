@@ -26,8 +26,8 @@ const CATEGORY_TAG_STYLES: {
     'Traditional Snacks': { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Apple },
     'Seafood': { bg: '#EBF5FF', border: '#CCE5FF', text: palette.ink, iconBg: 'rgba(0,102,204,0.1)', iconColor: '#0066CC', icon: Fish },
     'Pastries': { bg: '#FFF0F5', border: '#FFD2E5', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.1)', iconColor: palette.accent, icon: Cake },
-    'Vegan': { bg: '#F0FFF8', border: '#B2DFCC', text: palette.ink, iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Leaf },
-    'Vegetarian': { bg: '#F0FFF8', border: '#B2DFCC', text: palette.ink, iconBg: 'rgba(0,106,60,0.1)', iconColor: '#006A3C', icon: Sprout }
+    'Vegan': { bg: '#FFF1EC', border: 'rgba(194, 83, 39,0.3)', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.12)', iconColor: palette.accent, icon: Leaf },
+    'Vegetarian': { bg: '#FFF1EC', border: 'rgba(194, 83, 39,0.3)', text: palette.ink, iconBg: 'rgba(194, 83, 39,0.12)', iconColor: palette.accent, icon: Sprout }
 };
 
 const DEFAULT_TAG_STYLE = { bg: palette.surface, border: '#F2DFD7', text: palette.ink, iconBg: 'rgba(132,82,60,0.1)', iconColor: palette.muted, icon: Utensils };
@@ -41,7 +41,9 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapView, { Marker, PROVIDER_DEFAULT } from 'react-native-maps';
 import CartToast from '@/components/CartToast';
-import AvatarStack from '@/components/AvatarStack';
+import SeatStack from '@/components/SeatStack';
+import ShimmerImage from '@/components/ShimmerImage';
+import { SESSION_SERVING_CAP } from '@/lib/schedule';
 import { formatPotCountdown } from '@/lib/countdown';
 import TimeLocationCards from '@/components/TimeLocationCards';
 import { palette, type, fonts } from '@/constants/theme';
@@ -375,7 +377,7 @@ export default function ListingDetailScreen() {
                     position: 'absolute',
                     left: 20,
                     right: 20,
-                    top: insets.top + 4,
+                    top: insets.top + 8,
                     zIndex: 20,
                     flexDirection: 'row',
                     justifyContent: 'space-between',
@@ -384,10 +386,10 @@ export default function ListingDetailScreen() {
             >
                 <TouchableOpacity
                     style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 17,
-                        backgroundColor: 'rgba(247,238,231,0.65)',
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: 'rgba(0,0,0,0.35)',
                         alignItems: 'center',
                         justifyContent: 'center',
                         shadowColor: palette.ink,
@@ -398,15 +400,15 @@ export default function ListingDetailScreen() {
                     }}
                     onPress={() => router.back()}
                 >
-                    <ArrowLeft size={17} color={palette.ink} />
+                    <ArrowLeft size={20} color="white" />
                 </TouchableOpacity>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
                         style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 17,
-                            backgroundColor: 'rgba(247,238,231,0.65)',
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: 'rgba(0,0,0,0.35)',
                             alignItems: 'center',
                             justifyContent: 'center',
                             shadowColor: palette.ink,
@@ -417,14 +419,14 @@ export default function ListingDetailScreen() {
                         }}
                         onPress={handleShare}
                     >
-                        <Share2 size={15} color={palette.ink} />
+                        <Share2 size={18} color="white" />
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={{
-                            width: 34,
-                            height: 34,
-                            borderRadius: 17,
-                            backgroundColor: 'rgba(247,238,231,0.65)',
+                            width: 40,
+                            height: 40,
+                            borderRadius: 20,
+                            backgroundColor: 'rgba(0,0,0,0.35)',
                             alignItems: 'center',
                             justifyContent: 'center',
                             shadowColor: palette.ink,
@@ -436,7 +438,7 @@ export default function ListingDetailScreen() {
                         onPress={toggleSaved}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Heart size={15} color={saved ? '#BA1A1A' : palette.ink} fill={saved ? '#BA1A1A' : 'transparent'} />
+                        <Heart size={18} color={saved ? palette.accent : 'white'} fill={saved ? palette.accent : 'transparent'} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -473,11 +475,7 @@ export default function ListingDetailScreen() {
                                 style={{ width, height: '100%' }}
                                 onPress={() => setPhotoTourVisible(true)}
                             >
-                                <Image
-                                    source={img}
-                                    style={{ width, height: '100%' }}
-                                    resizeMode="cover"
-                                />
+                                <ShimmerImage source={img} style={{ width, height: '100%' }} />
                             </Pressable>
                         ))}
                     </ScrollView>
@@ -487,7 +485,7 @@ export default function ListingDetailScreen() {
                         <View
                             style={{
                                 position: 'absolute',
-                                bottom: 6,
+                                bottom: 48,
                                 left: 0,
                                 right: 0,
                                 flexDirection: 'row',
@@ -530,37 +528,41 @@ export default function ListingDetailScreen() {
                     }}
                 >
                     {/* Title */}
-                    <Text style={{ ...type.hero, color: palette.ink, lineHeight: 32, textAlign: 'center', marginBottom: 12 }}>
+                    <Text style={{ ...type.hero, color: palette.ink, lineHeight: 32, textAlign: 'left', marginBottom: 12 }}>
                         {listing.title}
                     </Text>
 
                     {/* Food description */}
                     {!!listing.description?.trim() && (
-                        <Text style={{ ...type.body, color: palette.muted, lineHeight: 21, textAlign: 'center', marginBottom: 18 }}>
+                        <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.bodyText, lineHeight: 22, textAlign: 'left', marginBottom: 18 }}>
                             {listing.description.trim()}
                         </Text>
                     )}
 
                     {/* Avatar Stack — who's already in */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 6 }}>
-                        <AvatarStack id={listing.id} portionsAvailable={listing.portions_available} size={30} defaultOpen reserveSpace />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', gap: 10, marginBottom: 6 }}>
+                        <SeatStack id={listing.id} booked={Math.max(0, SESSION_SERVING_CAP - (listing.portions_available ?? SESSION_SERVING_CAP))} size={36} />
                         <Text style={{ ...type.body, fontFamily: fonts.semibold, color: palette.muted }}>
                             Already at the table
                         </Text>
                     </View>
 
                     {/* Rating, Reviews & Prep Time Row */}
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                             <Star size={14} color={palette.accent} fill={palette.accent} />
                             <Text style={{ ...type.body, fontFamily: fonts.bold, color: palette.ink }}>
                                 {listing.profiles?.rating ? Number(listing.profiles.rating).toFixed(1) : 'New'}
                             </Text>
                         </View>
-                        <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(122, 92, 83, 0.5)', marginHorizontal: 3 }} />
-                        <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.ink }}>
-                            ({reviewCount || 0} review{reviewCount === 1 ? '' : 's'})
-                        </Text>
+                        {(reviewCount ?? 0) > 0 && (
+                            <>
+                                <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(122, 92, 83, 0.5)', marginHorizontal: 3 }} />
+                                <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.ink }}>
+                                    {reviewCount} review{reviewCount === 1 ? '' : 's'}
+                                </Text>
+                            </>
+                        )}
                         <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: 'rgba(122, 92, 83, 0.5)', marginHorizontal: 3 }} />
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                             <Flame size={14} color={palette.accent} strokeWidth={2.75} />
@@ -577,7 +579,7 @@ export default function ListingDetailScreen() {
                     <TouchableOpacity
                         onPress={() => router.push(`/cook/${listing.cook_id}`)}
                         activeOpacity={0.8}
-                        style={{ alignItems: 'center', marginBottom: 16 }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 }}
                     >
                         <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: '#FFDBCE', alignItems: 'center', justifyContent: 'center' }}>
                             {(listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url) ? (
@@ -596,32 +598,39 @@ export default function ListingDetailScreen() {
                                 <RibbonBadgeIcon height={13} />
                             </View>
                         </View>
-                        <View style={{ marginTop: 6, alignItems: 'center' }}>
-                            <Text style={{ ...type.cardTitleSmall, color: palette.ink, textAlign: 'center' }} numberOfLines={1}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ ...type.cardTitleSmall, color: palette.ink, textAlign: 'left' }} numberOfLines={1}>
                                 Hosted by {cookApp?.kitchen_name || listing.profiles?.full_name || 'the host'}
                             </Text>
-                            <Text style={{ ...type.meta, color: palette.muted, textAlign: 'center' }}>
-                                Verified Host · {listing.profiles?.served_count || 0}+ served
+                            <Text style={{ ...type.meta, color: palette.bodyText, textAlign: 'left' }}>
+                                Verified Host · {listing.profiles?.served_count > 0 ? `${listing.profiles.served_count}+ served` : 'New Host'}
                             </Text>
                         </View>
                     </TouchableOpacity>
 
-                    {/* Highlights — three boxes */}
-                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
-                        {[
-                            { icon: <MapPin size={16} color={palette.accent} />, title: 'Beautiful area', sub: 'Loved location' },
-                            { icon: <Flame size={16} color={palette.accent} />, title: 'Crowd favorite', sub: 'Most ordered' },
-                            { icon: <Shield size={16} color={palette.accent} />, title: 'Verified Host', sub: 'Highly rated' },
-                        ].map((h) => (
-                            <View key={h.title} style={{ flex: 1, backgroundColor: palette.surface, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', gap: 4 }}>
-                                {h.icon}
-                                <View style={{ alignItems: 'center' }}>
-                                    <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_600SemiBold', color: palette.ink, textAlign: 'center' }} numberOfLines={1}>{h.title}</Text>
-                                    <Text style={{ ...type.micro, fontFamily: 'PlusJakartaSans_400Regular', color: palette.muted, textAlign: 'center' }} numberOfLines={1}>{h.sub}</Text>
-                                </View>
+                    {/* Highlights — three boxes, all from the event's real details */}
+                    {(() => {
+                        const where = (listing.location_text || cookApp?.location || listing.profiles?.location || '').split(',')[0].trim();
+                        const courseCount = [listing.drinks, listing.starter, listing.main_dish, listing.sides_dessert].filter((v) => (v || '').trim()).length;
+                        const highlights = [
+                            { icon: <MapPin size={16} color={palette.accent} />, title: where || 'Local gathering', sub: 'Hosted in their home' },
+                            { icon: <Utensils size={16} color={palette.accent} />, title: courseCount > 0 ? `${courseCount}-Course Menu` : 'Home-cooked', sub: courseCount > 0 ? 'Set by your host' : 'Made by your host' },
+                            { icon: <Shield size={16} color={palette.accent} />, title: 'Verified Host', sub: 'Approved by YenDidii' },
+                        ];
+                        return (
+                            <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+                                {highlights.map((h) => (
+                                    <View key={h.title} style={{ flex: 1, backgroundColor: palette.surface, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', gap: 4 }}>
+                                        {h.icon}
+                                        <View style={{ alignItems: 'center' }}>
+                                            <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_600SemiBold', color: palette.ink, textAlign: 'center' }} numberOfLines={1}>{h.title}</Text>
+                                            <Text style={{ ...type.micro, fontFamily: 'PlusJakartaSans_500Medium', color: palette.bodyText, textAlign: 'center' }} numberOfLines={1}>{h.sub}</Text>
+                                        </View>
+                                    </View>
+                                ))}
                             </View>
-                        ))}
-                    </View>
+                        );
+                    })()}
 
                     {/* Hearth experience, host highlight, time & location */}
                     {(() => {
@@ -662,7 +671,6 @@ export default function ListingDetailScreen() {
                                 title: mainDish,
                                 tag: 'Main Course',
                                 highlight: true,
-                                description: listing.description?.trim() || undefined,
                                 chips: cats.length > 0 ? cats : undefined,
                             }] : []),
                             ...(sides ? [{ title: sides, tag: 'Sides & Dessert' }] : []),
@@ -925,7 +933,7 @@ export default function ListingDetailScreen() {
                                 <Share2 size={19} color={palette.ink} />
                             </TouchableOpacity>
                             <TouchableOpacity onPress={toggleSaved} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                <Heart size={19} color={saved ? '#BA1A1A' : palette.ink} fill={saved ? '#BA1A1A' : 'transparent'} />
+                                <Heart size={19} color={saved ? palette.accent : palette.ink} fill={saved ? palette.accent : 'transparent'} />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -974,7 +982,7 @@ export default function ListingDetailScreen() {
                             </Text>
                             {DINE_IN_PHOTOS.map((photo, index) => (
                                 <View key={index} style={{ marginTop: 16 }}>
-                                    <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.muted, paddingHorizontal: 20, marginBottom: 12 }}>
+                                    <Text style={{ ...type.body, fontFamily: fonts.medium, color: palette.bodyText, paddingHorizontal: 20, marginBottom: 12 }}>
                                         {photo.caption}
                                     </Text>
                                     <TouchableOpacity activeOpacity={0.9} onPress={() => setLightboxIndex(sliderImages.length + index)} style={{ paddingHorizontal: 20 }}>

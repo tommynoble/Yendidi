@@ -53,8 +53,8 @@ export default function TableGuests({ guests, seatsClaimed, spacesWaiting, mood 
                 </View>
                 {!!mood && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <Smile size={13} color="#006A3C" />
-                        <Text style={{ ...type.micro, color: '#006A3C' }}>{mood}</Text>
+                        <Smile size={13} color={palette.accent} />
+                        <Text style={{ ...type.micro, color: palette.accent }}>{mood}</Text>
                     </View>
                 )}
             </View>

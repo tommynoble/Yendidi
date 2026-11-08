@@ -16,9 +16,9 @@ export default function GatheringNotes({ notes, title }: { notes: GatheringNote[
                 {notes.map((n) => (
                     <View key={n.label} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
                         <View style={{ marginTop: 2 }}>
-                            <CheckCircle2 size={15} color="#006A3C" />
+                            <CheckCircle2 size={15} color={palette.accent} />
                         </View>
-                        <Text style={{ flex: 1, ...type.body, color: palette.muted }}>
+                        <Text style={{ flex: 1, ...type.body, fontFamily: fonts.medium, color: palette.bodyText }}>
                             <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', color: palette.ink }}>{n.label}: </Text>
                             {n.text}
                         </Text>

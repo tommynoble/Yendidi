@@ -18,6 +18,8 @@ export const palette = {
     inkWash: 'rgba(61, 37, 30, 0.05)',
     /** muted brown — secondary labels (4.8:1 contrast on the surface colour) */
     muted: '#7A5C53',
+    /** description paragraphs on cards and listing pages — darker than muted, about 8:1 on the surface colour */
+    bodyText: '#5A4038',
 } as const;
 
 export type PaletteColor = keyof typeof palette;

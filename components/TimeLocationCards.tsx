@@ -8,7 +8,7 @@ type TimeLocationCardsProps = {
     /** e.g. "Sunday, Nov 8" */
     dateTitle: string;
     timeLine?: string;
-    /** small green note under the time, e.g. "4 spots left" */
+    /** small accent-colored note under the time, e.g. "4 spots left" */
     timeNote?: string;
     locationTitle: string;
     locationTag?: string;
@@ -32,8 +32,8 @@ export default function TimeLocationCards({ dateTitle, timeLine, timeNote, locat
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={{ ...type.cardTitleSmall, color: palette.ink }}>{dateTitle}</Text>
-                    {!!timeLine && <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_400Regular', color: palette.muted }}>{timeLine}</Text>}
-                    {!!timeNote && <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_700Bold', color: '#006D40', marginTop: 1 }}>{timeNote}</Text>}
+                    {!!timeLine && <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_500Medium', color: palette.bodyText }}>{timeLine}</Text>}
+                    {!!timeNote && <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_700Bold', color: palette.accent, marginTop: 1 }}>{timeNote}</Text>}
                 </View>
                 {/* Tap to confirm you're coming; tap again to undo */}
                 <TouchableOpacity
@@ -50,25 +50,25 @@ export default function TimeLocationCards({ dateTitle, timeLine, timeNote, locat
                         paddingHorizontal: 10,
                         paddingVertical: 5,
                         borderRadius: 9999,
-                        backgroundColor: confirmed ? 'rgba(0,106,60,0.1)' : palette.canvas,
+                        backgroundColor: confirmed ? 'rgba(194, 83, 39,0.12)' : palette.canvas,
                     }}
                 >
-                    {confirmed && <CheckCircle2 size={14} color="#006A3C" />}
-                    <Text style={{ ...type.micro, color: confirmed ? '#006A3C' : palette.ink }}>{confirmed ? 'Confirmed' : 'Tap to confirm'}</Text>
+                    {confirmed && <CheckCircle2 size={14} color={palette.accent} />}
+                    <Text style={{ ...type.micro, color: confirmed ? palette.accent : palette.ink }}>{confirmed ? 'Confirmed' : 'Tap to confirm'}</Text>
                 </TouchableOpacity>
             </View>
 
             <View style={card}>
-                <View style={[iconBox, { backgroundColor: '#8AF5B4' }]}>
-                    <MapPin size={16} color="#007243" />
+                <View style={[iconBox, { backgroundColor: '#FFDBCE' }]}>
+                    <MapPin size={16} color="#370E00" />
                 </View>
                 <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                         <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_700Bold', color: palette.ink, flexShrink: 1 }} numberOfLines={1}>{locationTitle}</Text>
-                        {!!locationTag && <Text style={{ ...type.micro, color: '#715C00' }}>{locationTag}</Text>}
+                        {!!locationTag && <Text style={{ ...type.micro, color: '#944421' }}>{locationTag}</Text>}
                     </View>
-                    {!!locationLine && <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_400Regular', color: palette.muted }}>{locationLine}</Text>}
-                    {!!locationNote && <Text style={{ ...type.micro, fontFamily: 'PlusJakartaSans_400Regular', color: palette.muted, marginTop: 1 }}>{locationNote}</Text>}
+                    {!!locationLine && <Text style={{ ...type.meta, fontFamily: 'PlusJakartaSans_500Medium', color: palette.bodyText }}>{locationLine}</Text>}
+                    {!!locationNote && <Text style={{ ...type.micro, fontFamily: 'PlusJakartaSans_500Medium', color: palette.bodyText, marginTop: 1 }}>{locationNote}</Text>}
                 </View>
             </View>
         </View>

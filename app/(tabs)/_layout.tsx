@@ -1,10 +1,12 @@
 import React, { useCallback } from 'react';
 import { Tabs } from 'expo-router';
 import { View, Text } from 'react-native';
-import { Home, Compass, Plus, User, LayoutDashboard, MessageCircle, Heart, ChefHat } from 'lucide-react-native';
+import { Home, Compass, Plus, LayoutDashboard, MessageCircle, ChefHat } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/lib/store';
 import ForkKnifeIcon from '@/components/ForkKnifeIcon';
+import WatchlistIcon from '@/components/WatchlistIcon';
+import ProfileOutlineIcon from '@/components/ProfileOutlineIcon';
 import { palette } from '@/constants/theme';
 import { unreadMessageCount } from '@/lib/messaging';
 import { useCurrentUserId } from '@/lib/useCurrentUserId';
@@ -47,7 +49,7 @@ export default function TabLayout() {
           <Plus size={22} color="white" strokeWidth={2.5} />
         </View>
       ) : (
-        <Heart size={22} color={color} strokeWidth={focused ? 2 : 1.5} />
+        <WatchlistIcon size={24} color={color} isSaved={focused} />
       )}
       <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isCookMode ? '500' : focused ? '600' : '500', color: isCookMode ? '#6B7280' : color, marginTop: 2 }}>{isCookMode ? 'Post' : 'Watchlist'}</Text>
     </View>
@@ -62,7 +64,7 @@ export default function TabLayout() {
 
   const ProfileIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      {isCookMode ? <ChefHat size={22} color={color} strokeWidth={focused ? 2 : 1.5} /> : <User size={22} color={color} strokeWidth={focused ? 2 : 1.5} />}
+      {isCookMode ? <ChefHat size={22} color={color} strokeWidth={focused ? 2 : 1.5} /> : <ProfileOutlineIcon size={24} color={color} strokeWidth={focused ? 2 : 1.75} />}
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Kitchen' : 'Profile'}</Text>
     </View>
   ), [isCookMode]);

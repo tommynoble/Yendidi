@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Image, Animated, StyleSheet } from 'react-native';
 import { VideoView, useVideoPlayer, VideoSource } from 'expo-video';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,7 +7,8 @@ import { palette } from '@/constants/theme';
 const HOLD_MS = 4500;
 
 // Full-screen intro shown the moment the app opens, before the session check
-// even resolves. Without a video `source` it falls back to a solid brand
+// even resolves. The base is always the brand orange (same as the native splash screen, so the hand-off is seamless
+// and the video fades in over it). Without a video `source` it stays a solid brand
 // background with the same logo/tagline overlay — drop a video in later by
 // just passing `source`, no other changes needed. Plays entirely on its own,
 // like a brief greeting: the wordmark rises and fades in over the video,
@@ -28,9 +29,12 @@ export default function IntroVideoScreen({ source, onContinue }: {
         }
     });
 
+    // Orange until the video has drawn its first frame (continuing the native splash), then the page colour: if the video
+    // is ever not drawing (handing over to the next screen), what shows behind it is the app's colour, never a flash of orange.
+    const [videoReady, setVideoReady] = useState(!source);
+
     const fade = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(16)).current;
-    const screenFade = useRef(new Animated.Value(1)).current;
     const wordmarkFade = useRef(new Animated.Value(0)).current;
     const wordmarkTranslateY = useRef(new Animated.Value(14)).current;
     const taglineFade = useRef(new Animated.Value(0)).current;
@@ -51,28 +55,30 @@ export default function IntroVideoScreen({ source, onContinue }: {
             Animated.timing(taglineFade, { toValue: 1, duration: 400, useNativeDriver: true }),
             // Hold so it reads as a greeting, not a flash
             Animated.delay(HOLD_MS),
-            // Animate back down and out, taking the whole screen with it
+            // Wordmark animates back down and out. The screen itself is NOT faded away: that would show the plain orange
+            // behind the video. The video stays up until the app screen takes over, so it goes video -> app.
             Animated.parallel([
                 Animated.timing(translateY, { toValue: 24, duration: 500, useNativeDriver: true }),
                 Animated.timing(fade, { toValue: 0, duration: 400, useNativeDriver: true }),
                 Animated.timing(wordmarkFade, { toValue: 0, duration: 400, useNativeDriver: true }),
                 Animated.timing(taglineFade, { toValue: 0, duration: 400, useNativeDriver: true }),
-                Animated.timing(screenFade, { toValue: 0, duration: 500, delay: 150, useNativeDriver: true }),
             ]),
         ]).start(() => onContinue());
     }, []);
 
     return (
-        <Animated.View style={[StyleSheet.absoluteFill, !source && { backgroundColor: palette.accent }, { opacity: screenFade }]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: videoReady ? palette.canvas : palette.accent }]}>
             {source && (
                 <VideoView
                     player={player}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
                     nativeControls={false}
+                    onFirstFrameRender={() => setVideoReady(true)}
                 />
             )}
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(194, 83, 39,0.35)' }]} />
+            {/* the orange wash over the video, and the solid orange before it starts */}
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: videoReady ? 'rgba(194, 83, 39,0.35)' : palette.accent }]} />
 
             <SafeAreaView style={StyleSheet.absoluteFill} pointerEvents="none">
                 <Animated.View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', opacity: fade, transform: [{ translateY }] }}>
