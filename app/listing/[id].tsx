@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Dimensions, Share, StyleSheet, Modal, FlatList } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Pressable, ActivityIndicator, Dimensions, Share, StyleSheet, Modal, FlatList, Animated } from 'react-native';
 const { width, height } = Dimensions.get('window');
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -47,6 +47,8 @@ import { SESSION_SERVING_CAP } from '@/lib/schedule';
 import { formatPotCountdown } from '@/lib/countdown';
 import TimeLocationCards from '@/components/TimeLocationCards';
 import { palette, type, fonts } from '@/constants/theme';
+import { tapSelect } from '@/lib/haptics';
+import { useKitchenLandmarkAccess } from '@/lib/useKitchenLandmarkAccess';
 import { REQUIRE_ID_TO_BOOK, canBook, idVerificationHref, setAfterIdGate } from '@/lib/idVerification';
 import RibbonBadgeIcon from '@/components/RibbonBadgeIcon';
 import SectionHeader from '@/components/SectionHeader';
@@ -82,6 +84,15 @@ export default function ListingDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const insets = useSafeAreaInsets();
+    // The top bar fades in once the hero photo has scrolled away, so content never runs under the status bar and the floating buttons.
+    const HERO_HEIGHT = 400;
+    const TOP_BAR_HEIGHT = insets.top + 56;
+    const scrollY = useRef(new Animated.Value(0)).current;
+    const topBarOpacity = scrollY.interpolate({
+        inputRange: [HERO_HEIGHT - TOP_BAR_HEIGHT - 70, HERO_HEIGHT - TOP_BAR_HEIGHT - 10],
+        outputRange: [0, 1],
+        extrapolate: 'clamp',
+    });
     const { addToCart, isCookMode, getCartCount } = useAppStore();
     const [quantity, setQuantity] = useState(1);
     const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -182,6 +193,8 @@ export default function ListingDetailScreen() {
         },
         enabled: !!id && !!listing && !!listing.order_deadline,
     });
+
+    const canSeeLandmark = useKitchenLandmarkAccess(listing?.cook_id);
 
     // Fetch cook's application (bio, kitchen name, specialties, location)
     const { data: cookApp } = useQuery({
@@ -371,6 +384,30 @@ export default function ListingDetailScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: palette.canvas }}>
+            {/* Top bar: fades in on scroll. A soft, nearly solid cream (a real blur would need the expo-blur native module). */}
+            <Animated.View
+                pointerEvents="none"
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: TOP_BAR_HEIGHT,
+                    zIndex: 15,
+                    opacity: topBarOpacity,
+                    backgroundColor: 'rgba(251, 245, 242, 0.95)',
+                    borderBottomWidth: 1,
+                    borderBottomColor: 'rgba(194, 83, 39, 0.18)',
+                    justifyContent: 'flex-end',
+                    paddingBottom: 18,
+                    paddingHorizontal: 20,
+                }}
+            >
+                <Text numberOfLines={1} style={{ fontFamily: fonts.bold, fontSize: 16, color: palette.ink, textAlign: 'center', marginHorizontal: 64 }}>
+                    {listing.title || listing.name}
+                </Text>
+            </Animated.View>
+
             {/* Floating Top Navigation Overlay */}
             <View
                 style={{
@@ -443,10 +480,12 @@ export default function ListingDetailScreen() {
                 </View>
             </View>
 
-            <ScrollView 
-                style={{ flex: 1 }} 
-                showsVerticalScrollIndicator={false} 
+            <Animated.ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ paddingBottom: 130 }}
+                scrollEventThrottle={16}
+                onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
             >
                 {/* Hero Image Slider — curved bottom layout */}
                 <View style={{ height: 400, width: '100%', position: 'relative' }}>
@@ -582,15 +621,15 @@ export default function ListingDetailScreen() {
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 }}
                     >
                         <View style={{ width: 66, height: 66, borderRadius: 33, backgroundColor: '#FFDBCE', alignItems: 'center', justifyContent: 'center' }}>
-                            {(listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url) ? (
+                            {(listing.profiles?.kitchen_image_url || listing.profiles?.avatar_url) ? (
                                 <Image
-                                    source={{ uri: listing.profiles?.avatar_url || listing.profiles?.kitchen_image_url }}
+                                    source={{ uri: listing.profiles?.kitchen_image_url || listing.profiles?.avatar_url }}
                                     style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: '#F2DFD7' }}
                                 />
                             ) : (
                                 <View style={{ width: 54, height: 54, borderRadius: 27, backgroundColor: '#F2DFD7', alignItems: 'center', justifyContent: 'center' }}>
                                     <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 21, color: '#944421' }}>
-                                        {(listing.profiles?.full_name || cookApp?.kitchen_name || 'H').trim().charAt(0).toUpperCase()}
+                                        {(cookApp?.kitchen_name || listing.profiles?.full_name || 'H').trim().charAt(0).toUpperCase()}
                                     </Text>
                                 </View>
                             )}
@@ -640,7 +679,7 @@ export default function ListingDetailScreen() {
                         const hostLocation = listing.location_text || cookApp?.location || listing.profiles?.location || 'Ghana';
                         // Nearby landmark line; placeholder until hosts add one.
                         const landmark = (cookApp?.location_description || listing.profiles?.location_description || '').trim();
-                        const nearby = landmark ? (/^near\b/i.test(landmark) ? landmark : `Near ${landmark}`) : 'Near Ecobank';
+                        const nearby = !canSeeLandmark && landmark ? 'Shared after booking' : landmark ? (/^near\b/i.test(landmark) ? landmark : `Near ${landmark}`) : 'Near Ecobank';
 
                         return (
                             <View style={{ gap: 28, marginBottom: 28 }}>
@@ -784,7 +823,7 @@ export default function ListingDetailScreen() {
 
 
                 </View>
-            </ScrollView>
+            </Animated.ScrollView>
 
             {/* Bottom sticky checkout bar */}
             <View
@@ -849,7 +888,7 @@ export default function ListingDetailScreen() {
                             height: 52
                         }}>
                             <TouchableOpacity
-                                onPress={() => setQuantity(q => Math.max(1, q - 1))}
+                                onPress={() => { tapSelect(); setQuantity(q => Math.max(1, q - 1)); }}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 style={{
                                     width: 36,
@@ -866,7 +905,7 @@ export default function ListingDetailScreen() {
                                 {quantity}
                             </Text>
                             <TouchableOpacity
-                                onPress={() => setQuantity(q => q + 1)}
+                                onPress={() => { tapSelect(); setQuantity(q => q + 1); }}
                                 style={{
                                     width: 36,
                                     height: 36,

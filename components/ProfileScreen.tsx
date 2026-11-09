@@ -5,12 +5,14 @@ import { ArrowLeft, ChevronDown, ChevronUp, Settings, LogOut, ChevronRight, User
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useFocusEffect } from 'expo-router';
-import TasteProfile from '@/components/TasteProfile';
+import TasteProfileCard from '@/components/TasteProfileCard';
 import { loadPreferences, GuestPreferences } from '@/lib/preferencesOnboarding';
 import { PRIVATE_QUESTION_ID, GUEST_QUESTIONS } from '@/constants/guestQuestions';
 import { Sparkles } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import ProcessLoader from '@/components/ProcessLoader';
+import ChefHatBadge from '@/components/ChefHatBadge';
+import KitchenPotIcon from '@/components/KitchenPotIcon';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as Notifications from 'expo-notifications';
@@ -172,8 +174,8 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
         setTimeout(() => {
             toggleCookMode();
             setSwitchingMode(false);
-            // Opened from the dashboard avatar: after switching modes, land back on the main tabs.
-            if (showBack) router.replace('/(tabs)');
+            // After switching modes, always land on the Home tab first.
+            router.replace('/(tabs)');
         }, 1500);
     };
 
@@ -530,7 +532,7 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
         ...(profile.role === 'COOK' && profile.cook_application_status === 'approved' && isCookMode ? [{
             id: 'kitchen-settings',
             title: 'Kitchen Settings',
-            icon: ChefHat,
+            icon: KitchenPotIcon,
             action: () => router.push('/kitchen-settings')
         }] : []),
         {
@@ -565,6 +567,16 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
             action: confirmSignOut
         }
     ];
+
+    // tile colour, tint and a short hint for each settings row
+    const ITEM_LOOK: Record<string, { tile: string; tint: string; sub: string }> = {
+        personal: { tile: '#FFF7F2', tint: '#B85226', sub: 'Name, phone and email' },
+        'kitchen-settings': { tile: '#FFFBEB', tint: '#B45309', sub: 'Kitchen details and location' },
+        address: { tile: '#FFF7ED', tint: '#EA580C', sub: profile.location || 'Where you are' },
+        payment: { tile: '#ECFDF5', tint: '#047857', sub: isCookMode ? 'Your earnings and payouts' : 'Cards and mobile money' },
+        notifications: { tile: '#FFF7F2', tint: '#B85226', sub: notificationsEnabled ? 'Push alerts are on' : 'Push alerts are off' },
+        privacy: { tile: '#F4F4F5', tint: '#52372A', sub: 'Security and data controls' },
+    };
 
     return (
         <SafeAreaView className="flex-1 bg-brand-canvas" edges={['bottom']}>
@@ -623,6 +635,8 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
                 <ScrollView 
                     className="flex-1" 
                     showsVerticalScrollIndicator={false}
+                    // the tab bar floats over the page, so leave room under the footer; the avatar-opened screen has no tab bar
+                    contentContainerStyle={{ paddingBottom: showBack ? 0 : 56 }}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />
                     }
@@ -633,88 +647,64 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
                                 onPress={() => router.back()}
                                 accessibilityLabel="Back"
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                                style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}
+                                className="w-10 h-10 items-center justify-center -ml-2"
                             >
-                                <ArrowLeft size={20} color={palette.ink} />
+                                <ArrowLeft size={24} color="#2D241E" />
                             </TouchableOpacity>
                         </View>
                     )}
 
-                    {/* Welcome Row */}
-                    <View style={{ paddingTop: showBack ? 12 : insets.top + 16 }} className="px-6 pb-4 flex-row items-center gap-4">
-                        <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} className="relative">
-                            <View className="w-20 h-20 bg-brand-surface rounded-full overflow-hidden border-2 border-[#F2DFD7] shadow-sm p-1">
-                                <View className="w-full h-full rounded-full overflow-hidden">
-                                    {avatarUploading ? (
-                                        <View className="w-full h-full items-center justify-center bg-gray-100">
-                                            <ActivityIndicator size="small" color={palette.accent} />
-                                        </View>
-                                    ) : profile.avatar_url ? (
-                                        <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
-                                    ) : (
-                                        <View className="w-full h-full items-center justify-center bg-clay-primary/10">
-                                            <User size={32} color={palette.accent} />
-                                        </View>
-                                    )}
+                    {/* Profile card */}
+                    <View style={{ marginHorizontal: 20, marginTop: showBack ? 16 : insets.top + 16, marginBottom: 16, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2DFD5', shadowColor: '#B85226', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 }}>
+                        <View style={{ borderRadius: 24, overflow: 'hidden', padding: 17, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                            <View pointerEvents="none" style={{ position: 'absolute', top: -34, right: -30, width: 112, height: 112, borderRadius: 56, backgroundColor: '#FFEDE5', opacity: 0.7 }} />
+                            <TouchableOpacity onPress={pickAvatar} activeOpacity={0.8} accessibilityLabel="Change profile photo">
+                                <LinearGradient
+                                    colors={['#B85226', '#EE9272', '#FCD34D']}
+                                    start={{ x: 0, y: 1 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={{ width: 72, height: 72, borderRadius: 36, padding: 3 }}
+                                >
+                                    <View style={{ flex: 1, borderRadius: 33, borderWidth: 2, borderColor: '#FFFFFF', backgroundColor: '#FFEDE5', overflow: 'hidden' }}>
+                                        {avatarUploading ? (
+                                            <View className="w-full h-full items-center justify-center">
+                                                <ActivityIndicator size="small" color={palette.accent} />
+                                            </View>
+                                        ) : profile.avatar_url ? (
+                                            <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
+                                        ) : (
+                                            <View className="w-full h-full items-center justify-center">
+                                                <User size={30} color={palette.accent} />
+                                            </View>
+                                        )}
+                                    </View>
+                                </LinearGradient>
+                                <View style={{ position: 'absolute', bottom: -2, right: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: '#B85226', borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Camera size={11} color="white" />
                                 </View>
-                            </View>
-                            <View className="absolute bottom-0 right-0 w-6 h-6 bg-clay-primary rounded-full items-center justify-center border-2 border-white shadow-sm">
-                                <Camera size={12} color="white" />
-                            </View>
-                        </TouchableOpacity>
-
-                        <View className="flex-1">
-                            <Text className="text-hero font-bold text-[#84523C] font-serif" style={{ fontFamily: 'PlusJakartaSans_700Bold' }}>
-                                Welcome Back, {profile.full_name?.split(' ')[0] || 'Kojo'}
-                            </Text>
-                            
-                            <TouchableOpacity
-                                className="flex-row items-center gap-1.5 mt-1"
-                                onPress={() => { setLocationDraft(profile.location || ''); setLocationCoords(null); setLocationEdit(true); }}
-                            >
-                                <MapPin size={14} color={palette.accent} />
-                                <Text className="text-meta text-brand-muted font-sans" numberOfLines={1}>
-                                    {profile.location || 'Greater Accra, Ghana'}
-                                </Text>
                             </TouchableOpacity>
-                        </View>
-                    </View>
 
-                    {/* Activity counts — tap the header to show or hide */}
-                    <View className="mx-6 mb-6">
-                        <TouchableOpacity
-                            onPress={() => toggleSection(setShowStats)}
-                            activeOpacity={0.8}
-                            accessibilityRole="button"
-                            accessibilityState={{ expanded: showStats }}
-                            className="flex-row items-center justify-between bg-brand-surface border border-[#F2DFD7] rounded-2xl px-4 py-3"
-                        >
-                            <View className="flex-1 pr-3">
-                                <Text className="text-card font-bold text-brand-ink font-sans-bold">Your activity</Text>
-                                {!showStats && (
-                                    <Text className="text-meta text-brand-muted font-sans" numberOfLines={1}>
-                                        {stats.orders} {isCookMode ? 'sales' : 'orders'} · {stats.reviews} reviews · {stats.saved} watching
+                            <View className="flex-1">
+                                <View style={{ alignSelf: 'flex-start', backgroundColor: '#FFEDE5', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 6 }}>
+                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, letterSpacing: 0.8, color: '#943D1A', textTransform: 'uppercase' }}>
+                                        {profile.role === 'COOK' && profile.cook_application_status === 'approved' ? 'Kitchen host' : 'Guest'}
                                     </Text>
-                                )}
+                                </View>
+                                <Text numberOfLines={2} style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 19, lineHeight: 24, color: palette.ink }}>
+                                    Welcome Back, {profile.full_name?.split(' ')[0] || 'Kojo'}
+                                </Text>
+
+                                <TouchableOpacity
+                                    className="flex-row items-center gap-1.5 mt-1.5"
+                                    onPress={() => { setLocationDraft(profile.location || ''); setLocationCoords(null); setLocationEdit(true); }}
+                                >
+                                    <MapPin size={14} color="#D4693A" />
+                                    <Text className="text-meta text-brand-muted font-sans flex-1" numberOfLines={1}>
+                                        {profile.location || 'Greater Accra, Ghana'}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
-                            {showStats ? <ChevronUp size={20} color={palette.ink} /> : <ChevronDown size={20} color={palette.ink} />}
-                        </TouchableOpacity>
-                        {showStats && (
-                    <View className="flex-row justify-around bg-brand-surface border border-[#F2DFD7] mt-3 py-3 rounded-2xl">
-                        <View className="items-center flex-1 border-r border-[#F2DFD7]">
-                            <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.orders}</Text>
-                            <Text className="text-meta text-brand-muted font-sans">{isCookMode ? 'Sales' : 'Orders'}</Text>
                         </View>
-                        <View className="items-center flex-1 border-r border-[#F2DFD7]">
-                            <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.reviews}</Text>
-                            <Text className="text-meta text-brand-muted font-sans">Reviews</Text>
-                        </View>
-                        <View className="items-center flex-1">
-                            <Text className="text-section font-bold text-brand-ink font-sans-bold">{stats.saved}</Text>
-                            <Text className="text-meta text-brand-muted font-sans">Watching</Text>
-                        </View>
-                    </View>
-                        )}
                     </View>
 
                     {/* COOK STATUS / SWITCH MODE BUTTON */}
@@ -740,36 +730,38 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
                                         </View>
                                     </View>
                                     <Text className="text-green-700 text-body font-sans leading-5">
-                                        Your kitchen has been verified. You can now host meal sessions to your community! Switch to Kitchen Mode below to get started.
+                                        Your kitchen has been verified. You can now host meal sessions to your community! Switch to Host Mode below to get started.
                                     </Text>
                                 </View>
                             )}
 
                             {/* Switch Mode Card with Switch Component */}
                             <TouchableOpacity
-                                activeOpacity={0.9}
+                                activeOpacity={0.92}
                                 onPress={handleToggleWithLoader}
-                                className="bg-brand-surface border border-[#F2DFD7] rounded-2xl p-4 shadow-sm flex-row items-center justify-between active:scale-98"
+                                accessibilityRole="switch"
+                                accessibilityLabel="Host Mode"
+                                accessibilityState={{ checked: isCookMode }}
+                                style={{ borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2DFD5', paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#B85226', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 3 }}
                             >
-                                <View className="flex-row items-center gap-4">
-                                    <View className="w-12 h-12 rounded-full bg-[#FFF1EC] items-center justify-center">
-                                        <ChefHat size={24} color={palette.accent} />
-                                    </View>
-                                    <View>
-                                        <Text className="font-bold text-brand-ink text-card font-sans-bold">
-                                            Kitchen Mode
-                                        </Text>
-                                        <Text className="text-brand-muted text-meta font-sans">
-                                            {isCookMode ? 'Manage your menu & chef dashboard' : 'Toggle to manage your kitchen & menu'}
-                                        </Text>
+                                <View className="flex-row items-center flex-1" style={{ gap: 14 }}>
+                                    <ChefHatBadge size={48} />
+                                    <View className="flex-1">
+                                        <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, color: palette.ink }}>Host Mode</Text>
+                                        <View className="flex-row items-center" style={{ gap: 6, marginTop: 2 }}>
+                                            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: isCookMode ? '#10B981' : '#B89D8F' }} />
+                                            <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: '#947261' }}>
+                                                {isCookMode ? 'Now accepting new orders' : 'Switch on to accept new orders'}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </View>
                                 <Switch
                                     value={isCookMode}
                                     onValueChange={handleToggleWithLoader}
-                                    trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
-                                    thumbColor={isCookMode ? palette.accent : palette.muted}
-                                    ios_backgroundColor="#F2DFD7"
+                                    trackColor={{ false: '#E3CFC7', true: '#B85226' }}
+                                    thumbColor="#FFFFFF"
+                                    ios_backgroundColor="#E3CFC7"
                                     pointerEvents="none"
                                 />
                             </TouchableOpacity>
@@ -1083,138 +1075,85 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
 
 
                     {/* Taste profile — the guest's public taste, plus their private dietary needs (only they and their hosts see those) */}
-                    {!isCookMode && (
-                        <View className="mb-6 px-6">
-                            <View className="flex-row items-center justify-between mb-3">
-                                <Text className="text-card font-bold text-brand-ink font-sans-bold">Your taste profile</Text>
-                                <TouchableOpacity onPress={() => router.push('/onboarding/preferences?edit=1')} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button">
-                                    <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, color: palette.accent }}>{Object.keys(prefs).length > 0 ? 'Edit' : 'Add'}</Text>
-                                </TouchableOpacity>
-                            </View>
-                            {/* Not finished the sign-up questions yet: invite them to pick up where they left off */}
-                            {(() => {
-                                const total = GUEST_QUESTIONS.length;
-                                const answered = GUEST_QUESTIONS.filter((q) => prefs[q.id]?.length).length;
-                                if (answered >= total) return null;
-                                const firstOpen = Math.max(0, GUEST_QUESTIONS.findIndex((q) => !prefs[q.id]?.length));
-                                return (
-                                    <TouchableOpacity
-                                        onPress={() => router.push(`/onboarding/preferences?edit=1&start=${firstOpen}`)}
-                                        activeOpacity={0.85}
-                                        accessibilityRole="button"
-                                        className="mb-3 rounded-2xl p-4 flex-row items-center gap-3"
-                                        style={{ backgroundColor: palette.accent }}
-                                    >
-                                        <View className="w-10 h-10 rounded-xl items-center justify-center" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
-                                            <Sparkles size={20} color="#FFFFFF" />
-                                        </View>
-                                        <View className="flex-1">
-                                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#FFFFFF' }}>
-                                                {answered === 0 ? 'Finish your taste profile' : 'Pick up where you left off'}
-                                            </Text>
-                                            <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: 'rgba(255,255,255,0.92)', marginTop: 1 }}>
-                                                {answered} of {total} questions answered. Tell us what you love so we can match you to the right tables.
-                                            </Text>
-                                            <View style={{ height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', marginTop: 8 }}>
-                                                <View style={{ height: 4, borderRadius: 2, backgroundColor: '#FFFFFF', width: `${(answered / total) * 100}%` }} />
-                                            </View>
-                                        </View>
-                                        <ChevronRight size={20} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                );
-                            })()}
-                            <View className="bg-brand-surface rounded-2xl p-4 border border-[#F2DFD7]">
-                                <TasteProfile
-                                    taste={prefs}
-                                    dietary={prefs[PRIVATE_QUESTION_ID]}
-                                    emptyText="Tell us what you love to eat so hosts and other guests know who's joining the table."
-                                />
-                                <Text className="text-micro text-brand-muted font-sans mt-3">Other guests can see your cravings, vibe and travel answers. Allergies stay private to your hosts.</Text>
-                            </View>
-                        </View>
-                    )}
+                    {!isCookMode && <TasteProfileCard prefs={prefs} />}
 
                     {/* Account Settings Section */}
-                    <View className="mb-6">
-                        <View className="px-6 mb-3">
-                            <Text className="text-card font-bold text-brand-ink font-sans-bold">
+                    <View style={{ marginBottom: 24 }}>
+                        <View className="px-6" style={{ marginBottom: 10 }}>
+                            <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 12, letterSpacing: 1.2, color: '#947261', textTransform: 'uppercase' }}>
                                 Account Settings
                             </Text>
                         </View>
 
-                        <View className="px-6 gap-3">
-                            {SETTINGS_ITEMS.map((item) => {
-                                const Icon = item.icon;
-                                return (
-                                    <TouchableOpacity
-                                        key={item.id}
-                                        // the whole pill is tappable; the notifications row toggles its switch
-                                        onPress={item.isSwitch ? () => handleToggleNotifications(!notificationsEnabled) : item.action}
-                                        activeOpacity={0.7}
-                                        accessibilityRole={item.isSwitch ? 'switch' : 'button'}
-                                        accessibilityLabel={item.title}
-                                        accessibilityState={item.isSwitch ? { checked: notificationsEnabled } : undefined}
-                                        className="flex-row items-center bg-brand-surface p-3 rounded-2xl border border-[#F2DFD7]"
-                                    >
-                                        <View className="w-10 h-10 bg-[#FFF1EC] rounded-xl items-center justify-center mr-3">
-                                            <Icon size={20} color={item.isLogout ? "#DC2626" : palette.accent} />
-                                        </View>
-                                        
-                                        <Text className={`flex-1 text-card font-sans-medium ${item.isLogout ? 'text-red-600 font-bold' : 'text-brand-ink'}`}>
-                                            {item.title}
-                                        </Text>
+                        <View style={{ marginHorizontal: 20, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2DFD5', shadowColor: '#B85226', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 }}>
+                            <View style={{ borderRadius: 24, overflow: 'hidden' }}>
+                                {SETTINGS_ITEMS.filter((item) => !item.isLogout).map((item, index) => {
+                                    const Icon = item.icon;
+                                    const look = ITEM_LOOK[item.id];
+                                    return (
+                                        <TouchableOpacity
+                                            key={item.id}
+                                            // the whole row is tappable; the notifications row toggles its switch
+                                            onPress={item.isSwitch ? () => handleToggleNotifications(!notificationsEnabled) : item.action}
+                                            activeOpacity={0.7}
+                                            accessibilityRole={item.isSwitch ? 'switch' : 'button'}
+                                            accessibilityLabel={item.title}
+                                            accessibilityState={item.isSwitch ? { checked: notificationsEnabled } : undefined}
+                                            style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderTopWidth: index === 0 ? 0 : 1, borderTopColor: 'rgba(242,223,213,0.7)' }}
+                                        >
+                                            <View style={{ width: 40, height: 40, borderRadius: 16, backgroundColor: look?.tile ?? '#FFF7F2', alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                                                <Icon size={item.id === 'kitchen-settings' ? 22 : 20} color={look?.tint ?? palette.accent} />
+                                            </View>
 
-                                        {item.isSwitch ? (
-                                            <Switch
-                                                value={notificationsEnabled}
-                                                onValueChange={handleToggleNotifications}
-                                                trackColor={{ false: '#F2DFD7', true: '#E9D6CF' }}
-                                                thumbColor={notificationsEnabled ? palette.accent : palette.muted}
-                                                ios_backgroundColor="#F2DFD7"
-                                            />
-                                        ) : item.isLogout ? (
-                                            <View className="p-1">
-                                                <ChevronRight size={18} color="#DC2626" />
+                                            <View className="flex-1 pr-2">
+                                                <Text className="text-card font-sans-medium text-brand-ink">{item.title}</Text>
+                                                {look?.sub ? <Text className="text-meta font-sans" style={{ color: '#947261', marginTop: 1 }} numberOfLines={1}>{look.sub}</Text> : null}
                                             </View>
-                                        ) : (
-                                            <View className="p-1">
-                                                <ChevronRight size={18} color={palette.accent} />
-                                            </View>
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })}
+
+                                            {item.isSwitch ? (
+                                                <Switch
+                                                    value={notificationsEnabled}
+                                                    onValueChange={handleToggleNotifications}
+                                                    trackColor={{ false: '#E3CFC7', true: '#B85226' }}
+                                                    thumbColor="#FFFFFF"
+                                                    ios_backgroundColor="#E3CFC7"
+                                                />
+                                            ) : (
+                                                <ChevronRight size={18} color="#B89D8F" />
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
                         </View>
+
+                        {SETTINGS_ITEMS.filter((item) => item.isLogout).map((item) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                onPress={item.action}
+                                activeOpacity={0.7}
+                                accessibilityRole="button"
+                                accessibilityLabel={item.title}
+                                style={{ marginHorizontal: 20, marginTop: 12, height: 48, borderRadius: 16, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F2DFD5', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                            >
+                                <LogOut size={18} color="#DC2626" />
+                                <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 14, color: '#DC2626' }}>{item.title}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
 
-                    {/* Adinkra Footer */}
-                    <View className="items-center justify-center py-8">
-                        <Svg width={48} height={48} viewBox="0 0 100 100" fill="none">
-                            <Circle cx="50" cy="50" r="10" stroke={palette.accent} strokeWidth="4" />
-                            <Path 
-                                d="M 50 15 C 60 15, 65 30, 50 40 C 35 30, 40 15, 50 15 Z" 
-                                stroke={palette.accent} 
-                                strokeWidth="4" 
-                            />
-                            <Path 
-                                d="M 50 85 C 60 85, 65 70, 50 60 C 35 70, 40 85, 50 85 Z" 
-                                stroke={palette.accent} 
-                                strokeWidth="4" 
-                            />
-                            <Path 
-                                d="M 15 50 C 15 60, 30 65, 40 50 C 30 35, 15 40, 15 50 Z" 
-                                stroke={palette.accent} 
-                                strokeWidth="4" 
-                            />
-                            <Path 
-                                d="M 85 50 C 85 60, 70 65, 60 50 C 70 35, 85 40, 85 50 Z" 
-                                stroke={palette.accent} 
-                                strokeWidth="4" 
-                            />
-                            <Circle cx="50" cy="50" r="28" stroke={palette.accent} strokeWidth="4" strokeDasharray="10 6" />
+                    {/* Adinkra footer: Gye Nyame, drawn as two hooked spirals around an S-shaped spine */}
+                    <View className="items-center justify-center pt-2 pb-8">
+                        <Svg width={56} height={56} viewBox="0 0 100 100" fill="none">
+                            <Path d="M50 12 C 30 22 30 40 50 50 C 70 60 70 78 50 88" stroke={palette.accent} strokeWidth={5} strokeLinecap="round" />
+                            <Path d="M50 12 C 36 7 21 13 21 26 C 21 35 30 37 34 32" stroke={palette.accent} strokeWidth={5} strokeLinecap="round" />
+                            <Path d="M50 88 C 64 93 79 87 79 74 C 79 65 70 63 66 68" stroke={palette.accent} strokeWidth={5} strokeLinecap="round" />
+                            <Path d="M46 31 C 56 22 71 25 73 35 C 74 42 67 44 63 40" stroke={palette.accent} strokeWidth={5} strokeLinecap="round" />
+                            <Path d="M54 69 C 44 78 29 75 27 65 C 26 58 33 56 37 60" stroke={palette.accent} strokeWidth={5} strokeLinecap="round" />
+                            <Circle cx="50" cy="50" r="3" fill={palette.accent} />
                         </Svg>
                         <Text className="text-brand-muted text-micro font-sans-medium tracking-widest mt-2 uppercase">
-                            BI NKA BI • UNITY & PEACE
+                            GYE NYAME • EXCEPT GOD
                         </Text>
                         <Text className="text-brand-muted text-micro font-sans mt-1">Version 1.0.0</Text>
                     </View>
@@ -1267,7 +1206,7 @@ export default function ProfileScreen({ showBack = false }: { showBack?: boolean
                             YɛnDidii
                         </Text>
                         <Text className="text-meta text-white/80 text-center font-sans mt-2 px-3 leading-4">
-                            {isCookMode ? 'Switching to Eating Mode...' : 'Switching to Kitchen Mode...'}
+                            {isCookMode ? 'Switching to Eating Mode...' : 'Switching to Host Mode...'}
                         </Text>
                     </View>
                 </Animated.View>

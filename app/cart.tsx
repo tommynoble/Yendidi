@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, Alert, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { tapSelect } from '@/lib/haptics';
 import { ChevronLeft, ShoppingCart, CheckCircle, Home, Receipt, ShieldCheck, Minus, Plus, Trash2, Smartphone, CreditCard, Tag, X, Check, MessageSquare } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAppStore } from '@/lib/store';
@@ -22,6 +23,19 @@ const splitItemName = (name: string): { title: string; option: string | null } =
 };
 
 type PaymentMethod = 'momo' | 'card';
+
+const describeCheckoutError = (code?: string) => {
+    switch (code) {
+        case 'sold_out': return 'One of the items in your cart has just sold out or has fewer portions left than you asked for.';
+        case 'item_not_found': return 'One of the items in your cart is no longer available.';
+        case 'empty_cart': return 'Your cart is empty.';
+        case 'promo_not_found': return 'Invalid or expired code';
+        case 'promo_expired': return 'This code has expired';
+        case 'promo_exhausted': return 'This code has reached its usage limit';
+        case 'promo_already_used': return "You've already used this code";
+        default: return 'Something is wrong with your cart. Please review it and try again.';
+    }
+};
 
 const describePromoError = (reason: 'not_found' | 'inactive' | 'expired' | 'exhausted' | 'already_used') => {
     switch (reason) {
@@ -166,9 +180,70 @@ export default function CartScreen() {
         }
 
         const selectedOption = PAYMENT_OPTIONS.find(p => p.id === paymentMethod);
-        const amountInPesewas = Math.round(total * 100); // Convert GHS to pesewas
+        const cartPayload = cartItems.map(item => ({ listing_id: item.id, quantity: item.quantity }));
+        const promoCode = appliedPromo?.code || null;
+
+        // The server prices the cart: the phone never decides what is charged.
+        setLoading(true);
+        let quote: any;
+        try {
+            const { data, error } = await supabase.functions.invoke('place-order', { body: { preflight: true, items: cartPayload, promo_code: promoCode } });
+            if (error) throw error;
+            quote = data;
+        } catch {
+            setLoading(false);
+            Alert.alert('Checkout unavailable', 'We could not check your cart right now. You have not been charged. Please try again in a moment.');
+            return;
+        }
+        setLoading(false);
+        if (!quote?.ok) {
+            Alert.alert('Cart needs attention', describeCheckoutError(quote?.error));
+            return;
+        }
+        if (Math.round(quote.total * 100) !== Math.round(total * 100)) {
+            Alert.alert('Price updated', `The total is now ₵${Number(quote.total).toFixed(2)}. Please review your cart and try again.`);
+            return;
+        }
+
+        const amountInPesewas = Math.round(quote.total * 100); // Convert GHS to pesewas
         const reference = `YD_${Date.now()}_${user.id.slice(0, 6)}`;
         const email = userEmail || `${user.id.slice(0, 8)}@yendidii.app`;
+
+        // Creates the orders on the server once the payment is confirmed. Safe to repeat: the same reference only ever makes orders once.
+        const placeOrders = async (paymentReference: string) => {
+            const { data, error } = await supabase.functions.invoke('place-order', {
+                body: { items: cartPayload, promo_code: promoCode, reference: paymentReference, payment_method: paymentMethod, notes: orderNotes.trim() || null },
+            });
+            if (error || !data?.ok) throw new Error(data?.error || error?.message || 'Could not create your order');
+            return data;
+        };
+
+        const finishOrder = async (paymentReference: string) => {
+            setLoading(true);
+            try {
+                const placed = await placeOrders(paymentReference);
+                clearCart();
+                handleRemovePromo();
+                setOrderNotes('');
+                Alert.alert(
+                    "Payment Successful! 🎉",
+                    `Your order has been sent to the cook${(placed.order_ids?.length || 1) > 1 ? 's' : ''}.\nPayment: ${selectedOption?.name}\nRef: ${paymentReference.slice(0, 15)}...`,
+                    [{ text: "Track Order", onPress: () => router.replace('/(tabs)/orders') }]
+                );
+            } catch (err: any) {
+                // The money was taken but the order could not be created: keep the reference and let them retry safely.
+                Alert.alert(
+                    "Order Error",
+                    `Your payment went through but we couldn't create your order yet (${err.message}). You will not be charged again.\n\nReference: ${paymentReference}`,
+                    [
+                        { text: 'Try Again', onPress: () => finishOrder(paymentReference) },
+                        { text: 'Later', style: 'cancel' },
+                    ]
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
 
         popup.checkout({
             email,
@@ -176,97 +251,7 @@ export default function CartScreen() {
             reference,
             metadata: { payment_method: paymentMethod },
             onSuccess: async (response: any) => {
-                setLoading(true);
-                try {
-                    const cooksMap = new Map<string, typeof cartItems>();
-                    cartItems.forEach(item => {
-                        const existing = cooksMap.get(item.cookId) || [];
-                        existing.push(item);
-                        cooksMap.set(item.cookId, existing);
-                    });
-
-                    const noteParts = [
-                        orderNotes.trim() || null,
-                        appliedPromo ? `Promo applied: ${appliedPromo.code} (-${appliedPromo.percent}%)` : null,
-                    ].filter(Boolean);
-
-                    for (const [cookId, items] of cooksMap) {
-                        const rawTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-                        const orderTotal = appliedPromo ? rawTotal * (1 - appliedPromo.percent / 100) : rawTotal;
-
-                        const { data: order, error: orderError } = await supabase
-                            .from('orders')
-                            .insert({
-                                user_id: user.id,
-                                cook_id: cookId,
-                                status: 'New',
-                                total: orderTotal,
-                                delivery_method: 'Dine-in',
-                                delivery_address: null,
-                                payment_reference: response.reference || reference,
-                                payment_method: paymentMethod,
-                                payment_status: 'success',
-                                notes: noteParts.length > 0 ? noteParts.join(' · ') : null,
-                            })
-                            .select()
-                            .single();
-
-                        if (orderError) throw orderError;
-
-                        const orderItems = items.map(item => ({
-                            order_id: order.id,
-                            listing_id: item.id,
-                            quantity: item.quantity,
-                            price_at_purchase: item.price,
-                        }));
-
-                        const { error: itemsError } = await supabase
-                            .from('order_items')
-                            .insert(orderItems);
-
-                        if (itemsError) throw itemsError;
-
-                        // Decrement portions_available for each listing
-                        for (const item of items) {
-                            const { data: listing } = await supabase
-                                .from('listings')
-                                .select('portions_available')
-                                .eq('id', item.id)
-                                .single();
-
-                            if (listing) {
-                                const newPortions = Math.max(0, (listing.portions_available || 0) - item.quantity);
-                                await supabase
-                                    .from('listings')
-                                    .update({
-                                        portions_available: newPortions,
-                                        available: newPortions > 0, // auto hide if sold out
-                                    })
-                                    .eq('id', item.id);
-                            }
-                        }
-                    }
-
-                    if (appliedPromo) {
-                        await supabase.from('promo_redemptions').insert({
-                            code: appliedPromo.code,
-                            user_id: user.id,
-                        });
-                    }
-
-                    clearCart();
-                    handleRemovePromo();
-                    setOrderNotes('');
-                    Alert.alert(
-                        "Payment Successful! 🎉",
-                        `Your order has been sent to the cook${cooksMap.size > 1 ? 's' : ''}.\nPayment: ${selectedOption?.name}\nRef: ${(response.reference || reference).slice(0, 15)}...`,
-                        [{ text: "Track Order", onPress: () => router.replace('/(tabs)/orders') }]
-                    );
-                } catch (err: any) {
-                    Alert.alert("Order Error", err.message || "Payment was successful but we couldn't create your order. Please contact support with reference: " + reference);
-                } finally {
-                    setLoading(false);
-                }
+                await finishOrder(response.reference || reference);
             },
             onCancel: () => {
                 Alert.alert("Payment Cancelled", "No charges were made. Your cart is still saved.");
@@ -353,7 +338,7 @@ export default function CartScreen() {
                                                 <View className="flex-row items-center gap-3 bg-gray-50 px-2 py-1.5 rounded-full border border-gray-100">
                                                     <TouchableOpacity
                                                         className="w-7 h-7 rounded-full bg-surface items-center justify-center"
-                                                        onPress={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        onPress={() => { tapSelect(); updateQuantity(item.id, item.quantity - 1); }}
                                                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                                     >
                                                         <Minus size={14} color="#2D241E" />
@@ -361,7 +346,7 @@ export default function CartScreen() {
                                                     <Text className="font-bold text-text-main w-5 text-center text-sm font-sans-bold">{item.quantity}</Text>
                                                     <TouchableOpacity
                                                         className="w-7 h-7 rounded-full bg-text-main items-center justify-center"
-                                                        onPress={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        onPress={() => { tapSelect(); updateQuantity(item.id, item.quantity + 1); }}
                                                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                                     >
                                                         <Plus size={14} color="white" />

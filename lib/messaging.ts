@@ -62,14 +62,14 @@ export async function fetchConversations(me: string): Promise<{ conversations: C
     return { conversations, people, blockedIds };
 }
 
-// Hosts show under their kitchen name; guests always show under their own name.
+// Hosts show under their kitchen name and kitchen photo; guests always show under their own name and profile photo.
 export async function fetchPeople(ids: string[], hostIds: string[] = []): Promise<Record<string, Person>> {
     const unique = Array.from(new Set(ids));
     if (unique.length === 0) return {};
-    const { data } = await supabase.from('profiles').select('id, full_name, kitchen_name, avatar_url').in('id', unique);
+    const { data } = await supabase.from('profiles').select('id, full_name, kitchen_name, avatar_url, kitchen_image_url').in('id', unique);
     const people: Record<string, Person> = {};
     (data || []).forEach((p: any) => {
-        people[p.id] = { id: p.id, name: (hostIds.includes(p.id) && p.kitchen_name) || p.full_name || 'Guest', avatarUrl: p.avatar_url || null };
+        people[p.id] = { id: p.id, name: (hostIds.includes(p.id) && p.kitchen_name) || p.full_name || 'Guest', avatarUrl: (hostIds.includes(p.id) && p.kitchen_image_url) || p.avatar_url || null };
     });
     return people;
 }

@@ -10,6 +10,9 @@ import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/lib/store';
 import { unreadMessageCount, fetchConversations, otherPersonId } from '@/lib/messaging';
 import { useCurrentUserId } from '@/lib/useCurrentUserId';
+import { useNotificationFeed } from '@/lib/notificationFeed';
+import { tapSelect } from '@/lib/haptics';
+import { earliestEventAt, displayStatusFor, countdownLabel, formatEventShort } from '@/lib/booking';
 import { useCurrentCity, formatLocationLabel } from '@/lib/useCurrentCity';
 import { formatDistanceToNow, format, parseISO } from 'date-fns';
 import { getDishImage } from '@/constants/Images';
@@ -112,11 +115,17 @@ const CATEGORIES = [
   { id: '10', name: 'Vegetarian', icon: 'Sprout' }
 ];
 
-const getStatusText = (status: string) => {
-  switch (status) {
+// One line for the active-order banner. A booked gathering still ahead says when, not "ready".
+const getStatusText = (status: string, eventAt: Date | null = null) => {
+  const shown = displayStatusFor(status, eventAt);
+  if (eventAt && eventAt.getTime() > Date.now()) {
+    if (status === 'New') return `Waiting for host • ${formatEventShort(eventAt)}`;
+    if (shown === 'Accepted') return `Confirmed • ${countdownLabel(eventAt)} • ${formatEventShort(eventAt)}`;
+  }
+  switch (shown) {
     case 'Accepted': return 'Order accepted';
     case 'Cooking': return 'Preparing your meal';
-    case 'Ready': return 'Ready for pickup!';
+    case 'Ready': return 'Your table is ready';
     case 'Completed': return 'Enjoy your meal!';
     default: return 'Processing';
   }
@@ -132,6 +141,7 @@ export default function HomeScreen() {
   const { data: currentCity } = useCurrentCity(!isCookMode);
   const queryClient = useQueryClient();
   const currentUserId = useCurrentUserId();
+  const { unreadCount: unreadNotifications } = useNotificationFeed();
   const { data: unreadChats = 0 } = useQuery({
     queryKey: ['unread-chats', currentUserId],
     queryFn: () => unreadMessageCount(currentUserId as string),
@@ -271,7 +281,7 @@ export default function HomeScreen() {
       if (!user || isCookMode) return null; // Don't fetch eater orders in cook mode
       const { data } = await supabase
         .from('orders')
-        .select(`*, order_items(listings(title, image, profiles(full_name)))`)
+        .select(`*, order_items(listings(title, image, order_deadline, profiles(full_name)))`)
         .eq('user_id', user.id)
         .in('status', ['New', 'Accepted', 'Cooking', 'Ready'])
         .order('created_at', { ascending: false })
@@ -689,13 +699,9 @@ export default function HomeScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <Pressable onPress={() => router.push('/messages')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }} accessibilityLabel="Messages">
                   <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
-                    <MessagesIcon size={24} hasUnread={unreadChats > 0} />
+                    <MessagesIcon size={24} count={unreadChats} />
                   </View>
                 </Pressable>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FFF8', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 9999, borderWidth: 1, borderColor: '#B2DFCC' }}>
-                  <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: '#006A3C' }} />
-                  <Text style={{ fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, color: '#006A3C', letterSpacing: 1 }}>OPEN</Text>
-                </View>
                 <Pressable onPress={() => router.push('/account')} accessibilityRole="button" accessibilityLabel="Profile and settings" hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
                 {avatarUrl ? (
                   <Image source={{ uri: avatarUrl }} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: '#F2DFD7', borderWidth: 2, borderColor: palette.accent }} />
@@ -867,11 +873,12 @@ export default function HomeScreen() {
             {/* My active Menu */}
             <View style={{ paddingHorizontal: 24, marginBottom: 20 }}>
               <SectionHeader title="Your Events" subtitle={eventsSubtitle} inset={false} actionLabel="Add Event" onActionPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)} extraBottom={4} />
-              <View style={{ flexDirection: 'row', gap: 12 }}>
-                {(myMenu || []).slice(0, 1).map((item: any) => (
+              {/* slides sideways so every event shows, not just the first; bleeds to the screen edges */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -24 }} contentContainerStyle={{ paddingHorizontal: 24, paddingVertical: 6, gap: 12 }}>
+                {(myMenu || []).map((item: any) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}
+                    style={{ width: 168, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}
                     onPress={() => router.push(`/listing/${item.id}`)}
                     activeOpacity={0.85}
                   >
@@ -887,7 +894,7 @@ export default function HomeScreen() {
                 ))}
                 {(!myMenu || myMenu.length === 0) && (
                   <TouchableOpacity
-                    style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
+                    style={{ width: 168, backgroundColor: '#F7EEE7', borderRadius: 20, overflow: 'hidden', shadowColor: palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
                     onPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)}
                     activeOpacity={0.85}
                   >
@@ -898,7 +905,7 @@ export default function HomeScreen() {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  style={{ flex: 1, backgroundColor: '#F7EEE7', borderRadius: 20, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(194, 83, 39,0.5)', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
+                  style={{ width: 168, backgroundColor: '#F7EEE7', borderRadius: 20, borderWidth: 2, borderStyle: 'dashed', borderColor: 'rgba(194, 83, 39,0.5)', alignItems: 'center', justifyContent: 'center', minHeight: 160 }}
                   onPress={() => router.push(`/(tabs)/cook?new=${Date.now()}`)}
                   activeOpacity={0.75}
                 >
@@ -907,7 +914,7 @@ export default function HomeScreen() {
                   </View>
                   <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.muted, textAlign: 'center' }}>Add another{'\n'}event</Text>
                 </TouchableOpacity>
-              </View>
+              </ScrollView>
             </View>
 
             {sectionDivider}
@@ -981,7 +988,7 @@ export default function HomeScreen() {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 16 }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
             >
-              <Text style={{ ...type.micro, color: palette.muted, letterSpacing: 0.8, textTransform: 'uppercase', flexShrink: 1 }} numberOfLines={1}>
+              <Text style={{ ...type.micro, fontSize: 10, lineHeight: 13, color: palette.muted, letterSpacing: 0.6, textTransform: 'uppercase', flexShrink: 1 }} numberOfLines={1}>
                 {currentCity || formatLocationLabel((profileData as any)?.location)}
               </Text>
             </Pressable>
@@ -994,14 +1001,14 @@ export default function HomeScreen() {
 
           {/* Actions */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Pressable onPress={() => router.push('/notifications')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
+            <Pressable onPress={() => router.push('/notifications')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel={unreadNotifications > 0 ? `Notifications, ${unreadNotifications} unread` : 'Notifications'}>
               <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
-                <NotificationIcon size={24} hasUnread={!!activeOrder} />
+                <NotificationIcon size={24} count={unreadNotifications} />
               </View>
             </Pressable>
-            <Pressable onPress={() => router.push('/messages')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
+            <Pressable onPress={() => router.push('/messages')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel={unreadChats > 0 ? `Messages, ${unreadChats} unread` : 'Messages'}>
               <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: palette.inkWash, alignItems: 'center', justifyContent: 'center' }}>
-                <MessagesIcon size={24} hasUnread={unreadChats > 0} />
+                <MessagesIcon size={24} count={unreadChats} />
               </View>
             </Pressable>
             <Pressable onPress={() => router.push('/(tabs)/profile')} style={{ position: 'relative' }} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}>
@@ -1020,29 +1027,35 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={16}
-          contentContainerStyle={{ paddingBottom: 110 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />}
-        >
-          {/* Search Bar */}
-          <View style={{ paddingHorizontal: 20, marginTop: 16, marginBottom: 20 }}>
+        {/* One cream background for the search bar and the pills together, so the bar's soft shadow isn't cut off between them */}
+        <View style={{ backgroundColor: palette.canvas, zIndex: 5 }}>
+        {/* Search Bar: outside the scrolling area, so it stays in place while the page scrolls */}
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
             <Animated.View style={{ transform: [{ scale: searchScale }] }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surface, borderRadius: 20, borderWidth: 1.5, borderColor: searchFocused ? '#D9825C' : '#DDC1B6', paddingHorizontal: 14, height: 52, shadowColor: searchFocused ? palette.accent : palette.ink, shadowOffset: { width: 0, height: 3 }, shadowOpacity: searchFocused ? 0.25 : 0.16, shadowRadius: searchFocused ? 12 : 10, elevation: searchFocused ? 5 : 4 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: palette.surface, borderRadius: 20, borderWidth: 1.5, borderColor: searchFocused ? '#D9825C' : '#DDC1B6', paddingHorizontal: 14, height: 52, shadowOpacity: 0, elevation: 0 }}>
                 <Search size={18} color={palette.ink} />
-                <TextInput
-                  placeholder="Search hosts, dishes, gatherings or locations..."
-                  placeholderTextColor={palette.muted}
-                  value={searchQuery}
-                  onChangeText={(t) => { setSearchQuery(t); if (t.length > 2) handleSearch(); if (t.length === 0) clearSearch(); }}
-                  onSubmitEditing={handleSearch}
-                  onFocus={handleSearchFocus}
-                  onBlur={handleSearchBlur}
-                  style={{ flex: 1, height: 40, paddingVertical: 0, paddingHorizontal: 10, fontFamily: fonts.regular, fontSize: 12, color: palette.ink }}
-                />
+                <View style={{ flex: 1, height: 40 }}>
+                  {/* The placeholder is drawn here, not by the input: iOS positions its own placeholder separately from typed text,
+                      so with this font it sat off-centre while typed text was centred. Same box and padding as the input's text. */}
+                  {searchQuery.length === 0 && (
+                    <View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 3, left: 10, right: 0, justifyContent: 'center' }}>
+                      <Text numberOfLines={1} style={{ fontFamily: fonts.regular, fontSize: 12, color: palette.muted }}>
+                        Search hosts, dishes, gatherings or locations...
+                      </Text>
+                    </View>
+                  )}
+                  <TextInput
+                    accessibilityLabel="Search hosts, dishes, gatherings or locations"
+                    value={searchQuery}
+                    onChangeText={(t) => { setSearchQuery(t); if (t.length > 2) handleSearch(); if (t.length === 0) clearSearch(); }}
+                    onSubmitEditing={handleSearch}
+                    onFocus={handleSearchFocus}
+                    onBlur={handleSearchBlur}
+                    // Plus Jakarta Sans sits about 1.7pt low in its line box at this size; paddingBottom 3 lifts the text by half of that
+                    // padding (1.5pt), so lower-case text and capitals both read as centred between the icons.
+                    style={{ height: 40, paddingVertical: 0, paddingBottom: 3, paddingHorizontal: 10, fontFamily: fonts.regular, fontSize: 12, color: palette.ink }}
+                  />
+                </View>
                 {searchQuery.length > 0 ? (
                   <TouchableOpacity onPress={clearSearch} style={{ padding: 4 }}>
                     <X size={16} color={palette.ink} />
@@ -1056,6 +1069,62 @@ export default function HomeScreen() {
             </Animated.View>
           </View>
 
+        {/* Category Chips: fixed under the search bar too */}
+        <View style={{ paddingBottom: 8 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8, gap: 8 }}>
+            {CATEGORIES.map(cat => {
+              const isActive = activeCategory === cat.name;
+              return (
+                <TouchableOpacity
+                  key={cat.id}
+                  onPress={() => { if (!isActive) tapSelect(); setActiveCategory(cat.name); }}
+                  activeOpacity={0.75}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 11, paddingTop: 6, paddingBottom: 5, borderRadius: 9999,
+                    backgroundColor: isActive ? palette.accent : palette.surface,
+                    borderWidth: 1.5, borderBottomWidth: 2.75,
+                    borderColor: isActive ? palette.accent : '#DDC1B6',
+                    borderBottomColor: isActive ? '#AD4520' : '#D0B3A4',
+                    shadowColor: isActive ? palette.accent : palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: isActive ? 0.15 : 0.07, shadowRadius: 3, elevation: isActive ? 3 : 2,
+                  }}
+                >
+                  {(() => {
+                    const IconComponent = ICON_MAP[cat.icon];
+                    if (IconComponent) {
+                      // A darker copy a point lower sits behind the icon, so it looks slightly raised like the pill
+                      return (
+                        <View style={{ width: 13, height: 13 }}>
+                          <View style={{ position: 'absolute', top: 1, left: 0 }}>
+                            <IconComponent size={12} color={isActive ? 'rgba(0, 0, 0, 0.16)' : 'rgba(140, 53, 18, 0.17)'} />
+                          </View>
+                          <View style={{ position: 'absolute', top: 0, left: 0 }}>
+                            <IconComponent size={12} color={isActive ? 'white' : palette.accent} />
+                          </View>
+                        </View>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <Text style={{ fontFamily: isActive ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium', fontSize: 12.5, color: isActive ? 'white' : palette.muted }}>
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        </View>
+
+        <ScrollView
+          style={{ flex: 1 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          contentContainerStyle={{ paddingBottom: 110, paddingTop: 16 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={palette.accent} colors={[palette.accent]} />}
+        >
           {/* Order update banner: shows for a few seconds on each new status, tap to open Bookings, X to close */}
           {activeOrder && orderBannerKey !== dismissedBannerKey && (
             <View style={{ paddingHorizontal: 20, marginBottom: 16 }}>
@@ -1071,7 +1140,7 @@ export default function HomeScreen() {
                   <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 13, color: palette.ink }} numberOfLines={1}>
                     {activeOrder.order_items?.[0]?.listings?.title || 'Your Order'}
                   </Text>
-                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.accent, marginTop: 1 }}>{getStatusText(activeOrder.status)}</Text>
+                  <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 12, color: palette.accent, marginTop: 1 }}>{getStatusText(activeOrder.status, earliestEventAt(activeOrder.order_items))}</Text>
                 </View>
                 <TouchableOpacity onPress={dismissOrderBanner} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} accessibilityLabel="Dismiss">
                   <X size={16} color={palette.ink} />
@@ -1079,33 +1148,6 @@ export default function HomeScreen() {
               </TouchableOpacity>
             </View>
           )}
-
-          {/* Category Chips */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: -8, marginBottom: 32 }} contentContainerStyle={{ paddingHorizontal: 20, paddingVertical: 8, gap: 6 }}>
-            {CATEGORIES.map(cat => {
-              const isActive = activeCategory === cat.name;
-              return (
-                <TouchableOpacity
-                  key={cat.id}
-                  onPress={() => setActiveCategory(cat.name)}
-                  activeOpacity={0.75}
-                  hitSlop={{ top: 6, bottom: 6 }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 9999, backgroundColor: isActive ? palette.accent : palette.surface, borderWidth: 1.5, borderColor: isActive ? palette.accent : '#DDC1B6', shadowColor: isActive ? palette.accent : palette.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: isActive ? 0.22 : 0.1, shadowRadius: isActive ? 6 : 4, elevation: isActive ? 3 : 2 }}
-                >
-                  {(() => {
-                    const IconComponent = ICON_MAP[cat.icon];
-                    if (IconComponent) {
-                      return <IconComponent size={10} color={isActive ? 'white' : palette.accent} />;
-                    }
-                    return null;
-                  })()}
-                  <Text style={{ fontFamily: isActive ? 'PlusJakartaSans_600SemiBold' : 'PlusJakartaSans_500Medium', fontSize: 12, color: isActive ? 'white' : palette.muted }}>
-                    {cat.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
 
           {/* SEARCH RESULTS */}
           {isSearching && searchQuery ? (
@@ -1482,7 +1524,7 @@ export default function HomeScreen() {
                               <AnimatedHeartOverlay visible={!!animatingLikes[hItem.id]} />
                             </View>
                             <View style={{ paddingHorizontal: 10, marginTop: 8, alignItems: 'center' }}>
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 3, textAlign: 'center' }} numberOfLines={1}>{hItem.title || hItem.name}</Text>
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 3, textAlign: 'center' }} numberOfLines={2}>{hItem.title || hItem.name}</Text>
                               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                                 <Flame size={10} color="#BA1A1A" fill="#BA1A1A" />
                                 <Text style={{ fontFamily: 'PlusJakartaSans_500Medium', fontSize: 10, color: '#BA1A1A' }} numberOfLines={1}>
@@ -1522,7 +1564,7 @@ export default function HomeScreen() {
                               <AnimatedHeartOverlay visible={!!animatingLikes[hItem.id]} />
                             </View>
                             <View style={{ paddingHorizontal: 8, marginTop: 7, alignItems: 'center' }}>
-                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 4, textAlign: 'center' }} numberOfLines={1}>{hItem.title || hItem.name}</Text>
+                              <Text style={{ fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: palette.ink, marginBottom: 4, textAlign: 'center' }} numberOfLines={2}>{hItem.title || hItem.name}</Text>
                               {idx === 0 ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FFF1EC', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 9999 }}>
                                   <Star size={9} color={palette.accent} fill={palette.accent} />

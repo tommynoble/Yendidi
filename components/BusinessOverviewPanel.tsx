@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, subDays } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { palette, type, fonts } from '@/constants/theme';
-import { netOf, PLATFORM_FEE_PERCENT } from '@/lib/earnings';
+import { hostNetOf, PLATFORM_FEE_PERCENT } from '@/lib/earnings';
 import SectionHeader from '@/components/SectionHeader';
 
 const PERIODS = ['7D', '30D', 'This Month', 'All Time'] as const;
@@ -29,12 +29,16 @@ export default function BusinessOverviewPanel({ userId }: { userId: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['business-overview', userId],
     queryFn: async () => {
-      const [ordersRes, listingsRes] = await Promise.all([
-        supabase
-          .from('orders')
-          .select('id, total, status, payment_status, payout_id, created_at, profiles:user_id (full_name), order_items (quantity, listings (title))')
-          .eq('cook_id', userId)
-          .order('created_at', { ascending: false }),
+      const ordersQuery = (columns: string) => supabase
+        .from('orders')
+        .select(columns)
+        .eq('cook_id', userId)
+        .order('created_at', { ascending: false });
+      const orderColumns = 'id, total, status, payment_status, payout_id, created_at, profiles:user_id (full_name), order_items (quantity, listings (title))';
+      // discount_amount needs the server-priced-checkout database update; fall back to the old columns until it has been run.
+      let ordersRes: any = await ordersQuery(`${orderColumns}, discount_amount`);
+      if (ordersRes.error) ordersRes = await ordersQuery(orderColumns);
+      const [listingsRes] = await Promise.all([
         supabase
           .from('listings')
           .select('id, price, available')
@@ -58,9 +62,9 @@ export default function BusinessOverviewPanel({ userId }: { userId: string }) {
     const avgPrice = liveEvents.length ? liveEvents.reduce((sum, l) => sum + Number(l.price || 0), 0) / liveEvents.length : 0;
 
     return {
-      net: completed.reduce((sum, o) => sum + netOf(Number(o.total || 0)), 0),
+      net: completed.reduce((sum, o) => sum + hostNetOf(Number(o.total || 0), Number(o.discount_amount || 0)), 0),
       // Everything completed and not yet paid out, whatever the period: it's what Withdraw can actually send.
-      available: orders.filter(o => o.status === 'Completed' && !o.payout_id).reduce((sum, o) => sum + netOf(Number(o.total || 0)), 0),
+      available: orders.filter(o => o.status === 'Completed' && !o.payout_id).reduce((sum, o) => sum + hostNetOf(Number(o.total || 0), Number(o.discount_amount || 0)), 0),
       guests: completed.reduce((n, o) => n + seatsOf(o), 0),
       orderCount: inPeriod.length,
       liveEvents: liveEvents.length,
@@ -74,7 +78,7 @@ export default function BusinessOverviewPanel({ userId }: { userId: string }) {
           guest: (profile?.full_name as string) || 'Guest',
           event: (listing?.title as string) || 'Event',
           seats: seatsOf(o),
-          net: netOf(Number(o.total || 0)),
+          net: hostNetOf(Number(o.total || 0), Number(o.discount_amount || 0)),
           done: o.status === 'Completed',
           date: format(new Date(o.created_at), 'MMM d, yyyy'),
         };

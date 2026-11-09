@@ -3,12 +3,13 @@ import { View, Text, FlatList, Image, TouchableOpacity, ActivityIndicator, Refre
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
-import { MessageCircle, Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Bike, Check, X, CookingPot, User } from 'lucide-react-native';
+import { MessageCircle, Clock, CheckCircle, ChefHat, ShoppingBag, ChevronRight, XCircle, Flame, Utensils, Check, X, CookingPot, User } from 'lucide-react-native';
 import { useAppStore } from '@/lib/store';
 import { getDishImage } from '@/constants/Images';
 import ProcessLoader from '@/components/ProcessLoader';
 import { palette, type, fonts } from '@/constants/theme';
 import { openConversationWithGuest } from '@/lib/messaging';
+import { parseEventAt, bookingTiming, formatEventShort, formatEventHero, countdownLabel } from '@/lib/booking';
 import { format, formatDistanceToNow } from 'date-fns';
 import ScreenHeader from '@/components/ScreenHeader';
 
@@ -33,6 +34,7 @@ type Order = {
             order_deadline?: string | null;
             profiles: {
                 full_name: string | null;
+                kitchen_name?: string | null;
                 avatar_url: string | null;
                 kitchen_image_url: string | null;
             } | null;
@@ -85,6 +87,7 @@ export default function OrdersScreen() {
                                 order_deadline,
                                 profiles (
                                     full_name,
+                                    kitchen_name,
                                     avatar_url,
                                     kitchen_image_url
                                 )
@@ -209,13 +212,19 @@ export default function OrdersScreen() {
         ]);
     };
 
-    const handleAdvance = (orderId: string, currentStatus: string) => {
+    const handleAdvance = (orderId: string, currentStatus: string, eventAt?: Date | null) => {
         const next = NEXT_STATUS[currentStatus];
         if (!next) return;
 
+        // A gathering that is still days away: "ready" would tell the guest to come now, so check first.
+        const farOff = !!eventAt && !bookingTiming(eventAt).comeNow;
         const messages: Record<string, string> = {
-            'Cooking': 'Mark this order as cooking?',
-            'Ready': 'Mark this order as ready for pickup?',
+            'Cooking': farOff
+                ? `This gathering is on ${formatEventShort(eventAt as Date)}. Start cooking now?`
+                : 'Mark this order as cooking?',
+            'Ready': farOff
+                ? `This gathering is on ${formatEventShort(eventAt as Date)}. Marking it ready tells your guest their table is set. Do it on the day, or only if you're sure.`
+                : 'Let your guest know their table is ready?',
             'Completed': 'Mark this order as completed?',
         };
 
@@ -249,7 +258,7 @@ export default function OrdersScreen() {
             case 'New': return <Clock size={14} color="#1E40AF" />;
             case 'Accepted': return <ChefHat size={14} color="#854D0E" />;
             case 'Cooking': return <Flame size={14} color="#9A3412" />;
-            case 'Ready': return <Bike size={14} color="#166534" />;
+            case 'Ready': return <Utensils size={14} color="#166534" />;
             case 'Completed': return <CheckCircle size={14} color="#374151" />;
             case 'Cancelled': return <XCircle size={14} color="#991B1B" />;
             default: return <Clock size={14} color="#374151" />;
@@ -384,7 +393,7 @@ export default function OrdersScreen() {
                 {/* Next step once confirmed */}
                 {['Accepted', 'Cooking', 'Ready'].includes(item.status) && (
                     <TouchableOpacity
-                        onPress={() => handleAdvance(item.id, item.status)}
+                        onPress={() => handleAdvance(item.id, item.status, parseEventAt(listing?.order_deadline))}
                         disabled={isUpdating}
                         activeOpacity={0.85}
                         accessibilityRole="button"
@@ -425,6 +434,10 @@ export default function OrdersScreen() {
         const listing = firstItem?.listings;
         const cook = listing?.profiles;
         const otherItemsCount = item.order_items.length - 1;
+        const eventAt = parseEventAt(listing?.order_deadline);
+        const eventTiming = bookingTiming(eventAt);
+        // Booked for a day that is still some way off: it's "confirmed", whether or not the host has started preparing.
+        const confirmedForLater = !!eventAt && eventTiming.scheduled && !eventTiming.comeNow && ['Accepted', 'Cooking', 'Ready'].includes(item.status);
 
         return (
             <TouchableOpacity
@@ -446,8 +459,8 @@ export default function OrdersScreen() {
                             )}
                         </View>
                         <View>
-                            <Text className="font-bold text-text-main font-sans-bold text-base">{cook?.full_name || 'Unknown Host'}</Text>
-                            <Text className="text-xs text-text-sub font-sans">{formatDate(item.created_at)}</Text>
+                            <Text className="font-bold text-text-main font-sans-bold text-base">{cook?.kitchen_name || cook?.full_name || 'Unknown Host'}</Text>
+                            <Text className="text-xs text-text-sub font-sans">{eventAt ? formatEventHero(eventAt) : formatDate(item.created_at)}</Text>
                         </View>
                     </View>
 
@@ -468,7 +481,7 @@ export default function OrdersScreen() {
                         <Image source={getDishImage(listing?.title ?? '', listing?.image)} className="w-full h-full" resizeMode="cover" />
                     </View>
                     <View className="flex-1 justify-center">
-                        <Text className="text-text-main font-medium font-sans-medium text-base h-auto" numberOfLines={1}>
+                        <Text className="text-text-main font-medium font-sans-medium text-base h-auto" numberOfLines={2}>
                             {listing?.title || 'Unknown Item'}
                         </Text>
                         {otherItemsCount > 0 && (
@@ -481,13 +494,13 @@ export default function OrdersScreen() {
                         </Text>
                         {item.payment_status === 'success' && (
                             <View className="flex-row items-center gap-1 mt-1">
-                                <CheckCircle size={12} color="#007A33" />
-                                <Text className="text-kente-green text-[10px] font-bold font-sans-bold">Paid</Text>
+                                <CheckCircle size={12} color="#9B8B84" />
+                                <Text className="text-[10px] font-bold font-sans-bold" style={{ color: '#9B8B84' }}>Paid</Text>
                             </View>
                         )}
                     </View>
                     <View className="justify-center">
-                        <ChevronRight size={20} color="#E5E7EB" />
+                        <ChevronRight size={20} color="#A88F85" />
                     </View>
                 </View>
 
@@ -498,19 +511,27 @@ export default function OrdersScreen() {
                             <>
                                 <ActivityIndicator size="small" color="#D65A31" />
                                 <Text className="text-text-sub text-xs font-sans italic flex-1">
-                                    Waiting for cook to accept...
+                                    {eventAt ? `Waiting for host to confirm • ${formatEventShort(eventAt)}` : 'Waiting for cook to accept...'}
                                 </Text>
                             </>
                         )}
-                        {item.status === 'Accepted' && (
+                        {confirmedForLater && (
+                            <>
+                                <Check size={16} color="#007A33" />
+                                <Text className="text-kente-green text-xs font-bold font-sans-bold flex-1">
+                                    Confirmed • {formatEventShort(eventAt as Date)}
+                                </Text>
+                            </>
+                        )}
+                        {!confirmedForLater && item.status === 'Accepted' && (
                             <>
                                 <ChefHat size={16} color="#854D0E" />
                                 <Text className="text-yellow-700 text-xs font-bold font-sans-bold flex-1">
-                                    Cook accepted your order!
+                                    Your host accepted your booking!
                                 </Text>
                             </>
                         )}
-                        {item.status === 'Cooking' && (
+                        {!confirmedForLater && item.status === 'Cooking' && (
                             <>
                                 <Flame size={16} color="#D65A31" />
                                 <Text className="text-clay-primary text-xs font-bold font-sans-bold flex-1">
@@ -518,13 +539,18 @@ export default function OrdersScreen() {
                                 </Text>
                             </>
                         )}
-                        {item.status === 'Ready' && (
+                        {!confirmedForLater && item.status === 'Ready' && (
                             <>
-                                <Bike size={16} color="#007A33" />
+                                <Utensils size={16} color="#007A33" />
                                 <Text className="text-kente-green text-xs font-bold font-sans-bold flex-1">
-                                    Ready for pickup!
+                                    Your table is ready · Tap for directions
                                 </Text>
                             </>
+                        )}
+                        {!!eventAt && eventTiming.isFuture && ['New', 'Accepted', 'Cooking', 'Ready'].includes(item.status) && (
+                            <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 9999, backgroundColor: 'rgba(194, 83, 39, 0.12)' }}>
+                                <Text className="text-xs font-bold font-sans-bold" style={{ color: '#9C3F12' }}>{countdownLabel(eventAt)}</Text>
+                            </View>
                         )}
                     </View>
                 )}

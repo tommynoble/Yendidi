@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 
 export const Marker = (props: any) => null;
+export const Circle = (props: any) => null;
 export const PROVIDER_DEFAULT = 'default';
 
 export default function MapViewWrapper(props: any) {

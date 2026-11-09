@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, ViewStyle } from 'react-native';
 import { Heart } from 'lucide-react-native';
 import { palette } from '@/constants/theme';
+import { tapLight } from '@/lib/haptics';
 
 type HeartButtonProps = {
     saved: boolean;
@@ -18,7 +19,7 @@ type HeartButtonProps = {
 export default function HeartButton({ saved, onPress, size = 28, iconSize = 14, style }: HeartButtonProps) {
     return (
         <TouchableOpacity
-            onPress={onPress}
+            onPress={() => { tapLight(); onPress(); }}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             accessibilityRole="button"
             accessibilityLabel={saved ? 'Remove from saved' : 'Save dish'}

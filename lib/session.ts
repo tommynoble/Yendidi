@@ -12,7 +12,9 @@ const USER_SCOPED_KEYS = [
 const OWNER_KEY = 'yendidii_data_owner';
 
 export async function clearUserData(queryClient?: QueryClient) {
-    queryClient?.clear();                                              // in-memory cached results from the old account
+    // In-memory cached results from the old account. Reset (not clear) so screens that are already open, like Home right after
+    // a sign-in, load their data again straight away instead of staying empty until something re-renders them.
+    await queryClient?.resetQueries();
     useAppStore.setState({ cartItems: [], userName: '', isCookMode: false }); // cart, name, kitchen mode
     await AsyncStorage.multiRemove(USER_SCOPED_KEYS).catch(() => {});
 }

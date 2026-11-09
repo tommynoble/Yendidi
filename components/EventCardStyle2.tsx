@@ -41,11 +41,11 @@ export default function EventCardStyle2({ item, saved, onToggleSaved, animatingL
         >
               <Pressable
                 onPress={() => onPress()}
-                style={({ pressed }) => ({ opacity: pressed ? 0.96 : 1 })}
+                style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
               >
                 <View style={{ backgroundColor: palette.surface, borderRadius: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.35)' }}>
-                  {/* same shape as the first card's photo: 300px tall at the same width */}
-                  <LandscapePhoto source={getDishImage(item.title || item.name, item.image)} ratio={(width - 34) / 300}>
+                  {/* a shorter photo (210px at this width, was 300) so the next card peeks in under it */}
+                  <LandscapePhoto source={getDishImage(item.title || item.name, item.image)} ratio={(width - 34) / 210}>
                     <HeartButton saved={saved} onPress={() => onToggleSaved()} size={36} iconSize={18} style={{ position: 'absolute', top: 10, right: 10 }} />
                     <AnimatedHeartOverlay visible={animatingLike} />
                 {!!item.order_deadline && isPotCountdownActive(item.order_deadline) && (

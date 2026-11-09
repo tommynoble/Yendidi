@@ -1,291 +1,160 @@
-import React, { useState, useCallback } from 'react';
+import React from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Bell, Check, Flame, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Bell, Check, CheckCheck, Flame, Utensils, X } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
-import { formatDistanceToNow } from 'date-fns';
+import { palette, fonts } from '@/constants/theme';
+import { useNotificationFeed, type NotificationItem } from '@/lib/notificationFeed';
 
-// Static app-level promos / announcements
-const STATIC_PROMOS = [
-  {
-    id: 'promo-1',
-    type: 'promo',
-    title: 'Weekend Special 🔥',
-    message: '20% off all orders this Saturday! Use code YENDIDII20',
-    time: '3 hours ago',
-    read: true,
-    image: null,
-    createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
-  },
-];
-
-const getStatusTitle = (status: string) => {
-  switch (status) {
-    case 'Accepted': return 'Order Accepted! 🎉';
-    case 'Cooking': return 'Cooking Started 👨‍🍳';
-    case 'Ready': return 'Your Order is Ready! 🍽️';
-    case 'Completed': return 'Order Completed ✅';
-    case 'Declined': return 'Order Declined';
-    default: return 'Order Update';
-  }
+// What each order status looks like: a small icon on the host's photo, in a colour that matches the news.
+const STATUS_LOOK: Record<string, { Icon: any; color: string; bg: string }> = {
+  Accepted: { Icon: Check, color: '#007A33', bg: '#DCFCE7' },
+  Cooking: { Icon: Flame, color: '#C25327', bg: '#FFE7DC' },
+  Ready: { Icon: Utensils, color: '#92600A', bg: '#FDEFC8' },
+  Completed: { Icon: CheckCheck, color: '#007A33', bg: '#DCFCE7' },
+  Declined: { Icon: X, color: '#B3261E', bg: '#FDEDED' },
+  Cancelled: { Icon: X, color: '#B3261E', bg: '#FDEDED' },
 };
+const lookFor = (status: string) => STATUS_LOOK[status] ?? { Icon: Bell, color: palette.accent, bg: '#FFE7DC' };
 
-const getStatusMessage = (status: string, cookName: string, dishName: string) => {
-  switch (status) {
-    case 'Accepted': return `${cookName} accepted your ${dishName} request. Get ready!`;
-    case 'Cooking': return `${cookName} has started cooking your ${dishName}.`;
-    case 'Ready': return `Your ${dishName} is ready for pickup!`;
-    case 'Completed': return `You enjoyed your ${dishName}. Hope it was delicious!`;
-    case 'Declined': return `${cookName} couldn't take your ${dishName} order this time.`;
-    default: return `Your order for ${dishName} has been updated.`;
-  }
-};
+const NotificationRow = React.memo(({ item, onPress }: { item: NotificationItem; onPress: (item: NotificationItem) => void }) => {
+  const { Icon, color, bg } = lookFor(item.status);
+  const unread = item.unread;
 
-const getIcon = (type: string) => {
-  switch (type) {
-    case 'order_accepted': return <Check size={18} color="#007A33" />;
-    case 'declined': return <Bell size={18} color="#EF4444" />;
-    case 'cook_nearby': return <MapPin size={18} color="#D65A31" />;
-    case 'promo': return <Flame size={18} color="#D65A31" />;
-    default: return <Bell size={18} color="#D65A31" />;
-  }
-};
-
-const getBgColor = (type: string) => {
-  switch (type) {
-    case 'order_accepted': return '#DCFCE7';
-    case 'declined': return '#FEE2E2';
-    case 'cook_nearby': return '#FFF0EB';
-    case 'promo': return '#FEF3C7';
-    default: return '#F3F4F6';
-  }
-};
-
-const NotificationRow = React.memo(({ item, readIds, onPress }: { item: any; readIds: Set<string>; onPress: (id: string) => void }) => {
-  const isRead = item.read || readIds.has(item.id);
   return (
     <TouchableOpacity
-      onPress={() => {
-        onPress(item.id);
-        item.onPress?.();
-      }}
-      className={`px-6 py-4 flex-row gap-4 border-b border-gray-50 ${isRead ? 'bg-surface' : ''}`}
-      style={!isRead ? { backgroundColor: 'rgba(214, 90, 49, 0.05)' } : {}}
+      onPress={() => onPress(item)}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`${unread ? 'Unread. ' : ''}${item.title}. ${item.message}. ${item.time}`}
+      style={{
+        flexDirection: 'row',
+        gap: 14,
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: unread ? 'rgba(194, 83, 39, 0.08)' : palette.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(221, 193, 182, 0.5)',
+      }}
     >
-      {item.image ? (
-        <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden', backgroundColor: '#F3F4F6' }}>
-          <Image source={{ uri: item.image }} style={{ width: 48, height: 48 }} resizeMode="cover" />
-        </View>
-      ) : (
-        <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: getBgColor(item.type), alignItems: 'center', justifyContent: 'center' }}>
-          {getIcon(item.type)}
-        </View>
-      )}
-      <View className="flex-1">
-        <View className="flex-row items-center gap-2">
-          <Text className="font-semibold text-text-main flex-1 font-sans-semibold" numberOfLines={1}>
+      {/* Unread marker down the left edge */}
+      {unread && <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: palette.accent }} />}
+
+      {/* Host photo (or the status icon on its own) with a small status badge */}
+      <View style={{ width: 48, height: 48 }}>
+        {item.image ? (
+          <Image source={{ uri: item.image }} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#F2DFD7', opacity: unread ? 1 : 0.85 }} resizeMode="cover" />
+        ) : (
+          <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon size={22} color={color} />
+          </View>
+        )}
+        {item.image && (
+          <View style={{ position: 'absolute', right: -4, bottom: -4, width: 22, height: 22, borderRadius: 11, backgroundColor: bg, borderWidth: 2, borderColor: unread ? '#F7E5DC' : palette.surface, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon size={11} color={color} strokeWidth={3} />
+          </View>
+        )}
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text numberOfLines={1} style={{ flex: 1, fontFamily: unread ? fonts.bold : fonts.semibold, fontSize: 15, color: unread ? palette.ink : '#56423B' }}>
             {item.title}
           </Text>
-          {!isRead && <View className="w-2 h-2 bg-clay-primary rounded-full" />}
+          <Text style={{ fontFamily: unread ? fonts.semibold : fonts.regular, fontSize: 12, color: unread ? palette.accent : palette.muted }}>{item.time}</Text>
+          {unread && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: palette.accent }} />}
         </View>
-        <Text className="text-sm text-text-sub mt-1 font-sans leading-relaxed" numberOfLines={2}>
+        <Text numberOfLines={2} style={{ fontFamily: fonts.regular, fontSize: 13.5, lineHeight: 19, color: unread ? '#3D2C26' : palette.muted, marginTop: 3 }}>
           {item.message}
         </Text>
-        <Text className="text-xs text-text-sub mt-2 font-sans">{item.time}</Text>
       </View>
     </TouchableOpacity>
   );
 });
 
+function SectionLabel({ title, count }: { title: string; count?: number }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 10 }}>
+      <Text style={{ fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, color: palette.muted, textTransform: 'uppercase' }}>{title}</Text>
+      {!!count && (
+        <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: palette.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontFamily: fonts.bold, fontSize: 11, color: '#FFFFFF' }}>{count}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const { items, unreadCount, isLoading, markRead, markAllRead } = useNotificationFeed();
 
-  // Get current user
-  const { data: user } = useQuery({
-    queryKey: ['user-notif'],
-    queryFn: async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return data.user;
-    },
-  });
+  const unread = items.filter((i) => i.unread);
+  const earlier = items.filter((i) => !i.unread);
 
-  // Fetch user's recent orders with cook + dish info
-  const { data: orders = [], isLoading } = useQuery({
-    queryKey: ['notifications-orders', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from('orders')
-        .select(`
-          id,
-          status,
-          created_at,
-          updated_at,
-          profiles:cook_id (full_name, avatar_url),
-          order_items (
-            listings (title, image)
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(15);
-
-      if (error) {
-        console.error('Notifications orders fetch error:', error);
-        return [];
-      }
-      return data || [];
-    },
-    enabled: !!user,
-    refetchInterval: 15000,
-    refetchIntervalInBackground: false, // pause polling when app is backgrounded
-  });
-
-  // Fetch nearby approved cooks
-  const { data: nearbyCooks = [] } = useQuery({
-    queryKey: ['nearby-cooks-notif'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, location')
-        .eq('role', 'COOK')
-        .eq('cook_application_status', 'approved')
-        .limit(2);
-      return data || [];
-    },
-  });
-
-  // Build notification list from real orders
-  const orderNotifications = orders
-    .filter((o: any) => o.status !== 'New') // "New" = just placed, not a real update yet
-    .map((o: any) => {
-      const cook = Array.isArray(o.profiles) ? (o.profiles.length > 0 ? o.profiles[0] : null) : o.profiles;
-      const firstItem = o.order_items?.[0];
-      const listing = Array.isArray(firstItem?.listings) ? (firstItem.listings.length > 0 ? firstItem.listings[0] : null) : firstItem?.listings;
-      const dishName = listing?.title || 'your dish';
-      const cookName = cook?.full_name || 'Your cook';
-      const updatedAt = new Date(o.updated_at || o.created_at);
-
-      return {
-        id: `order-${o.id}`,
-        type: o.status === 'Declined' ? 'declined' : 'order_accepted',
-        title: getStatusTitle(o.status),
-        message: getStatusMessage(o.status, cookName, dishName),
-        time: formatDistanceToNow(updatedAt, { addSuffix: true }),
-        read: readIds.has(`order-${o.id}`),
-        image: cook?.avatar_url || null,
-        createdAt: updatedAt,
-        onPress: () => router.push('/(tabs)/orders'),
-      };
-    });
-
-  // Cook nearby notifications from real cooks
-  const cookNearbyNotifications = nearbyCooks.slice(0, 1).map((cook: any) => ({
-    id: `cook-nearby-${cook.id}`,
-    type: 'cook_nearby',
-    title: 'Cook Nearby 📍',
-    message: `${cook.full_name} is available to cook near ${cook.location?.split(',')[0] || 'you'}!`,
-    time: 'Recently',
-    read: readIds.has(`cook-nearby-${cook.id}`),
-    image: cook.avatar_url || null,
-    createdAt: new Date(Date.now() - 60 * 60 * 1000),
-    onPress: () => router.push('/(tabs)/explore/map'),
-  }));
-
-  // Merge all notifications sorted by date
-  const allNotifications = [
-    ...orderNotifications,
-    ...cookNearbyNotifications,
-    ...STATIC_PROMOS,
-  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-  const todayNotifs = allNotifications.filter(n => {
-    const diffHours = (Date.now() - n.createdAt.getTime()) / (1000 * 60 * 60);
-    return diffHours < 24;
-  });
-  const earlierNotifs = allNotifications.filter(n => {
-    const diffHours = (Date.now() - n.createdAt.getTime()) / (1000 * 60 * 60);
-    return diffHours >= 24;
-  });
-
-  const unreadCount = allNotifications.filter(n => !n.read && !readIds.has(n.id)).length;
-
-  const markAllRead = () => {
-    setReadIds(new Set(allNotifications.map(n => n.id)));
+  const open = (item: NotificationItem) => {
+    markRead(item.id);
+    router.push('/(tabs)/orders');
   };
 
-  const handleMarkRead = useCallback((id: string) => {
-    setReadIds(prev => new Set([...prev, id]));
-  }, []);
-
   return (
-    <SafeAreaView className="flex-1 bg-surface" edges={['top']}>
-      <View className="flex-1 bg-warm-cream">
-
+    <SafeAreaView style={{ flex: 1, backgroundColor: palette.surface }} edges={['top']}>
+      <View style={{ flex: 1, backgroundColor: palette.canvas }}>
         {/* Header */}
-        <View className="bg-surface px-6 py-4 flex-row items-center gap-4 border-b border-gray-100">
-          <TouchableOpacity onPress={() => router.back()} className="p-1">
+        <View style={{ backgroundColor: palette.surface, paddingHorizontal: 20, paddingVertical: 14, flexDirection: 'row', alignItems: 'center', gap: 12, borderBottomWidth: 1, borderBottomColor: 'rgba(221, 193, 182, 0.6)' }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginLeft: -8 }} accessibilityLabel="Back">
             <ArrowLeft size={24} color="#2D241E" />
           </TouchableOpacity>
-          <View className="flex-1">
-            <Text className="text-xl font-bold text-text-main font-sans-bold">Notifications</Text>
-            {unreadCount > 0 && (
-              <Text className="text-xs text-text-sub font-sans">{unreadCount} unread</Text>
-            )}
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: fonts.bold, fontSize: 20, color: palette.ink }}>Notifications</Text>
+            <Text style={{ fontFamily: fonts.medium, fontSize: 12.5, color: unreadCount > 0 ? palette.accent : palette.muted, marginTop: 1 }}>
+              {unreadCount > 0 ? `${unreadCount} unread` : "You're all caught up"}
+            </Text>
           </View>
           {unreadCount > 0 && (
-            <TouchableOpacity onPress={markAllRead}>
-              <Text className="text-sm text-clay-primary font-semibold font-sans-semibold">Mark all read</Text>
+            <TouchableOpacity
+              onPress={markAllRead}
+              accessibilityRole="button"
+              style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999, backgroundColor: 'rgba(194, 83, 39, 0.1)', borderWidth: 1, borderColor: 'rgba(194, 83, 39, 0.3)' }}
+            >
+              <Text style={{ fontFamily: fonts.semibold, fontSize: 13, color: palette.accent }}>Mark all read</Text>
             </TouchableOpacity>
           )}
         </View>
 
         {isLoading ? (
-          <View className="flex-1 items-center justify-center">
-            <ActivityIndicator size="large" color="#D65A31" />
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={palette.accent} />
           </View>
         ) : (
-          <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-
-            {/* Today */}
-            {todayNotifs.length > 0 && (
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+            {unread.length > 0 && (
               <>
-                <View className="px-6 pt-5 pb-2">
-                  <Text className="text-xs font-semibold text-text-sub uppercase tracking-widest font-sans-semibold">Today</Text>
-                </View>
-                {todayNotifs.map(n => <NotificationRow key={n.id} item={n} readIds={readIds} onPress={handleMarkRead} />)}
+                <SectionLabel title="New" count={unread.length} />
+                {unread.map((n) => <NotificationRow key={n.id} item={n} onPress={open} />)}
               </>
             )}
 
-            {/* Earlier */}
-            {earlierNotifs.length > 0 && (
+            {earlier.length > 0 && (
               <>
-                <View className="px-6 pt-6 pb-2">
-                  <Text className="text-xs font-semibold text-text-sub uppercase tracking-widest font-sans-semibold">Earlier</Text>
-                </View>
-                {earlierNotifs.map(n => <NotificationRow key={n.id} item={n} readIds={readIds} onPress={handleMarkRead} />)}
+                <SectionLabel title="Earlier" />
+                {earlier.map((n) => <NotificationRow key={n.id} item={n} onPress={open} />)}
               </>
             )}
 
-            {/* Empty state */}
-            {allNotifications.length === 0 && (
-              <View className="flex-1 items-center justify-center py-24 px-6">
-                <View className="w-20 h-20 bg-gray-100 rounded-full items-center justify-center mb-4">
-                  <Bell size={36} color="#9CA3AF" />
+            {items.length === 0 && (
+              <View style={{ alignItems: 'center', paddingVertical: 96, paddingHorizontal: 32 }}>
+                <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: palette.surface, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <Bell size={34} color={palette.accent} />
                 </View>
-                <Text className="text-lg font-bold text-text-main font-sans-bold mb-2">All caught up!</Text>
-                <Text className="text-text-sub text-center font-sans">
-                  You'll see order updates and cook alerts here.
+                <Text style={{ fontFamily: fonts.bold, fontSize: 18, color: palette.ink, marginBottom: 6 }}>You're all caught up</Text>
+                <Text style={{ fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: palette.muted, textAlign: 'center' }}>
+                  When a host accepts, starts cooking or finishes your order, you'll see it here.
                 </Text>
               </View>
             )}
 
-            <View className="h-24" />
+            <View style={{ height: 96 }} />
           </ScrollView>
         )}
       </View>

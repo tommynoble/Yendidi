@@ -1,12 +1,13 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { Tabs } from 'expo-router';
-import { View, Text } from 'react-native';
-import { Home, Compass, Plus, LayoutDashboard, MessageCircle, ChefHat } from 'lucide-react-native';
+import { View, Text, Animated, Easing } from 'react-native';
+import { Home, Compass, Plus, LayoutDashboard, MessageCircle } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { useAppStore } from '@/lib/store';
 import ForkKnifeIcon from '@/components/ForkKnifeIcon';
 import WatchlistIcon from '@/components/WatchlistIcon';
 import ProfileOutlineIcon from '@/components/ProfileOutlineIcon';
+import KitchenPotIcon from '@/components/KitchenPotIcon';
 import { palette } from '@/constants/theme';
 import { unreadMessageCount } from '@/lib/messaging';
 import { useCurrentUserId } from '@/lib/useCurrentUserId';
@@ -22,6 +23,13 @@ export default function TabLayout() {
     enabled: !!currentUserId,
     refetchInterval: 60000,
   });
+
+  // Tapping the host's Post button spins the plus half a turn and gives the circle a quick pop.
+  const plusSpin = useRef(new Animated.Value(0)).current;
+  const spinPlus = useCallback(() => {
+    plusSpin.setValue(0);
+    Animated.timing(plusSpin, { toValue: 1, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+  }, [plusSpin]);
 
   const HomeIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
@@ -43,17 +51,25 @@ export default function TabLayout() {
   ), [isCookMode, unreadChats]);
 
   const CookIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
-    <View className="items-center justify-center" style={{ width: 64, marginTop: isCookMode ? -20 : 0 }}>
+    <View className="items-center justify-center" style={{ width: 64, marginTop: isCookMode ? -36 : 0 }}>
       {isCookMode ? (
-        <View className="w-14 h-14 bg-text-main rounded-full shadow-lg items-center justify-center border-4 border-white">
-          <Plus size={22} color="white" strokeWidth={2.5} />
-        </View>
+        <Animated.View
+          className="rounded-full items-center justify-center border-4 border-white"
+          style={{
+            width: 56, height: 56, top: 4, backgroundColor: '#573223', shadowColor: '#573223', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.24, shadowRadius: 9, elevation: 8,
+            transform: [{ scale: plusSpin.interpolate({ inputRange: [0, 0.4, 1], outputRange: [1, 1.12, 1] }) }],
+          }}
+        >
+          <Animated.View style={{ transform: [{ rotate: plusSpin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] }) }] }}>
+            <Plus size={23} color="white" strokeWidth={2.5} />
+          </Animated.View>
+        </Animated.View>
       ) : (
         <WatchlistIcon size={24} color={color} isSaved={focused} />
       )}
-      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isCookMode ? '500' : focused ? '600' : '500', color: isCookMode ? '#6B7280' : color, marginTop: 2 }}>{isCookMode ? 'Post' : 'Watchlist'}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 10, fontWeight: isCookMode ? '500' : focused ? '600' : '500', color: isCookMode ? palette.inkSoft : color, marginTop: isCookMode ? 11 : 2 }}>{isCookMode ? 'Post' : 'Watchlist'}</Text>
     </View>
-  ), [isCookMode]);
+  ), [isCookMode, plusSpin]);
 
   const OrdersIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
@@ -64,10 +80,31 @@ export default function TabLayout() {
 
   const ProfileIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
     <View className="items-center justify-center" style={{ width: 64 }}>
-      {isCookMode ? <ChefHat size={22} color={color} strokeWidth={focused ? 2 : 1.5} /> : <ProfileOutlineIcon size={24} color={color} strokeWidth={focused ? 2 : 1.75} />}
+      {isCookMode ? <KitchenPotIcon size={24} color={color} /> : <ProfileOutlineIcon size={24} color={color} strokeWidth={focused ? 2 : 1.75} />}
       <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>{isCookMode ? 'Kitchen' : 'Profile'}</Text>
     </View>
   ), [isCookMode]);
+
+  const MeIcon = useCallback(({ color, focused }: { color: string; focused: boolean }) => (
+    <View className="items-center justify-center" style={{ width: 64 }}>
+      <ProfileOutlineIcon size={24} color={color} strokeWidth={focused ? 2 : 1.75} />
+      <Text numberOfLines={1} style={{ color, fontSize: 10, fontWeight: focused ? '600' : '500', marginTop: 2 }}>Profile</Text>
+    </View>
+  ), []);
+
+  // Guests: Home, Explore, Watchlist, Orders, Profile. Hosts: Dashboard, Bookings, Post (centre), Kitchen, Profile.
+  // The host's Messages tab (explore) is hidden, and the `me` tab is host-only.
+  const screenOptions: Record<string, any> = {
+    index: { tabBarIcon: HomeIcon },
+    explore: { href: isCookMode ? null : undefined, tabBarIcon: ExploreIcon, sceneStyle: fullBleedScene },
+    cook: { tabBarIcon: CookIcon, sceneStyle: fullBleedScene },
+    orders: { tabBarIcon: OrdersIcon, sceneStyle: fullBleedScene },
+    profile: { tabBarIcon: ProfileIcon },
+    me: { href: isCookMode ? undefined : null, tabBarIcon: MeIcon },
+  };
+  const tabOrder = isCookMode
+    ? ['index', 'orders', 'cook', 'profile', 'me', 'explore']
+    : ['index', 'explore', 'cook', 'orders', 'profile', 'me'];
 
   return (
     <Tabs
@@ -97,12 +134,9 @@ export default function TabLayout() {
         tabBarInactiveTintColor: palette.inkSoft,
       }}
     >
-      <Tabs.Screen name="index" options={{ tabBarIcon: HomeIcon }} />
-      <Tabs.Screen name="explore" options={{ tabBarIcon: ExploreIcon, sceneStyle: fullBleedScene }} />
-      <Tabs.Screen name="cook" options={{ tabBarIcon: CookIcon, sceneStyle: fullBleedScene }} />
-
-      <Tabs.Screen name="orders" options={{ tabBarIcon: OrdersIcon, sceneStyle: fullBleedScene }} />
-      <Tabs.Screen name="profile" options={{ tabBarIcon: ProfileIcon }} />
+      {tabOrder.map((name) => (
+        <Tabs.Screen key={name} name={name} options={screenOptions[name]} listeners={name === 'cook' && isCookMode ? { tabPress: spinPlus } : undefined} />
+      ))}
     </Tabs>
   );
 }

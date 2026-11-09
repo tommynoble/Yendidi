@@ -43,7 +43,7 @@ const label = { ...type.micro, color: palette.accent, letterSpacing: 0.8, textTr
 // No lineHeight on purpose: on iOS (new architecture) a fixed lineHeight clips the top and bottom of text inside a TextInput.
 // A minHeight gives the text room instead.
 // The soft peach used on the category chips, a step lighter than the page, with a faint accent outline: readable but still warm.
-const input = { fontFamily: fonts.regular, fontSize: 14, color: palette.ink, backgroundColor: '#FFF1EC', borderRadius: 12, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.25)', paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 };
+const input = { fontFamily: fonts.regular, fontSize: 14, color: palette.ink, backgroundColor: palette.surface, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(194, 83, 39,0.25)', paddingHorizontal: 14, paddingVertical: 12, minHeight: 48 };
 
 // Host day: pick one of the cook's upcoming sessions, or set one up right here.
 // An event can't go live without one, and each host day holds a single event.

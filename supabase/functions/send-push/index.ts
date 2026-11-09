@@ -36,13 +36,68 @@ async function sendToUsers(userIds: string[], title: string, body: string, data:
     }
 }
 
-const ORDER_STATUS_COPY: Record<string, { title: string; body: string }> = {
-    Accepted: { title: 'Order accepted! 🎉', body: 'Your order was accepted — get ready!' },
-    Cooking: { title: 'Cooking started 👨‍🍳', body: 'Your order is being cooked right now.' },
-    Ready: { title: 'Ready for pickup! 🍽️', body: 'Your order is ready.' },
-    Completed: { title: 'Order completed ✅', body: 'Hope you enjoyed your meal!' },
-    Cancelled: { title: 'Order cancelled', body: 'Your order was cancelled.' },
-};
+// "Sat 15 Nov at 7:00 pm", in Ghana time, for gatherings with a date.
+function formatEvent(d: Date): string {
+    return new Intl.DateTimeFormat('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Accra',
+    }).format(d).replace(',', ' at');
+}
+
+// Within this long of the start (or after it), a ready table means come now. Same rule as lib/booking.ts in the app.
+const COME_NOW_WITHIN_MS = 3 * 60 * 60 * 1000;
+
+// Banner wording for an order changing status. Short title, then who and what. Dine-in wording (guests eat at the host's home),
+// sentence case, no app name. A gathering with a date says "see you on..." until it is close. Keep in step with
+// orderNotificationCopy in lib/notificationFeed.ts.
+function orderCopy(status: string, host: string, dish: string, eventAt: Date | null): { title: string; body: string } | null {
+    const later = !!eventAt && eventAt.getTime() - Date.now() > COME_NOW_WITHIN_MS;
+    const when = eventAt ? formatEvent(eventAt) : '';
+    switch (status) {
+        case 'Accepted':
+            return eventAt
+                ? { title: 'Booking confirmed', body: `${host} confirmed your spot for ${dish} on ${when}.` }
+                : { title: 'Order accepted', body: `${host} accepted your order for ${dish}.` };
+        case 'Cooking':
+            return later
+                ? { title: 'Your host is preparing', body: `${host} has started preparing for ${dish}. See you ${when}.` }
+                : { title: 'Cooking has started', body: `${host} is preparing ${dish}.` };
+        case 'Ready':
+            return later
+                ? { title: 'Everything is ready', body: `${host} has everything ready for ${dish}. See you ${when}.` }
+                : { title: 'Your table is ready', body: `${host} has ${dish} ready for you. Head over when you can.` };
+        case 'Completed': return { title: 'Order completed', body: `Thanks for dining with ${host}. Hope you loved the ${dish}.` };
+        case 'Declined': return { title: 'Order declined', body: `${host} couldn't host your order for ${dish} this time.` };
+        case 'Cancelled': return { title: 'Order cancelled', body: `Your order for ${dish} with ${host} was cancelled.` };
+        default: return null;
+    }
+}
+
+// Host, dish and gathering time for the banner. Falls back to generic words so a lookup problem never stops the notification.
+async function orderContext(orderId: string): Promise<{ host: string; dish: string; eventAt: Date | null }> {
+    const fallback = { host: 'Your host', dish: 'your dish', eventAt: null as Date | null };
+    try {
+        const { data } = await supabase
+            .from('orders')
+            .select('profiles:cook_id (full_name, kitchen_name), order_items ( listings (title, order_deadline) )')
+            .eq('id', orderId)
+            .single();
+        const first = (v: any) => (Array.isArray(v) ? v[0] : v);
+        const host = first(data?.profiles);
+        const items: any[] = Array.isArray(data?.order_items) ? data!.order_items : data?.order_items ? [data.order_items] : [];
+        const listing = first(items[0]?.listings);
+        const times = items
+            .map((i) => new Date(first(i?.listings)?.order_deadline))
+            .filter((d) => !isNaN(d.getTime()))
+            .sort((a, b) => a.getTime() - b.getTime());
+        return {
+            host: host?.kitchen_name || host?.full_name || fallback.host,
+            dish: listing?.title || fallback.dish,
+            eventAt: times[0] ?? null,
+        };
+    } catch {
+        return fallback;
+    }
+}
 
 const toRad = (deg: number) => (deg * Math.PI) / 180;
 const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -70,7 +125,8 @@ Deno.serve(async (req) => {
         const { table, type, record, old_record } = payload;
 
         if (table === 'orders' && type === 'UPDATE' && record.status !== old_record?.status) {
-            const copy = ORDER_STATUS_COPY[record.status];
+            const { host, dish, eventAt } = await orderContext(record.id);
+            const copy = orderCopy(record.status, host, dish, eventAt);
             if (copy) {
                 await sendToUsers([record.user_id], copy.title, copy.body, { orderId: record.id });
             }

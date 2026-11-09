@@ -47,7 +47,10 @@ export async function loadPreferences(): Promise<GuestPreferences> {
         }
     } catch {}
     const raw = await AsyncStorage.getItem(PREFS_KEY);
-    return raw ? JSON.parse(raw) : {};
+    const local: GuestPreferences = raw ? JSON.parse(raw) : {};
+    // Answers that only exist on this phone (saved before the database could take them) get uploaded now.
+    if (Object.keys(local).length > 0) savePreferences(local).catch(() => {});
+    return local;
 }
 
 // Another guest's public taste profile — never includes dietary needs.

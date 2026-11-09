@@ -131,6 +131,10 @@ export default function RootLayout() {
     }
   }, [loaded, error]);
 
+  // Draw nothing until the fonts are ready (the splash screen stays up meanwhile). Text drawn earlier is measured with a
+  // fallback font and never re-measured, so bold headings ("YenDidii", "Gathering Nearby") ended up cut off with "…".
+  if (!loaded && !error) return null;
+
   return (
     <QueryClientProvider client={queryClient}>
       <PaystackProvider publicKey={paystackKey} currency="GHS" defaultChannels={['card', 'mobile_money']}>

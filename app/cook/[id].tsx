@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Share as RNShare, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, MessageCircle, Share2, Heart, BadgeCheck, MapPin, Star, ChefHat, Clock, Users, Navigation, ChevronDown, ChevronUp, ArrowRight, Leaf, Sun, Moon, Calendar, Utensils, Hourglass } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Share2, Heart, BadgeCheck, MapPin, Star, ChefHat, Clock, Users, Navigation, ChevronDown, ChevronUp, ArrowRight, Leaf, Sun, Moon, Calendar, Utensils, Hourglass, EyeOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useQuery } from '@tanstack/react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -11,6 +11,7 @@ import { palette, type, fonts } from '@/constants/theme';
 import SectionHeader from '@/components/SectionHeader';
 import { openConversationWithHost } from '@/lib/messaging';
 import { useCurrentUserId } from '@/lib/useCurrentUserId';
+import { useKitchenLandmarkAccess } from '@/lib/useKitchenLandmarkAccess';
 
 const FAVORITE_COOKS_KEY = 'yendidii_favorite_cooks';
 
@@ -22,6 +23,7 @@ export default function CookProfileScreen() {
     const [isFavorite, setIsFavorite] = useState(false);
     const [openingChat, setOpeningChat] = useState(false);
     const me = useCurrentUserId();
+    const canSeeLandmark = useKitchenLandmarkAccess(id as string);
 
     useEffect(() => {
         if (!id) return;
@@ -156,8 +158,10 @@ export default function CookProfileScreen() {
 
     const menuMeals = (meals || []).filter((m: any) => !gatheringIds.includes(m.id));
     const visibleReviews = showAllReviews ? reviews : reviews?.slice(0, 2);
+    // The kitchen's own photos come first; the dish photos only fill in for kitchens that haven't added any.
+    const kitchenPhotos: string[] = cook.kitchen_photos?.length ? cook.kitchen_photos : cook.kitchen_image_url ? [cook.kitchen_image_url] : [];
     const photos = Array.from(new Set(
-        [cook.kitchen_image_url, ...((meals || []).flatMap((m: any) => (m.image ? m.image.split(',').map((s: string) => s.trim()) : [])))]
+        [...kitchenPhotos, ...((meals || []).flatMap((m: any) => (m.image ? m.image.split(',').map((s: string) => s.trim()) : [])))]
             .filter(Boolean)
     ));
 
@@ -353,7 +357,15 @@ export default function CookProfileScreen() {
                             </View>
 
                             {/* Find the kitchen card */}
-                            {cookLandmark && (
+                            {cookLandmark && !canSeeLandmark && (
+                                <View className="bg-brand-canvas rounded-xl p-3 flex-row items-center gap-3">
+                                    <View className="w-9 h-9 rounded-full bg-tertiary/15 items-center justify-center">
+                                        <EyeOff size={18} color="#006A3C" />
+                                    </View>
+                                    <Text className="flex-1 text-body text-brand-muted font-sans">The exact landmark is shared once your booking is confirmed.</Text>
+                                </View>
+                            )}
+                            {cookLandmark && canSeeLandmark && (
                                 <View className="bg-brand-canvas rounded-xl p-3 flex-row items-center gap-3">
                                     <View className="w-9 h-9 rounded-full bg-tertiary/15 items-center justify-center">
                                         <Navigation size={18} color="#006A3C" fill="#006A3C" />
@@ -576,6 +588,17 @@ export default function CookProfileScreen() {
                             </View>
                         )}
                     </View>
+
+                    {/* Kitchen story (from Kitchen Settings) */}
+                    {!!cook.kitchen_story?.trim() && (
+                        <View className="bg-brand-surface rounded-2xl p-5 shadow-sm gap-3">
+                            <View className="flex-row items-center gap-2">
+                                <ChefHat size={20} color={palette.accent} />
+                                <Text className="text-card font-bold text-brand-ink font-sans-bold">Our Kitchen Story</Text>
+                            </View>
+                            <Text className="text-body text-brand-muted leading-relaxed font-sans">{cook.kitchen_story.trim()}</Text>
+                        </View>
+                    )}
 
                     {/* Kitchen Photos */}
                     {photos.length > 1 && (
